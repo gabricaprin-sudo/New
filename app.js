@@ -16,7 +16,16 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-await setPersistence(auth, browserLocalPersistence);
+async function initFirebaseAuth() {
+    try {
+        await setPersistence(auth, browserLocalPersistence);
+        console.log("Firebase Auth Ready");
+    } catch (error) {
+        console.error("Persistence Error:", error);
+    }
+}
+
+initFirebaseAuth();
 
 const CONFIG = {
     saveDebounceMs: 600,
@@ -1836,3 +1845,47 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 updateTodayBadge();
+
+// ===== Event Listeners =====
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    // Login
+    if (els.loginBtn) {
+        els.loginBtn.addEventListener("click", handleLogin);
+    }
+
+    // Register
+    const registerBtn = document.getElementById("registerBtn");
+    if (registerBtn) {
+        registerBtn.addEventListener("click", handleRegister);
+    }
+
+    // Toggle Login/Register
+    if (els.authToggleBtn) {
+        els.authToggleBtn.addEventListener("click", toggleAuthMode);
+    }
+
+    // Student Actions
+    const btnLoadStudent = document.getElementById("btnLoadStudent");
+    if (btnLoadStudent) {
+        btnLoadStudent.addEventListener("click", checkDuplicateAndLoad);
+    }
+
+    const btnNewStudent = document.getElementById("btnNewStudent");
+    if (btnNewStudent) {
+        btnNewStudent.addEventListener("click", newStudent);
+    }
+
+    const studentSelect = document.getElementById("studentSelect");
+    if (studentSelect) {
+        studentSelect.addEventListener("change", onStudentSelectChange);
+    }
+
+    // Logout
+    const btnLogout = document.getElementById("btnLogout");
+    if (btnLogout) {
+        btnLogout.addEventListener("click", logout);
+    }
+
+    console.log("All events connected successfully");
