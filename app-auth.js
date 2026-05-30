@@ -1,99 +1,145 @@
 // ============================================
-// app-auth.js  -  Firebase + المصادقة
+// app-auth.js - STANDALONE Local Authentication
+// No Firebase needed. Works immediately with localStorage.
 // ============================================
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import {
-    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-    onAuthStateChanged, signOut, updateProfile, setPersistence, browserLocalPersistence
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import {
-    getFirestore, doc, setDoc, getDoc, collection, addDoc, query,
-    where, orderBy, limit, getDocs, deleteDoc, Timestamp, serverTimestamp,
-    onSnapshot, documentId
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+const LS_USERS_KEY = "kenesa_users";
+const LS_CURRENT_USER_KEY = "kenesa_current_user";
 
-const firebaseConfig = {
-    apiKey: "AIzaSyB2cycBTKMjVg8S_fBYN8C-hwUk5FUF81Q",
-    authDomain: "kenesa-e5efd.firebaseapp.com",
-    projectId: "kenesa-e5efd",
-    storageBucket: "kenesa-e5efd.firebasestorage.app",
-    messagingSenderId: "227273753184",
-    appId: "1:227273753184:web:ecdf258142ad55ed5cf905",
-    measurementId: "G-6HS8KNW1GZ"
-};
+function getEl(id) {
+    return document.getElementById(id);
+}
 
-export const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-export const auth = getAuth(app);
-
-async function initFirebaseAuth() {
+function getStoredUsers() {
     try {
-        await setPersistence(auth, browserLocalPersistence);
-        console.log("Firebase Auth Ready");
-    } catch (error) {
-        console.error("Persistence Error:", error);
+        var data = localStorage.getItem(LS_USERS_KEY);
+        return data ? JSON.parse(data) : {};
+    } catch (e) {
+        return {};
     }
 }
-initFirebaseAuth();
 
-// ====== Auth UI ======
-function toggleAuthMode() {
-    isRegisterMode = !isRegisterMode;
-    if (!els.loginForm || !els.registerForm) return;
-    
-    if (isRegisterMode) {
-        els.loginForm.style.display = "none";
-        els.registerForm.style.display = "block";
-        if (els.authToggleText) els.authToggleText.textContent = "لديك حساب بالفعل؟";
-        if (els.authToggleBtn) els.authToggleBtn.textContent = "تسجيل الدخول";
-        if (els.authSubtitle) els.authSubtitle.textContent = "أنشئي حساب جديد كخادم";
-    } else {
-        els.loginForm.style.display = "block";
-        els.registerForm.style.display = "none";
-        if (els.authToggleText) els.authToggleText.textContent = "ليس لديك حساب؟";
-        if (els.authToggleBtn) els.authToggleBtn.textContent = "إنشاء حساب جديد";
-        if (els.authSubtitle) els.authSubtitle.textContent = "أدخل بياناتك للوصول إلى نظام المتابعة";
+function saveUsers(users) {
+    localStorage.setItem(LS_USERS_KEY, JSON.stringify(users));
+}
+
+function getCurrentUser() {
+    try {
+        var data = localStorage.getItem(LS_CURRENT_USER_KEY);
+        return data ? JSON.parse(data) : null;
+    } catch (e) {
+        return null;
     }
-    if (els.loginError) els.loginError.classList.remove("active");
-    if (els.loginSuccess) els.loginSuccess.classList.remove("active");
+}
+
+function setCurrentUser(user) {
+    if (user) {
+        localStorage.setItem(LS_CURRENT_USER_KEY, JSON.stringify(user));
+    } else {
+        localStorage.removeItem(LS_CURRENT_USER_KEY);
+    }
+}
+
+function showToast(msg, type, duration) {
+    type = type || "info";
+    duration = duration || 3000;
+    var container = getEl("toastContainer");
+    if (!container) return;
+    var toast = document.createElement("div");
+    toast.className = "toast " + type;
+    var icon = "&#128161;";
+    if (type === "success") icon = "&#9989;";
+    else if (type === "error") icon = "&#10060;";
+    else if (type === "warning") icon = "&#9888;&#65039;";
+    toast.innerHTML = "<span>" + icon + "</span><span>" + msg + "</span>";
+    container.appendChild(toast);
+    setTimeout(function() {
+        toast.classList.add("hiding");
+        setTimeout(function() { toast.remove(); }, 300);
+    }, duration);
 }
 
 function showAuthError(msg) {
-    if (!els.loginError) return;
-    els.loginError.innerHTML = msg;
-    els.loginError.classList.add("active");
+    var el = getEl("loginError");
+    if (!el) return;
+    el.innerHTML = msg;
+    el.classList.add("active");
+}
+
+function hideAuthError() {
+    var el = getEl("loginError");
+    if (el) el.classList.remove("active");
+}
+
+function showAuthSuccess(msg) {
+    var el = getEl("loginSuccess");
+    if (!el) return;
+    el.innerHTML = msg;
+    el.classList.add("active");
 }
 
 function resetLoginBtn() {
-    if (els.loginBtn) {
-        els.loginBtn.disabled = false;
-        els.loginBtn.innerHTML = "&#10132; دخول";
+    var btn = getEl("loginBtn");
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = "&#10132; دخول";
     }
 }
 
 function resetRegisterBtn() {
-    const btn = $("registerBtn");
+    var btn = getEl("registerBtn");
     if (btn) {
         btn.disabled = false;
         btn.innerHTML = "&#128221; إنشاء حساب";
     }
 }
 
-async function handleRegister() {
-    const name = $("regName")?.value.trim();
-    const email = $("regEmail")?.value.trim();
-    const password = $("regPassword")?.value;
-    const passwordConfirm = $("regPasswordConfirm")?.value;
-    const btn = $("registerBtn");
-    
+var isRegisterMode = false;
+
+function toggleAuthMode() {
+    isRegisterMode = !isRegisterMode;
+    var loginForm = getEl("loginForm");
+    var registerForm = getEl("registerForm");
+    if (!loginForm || !registerForm) return;
+    hideAuthError();
+    var successEl = getEl("loginSuccess");
+    if (successEl) successEl.classList.remove("active");
+    if (isRegisterMode) {
+        loginForm.style.display = "none";
+        registerForm.style.display = "block";
+        var t = getEl("authToggleText");
+        if (t) t.textContent = "لديك حساب بالفعل؟";
+        var b = getEl("authToggleBtn");
+        if (b) b.textContent = "تسجيل الدخول";
+        var s = getEl("authSubtitle");
+        if (s) s.textContent = "أنشئي حساب جديد كخادم";
+    } else {
+        loginForm.style.display = "block";
+        registerForm.style.display = "none";
+        var t2 = getEl("authToggleText");
+        if (t2) t2.textContent = "ليس لديك حساب؟";
+        var b2 = getEl("authToggleBtn");
+        if (b2) b2.textContent = "إنشاء حساب جديد";
+        var s2 = getEl("authSubtitle");
+        if (s2) s2.textContent = "أدخل بياناتك للوصول إلى نظام المتابعة";
+    }
+}
+
+function handleRegister() {
+    var nameEl = getEl("regName");
+    var emailEl = getEl("regEmail");
+    var passEl = getEl("regPassword");
+    var confirmEl = getEl("regPasswordConfirm");
+    var btn = getEl("registerBtn");
+    var name = nameEl ? nameEl.value.trim() : "";
+    var email = emailEl ? emailEl.value.trim().toLowerCase() : "";
+    var password = passEl ? passEl.value : "";
+    var passwordConfirm = confirmEl ? confirmEl.value : "";
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<div class="spinner"></div> جاري الإنشاء...';
+        btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;margin-left:6px;"></div> جاري الإنشاء...';
     }
-    if (els.loginError) els.loginError.classList.remove("active");
-    if (els.loginSuccess) els.loginSuccess.classList.remove("active");
-
+    hideAuthError();
     if (!name || !email || !password) {
         showAuthError("&#10060; يرجى ملء جميع الحقول");
         resetRegisterBtn();
@@ -109,135 +155,147 @@ async function handleRegister() {
         resetRegisterBtn();
         return;
     }
-
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        await updateProfile(user, { displayName: name });
-        await setDoc(doc(db, "users", user.uid), {
-            name: name, email: email, role: "khadem",
-            createdAt: new Date().toISOString(), uid: user.uid
-        });
-        if (els.loginSuccess) {
-            els.loginSuccess.innerHTML = "&#9989; تم إنشاء الحساب بنجاح! جاري الدخول...";
-            els.loginSuccess.classList.add("active");
-        }
-        setTimeout(() => completeLogin(user), 1000);
-    } catch (error) {
-        let msg = "&#10060; خطأ في إنشاء الحساب";
-        if (error.code === "auth/email-already-in-use") msg = "&#10060; البريد الإلكتروني مستخدم بالفعل";
-        else if (error.code === "auth/invalid-email") msg = "&#10060; بريد إلكتروني غير صالح";
-        else if (error.code === "auth/weak-password") msg = "&#10060; كلمة المرور ضعيفة جداً";
-        showAuthError(msg);
+    var users = getStoredUsers();
+    if (users[email]) {
+        showAuthError("&#10060; البريد الإلكتروني مستخدم بالفعل");
         resetRegisterBtn();
+        return;
     }
+    var user = {
+        uid: "user_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9),
+        name: name,
+        email: email,
+        password: password,
+        role: "khadem",
+        createdAt: new Date().toISOString()
+    };
+    users[email] = user;
+    saveUsers(users);
+    showAuthSuccess("&#9989; تم إنشاء الحساب بنجاح! جاري الدخول...");
+    setTimeout(function() {
+        completeLogin(user);
+    }, 800);
 }
 
-async function handleLogin() {
-    const btn = els.loginBtn;
+function handleLogin() {
+    var btn = getEl("loginBtn");
+    var emailEl = getEl("loginEmail");
+    var passEl = getEl("loginPassword");
+    var email = emailEl ? emailEl.value.trim().toLowerCase() : "";
+    var password = passEl ? passEl.value : "";
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<div class="spinner"></div> جاري الدخول...';
+        btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;margin-left:6px;"></div> جاري الدخول...';
     }
-    if (els.loginError) els.loginError.classList.remove("active");
-    if (els.loginSuccess) els.loginSuccess.classList.remove("active");
-
-    const email = $("loginEmail")?.value.trim();
-    const password = $("loginPassword")?.value;
-
+    hideAuthError();
     if (!email || !password) {
         showAuthError("&#10060; يرجى إدخال البريد الإلكتروني وكلمة المرور");
         resetLoginBtn();
         return;
     }
-
-    try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        await completeLogin(userCredential.user);
-    } catch (error) {
-        console.error("Login error:", error);
-        let msg = "&#10060; خطأ في تسجيل الدخول";
-        if (error.code === "auth/user-not-found") msg = "&#10060; لا يوجد حساب بهذا البريد";
-        else if (error.code === "auth/wrong-password") msg = "&#10060; كلمة المرور غير صحيحة";
-        else if (error.code === "auth/invalid-email") msg = "&#10060; بريد إلكتروني غير صالح";
-        else if (error.code === "auth/too-many-requests") msg = "&#10060; تم حظر المحاولات مؤقتاً، حاولي لاحقاً";
-        else if (error.code === "auth/invalid-credential") msg = "&#10060; البريد أو كلمة المرور غير صحيحة";
-        showAuthError(msg);
+    var users = getStoredUsers();
+    var user = users[email];
+    if (!user) {
+        showAuthError("&#10060; لا يوجد حساب بهذا البريد. أنشئي حساب جديد.");
         resetLoginBtn();
+        return;
     }
+    if (user.password !== password) {
+        showAuthError("&#10060; كلمة المرور غير صحيحة");
+        resetLoginBtn();
+        return;
+    }
+    completeLogin(user);
 }
 
-async function completeLogin(user) {
+function completeLogin(user) {
     try {
-        let userData = { name: user.displayName || "خادم", email: user.email, uid: user.uid };
-        try {
-            const userDoc = await getDoc(doc(db, "users", user.uid));
-            if (userDoc.exists()) {
-                const data = userDoc.data();
-                userData.name = data.name || userData.name;
-                userData.role = data.role || "khadem";
-            }
-        } catch(e) { console.warn("Could not fetch user data:", e); }
-
-        currentServer = userData;
-        
-        if (els.loginOverlay) els.loginOverlay.classList.add("hidden");
-        if (els.mainApp) els.mainApp.style.display = "block";
-        if (els.serverDisplay) els.serverDisplay.textContent = userData.name + " (" + userData.email + ")";
-
-        setSaveStatus(db ? "online" : "offline");
-        if (!db) {
-            if (els.offlineBanner) els.offlineBanner.classList.add("active");
-            showToast("وضع عدم الاتصال - البيانات هتحفظ محلياً", "warning", 5000);
+        setCurrentUser(user);
+        var loginOverlay = getEl("loginOverlay");
+        var mainApp = getEl("mainApp");
+        var serverDisplay = getEl("serverDisplay");
+        var saveStatus = getEl("saveStatus");
+        if (loginOverlay) loginOverlay.classList.add("hidden");
+        if (mainApp) mainApp.style.display = "block";
+        if (serverDisplay) serverDisplay.textContent = user.name + " (" + user.email + ")";
+        if (saveStatus) {
+            saveStatus.className = "save-status online";
+            saveStatus.innerHTML = "&#128308; متصل";
         }
-
-        generateCards();
-        await loadAllStudentsData();
-        generateMonthSelector();
-        setupKeyboardShortcuts();
-        console.log("Login successful:", userData);
+        if (typeof generateCards === "function") generateCards();
+        if (typeof loadAllStudentsData === "function") loadAllStudentsData();
+        if (typeof generateMonthSelector === "function") generateMonthSelector();
+        if (typeof setupKeyboardShortcuts === "function") setupKeyboardShortcuts();
+        showToast("&#9989; مرحباً " + user.name + "! تم تسجيل الدخول بنجاح", "success", 4000);
+        console.log("Login successful:", user);
     } catch (err) {
         console.error("completeLogin error:", err);
-        showToast("خطأ في تهيئة التطبيق بعد الدخول", "error", 5000);
+        showAuthError("&#10060; خطأ في تهيئة التطبيق");
         resetLoginBtn();
     }
 }
 
 function logout() {
     if (!confirm("تأكيد تسجيل الخروج؟")) return;
-    signOut(auth).catch(() => {});
-    currentServer = null;
+    setCurrentUser(null);
     location.reload();
 }
 
-// Auth state listener
-function initAuthListener() {
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            await completeLogin(user);
-        } else {
-            if (els.loginOverlay) els.loginOverlay.style.display = "flex";
-            if (els.mainApp) els.mainApp.style.display = "none";
+function checkAutoLogin() {
+    var user = getCurrentUser();
+    if (user) {
+        var users = getStoredUsers();
+        if (users[user.email]) {
+            completeLogin(user);
+            return;
         }
-    });
+        setCurrentUser(null);
+    }
+    var loginOverlay = getEl("loginOverlay");
+    var mainApp = getEl("mainApp");
+    if (loginOverlay) loginOverlay.style.display = "flex";
+    if (mainApp) mainApp.style.display = "none";
+}
+
+function initAuth() {
+    var authToggleBtn = getEl("authToggleBtn");
+    var loginBtn = getEl("loginBtn");
+    var registerBtn = getEl("registerBtn");
+    var btnLogout = getEl("btnLogout");
+    if (authToggleBtn) authToggleBtn.addEventListener("click", toggleAuthMode);
+    if (loginBtn) loginBtn.addEventListener("click", handleLogin);
+    if (registerBtn) registerBtn.addEventListener("click", handleRegister);
+    if (btnLogout) btnLogout.addEventListener("click", logout);
+    var loginEmail = getEl("loginEmail");
+    var loginPassword = getEl("loginPassword");
+    if (loginEmail) {
+        loginEmail.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") handleLogin();
+        });
+    }
+    if (loginPassword) {
+        loginPassword.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") handleLogin();
+        });
+    }
+    var regPasswordConfirm = getEl("regPasswordConfirm");
+    if (regPasswordConfirm) {
+        regPasswordConfirm.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") handleRegister();
+        });
+    }
+    checkAutoLogin();
 }
 
 if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initAuthListener);
+    document.addEventListener("DOMContentLoaded", initAuth);
 } else {
-    initAuthListener();
+    initAuth();
 }
 
-// Wire up auth buttons after DOM ready
-document.addEventListener("DOMContentLoaded", () => {
-    els.authToggleBtn?.addEventListener("click", toggleAuthMode);
-    els.loginBtn?.addEventListener("click", handleLogin);
-    els.registerBtn?.addEventListener("click", handleRegister);
-});
-
-// Exports for app-core.js
 window.toggleAuthMode = toggleAuthMode;
 window.handleRegister = handleRegister;
 window.handleLogin = handleLogin;
 window.logout = logout;
 window.completeLogin = completeLogin;
+window.showToast = showToast;
