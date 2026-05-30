@@ -1,33 +1,41 @@
 // ============================================
-// app-core.js  -  منطق التطبيق الرئيسي
+// app-core.js - Core app logic
 // ============================================
 
-// ====== Cards & UI Generation ======
-function generateCards() {
-    if (!els.cardsGrid) return;
-    els.cardsGrid.innerHTML = "";
-    DAYS.forEach(day => {
-        const card = document.createElement("div");
-        card.className = "track-card";
-        card.dataset.day = day;
-        card.innerHTML = `
-            <div class="status-strip neutral" id="status-${day}"></div>
-            <div class="card-header ${DAY_HEADERS[day]}">
-                <span>${day}</span>
-                <span class="day-icon">${DAY_ICONS[day]}</span>
-            </div>
-            <div class="card-body">
-                ${ACTS.map(act => `
-                    <div class="activity-row" data-day="${day}" data-act="${act}">
-                        <div class="activity-left">
-                            <div class="activity-name">
-                                <div class="activity-icon ${ACT_CLASSES[act]}">${ACT_ICONS[act]}</div>
-                                <span>${act}</span>
-                            </div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="toggle-group">
-                                <span>حضور</span>
+import { db, auth } from './app-auth.js';
+import {
+    doc, setDoc, getDoc, collection, addDoc, query,
+    where, orderBy, limit, getDocs, deleteDoc, Timestamp, serverTimestamp,
+    onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// Placeholder core functions (implement fully as needed)
+window.generateCards = function() {
+    console.log("generateCards: placeholder - implement in app-core.js");
+};
+
+window.loadAllStudentsData = async function() {
+    console.log("loadAllStudentsData: placeholder - implement in app-core.js");
+    try {
+        if (!db) return;
+        const q = query(collection(db, "students"), orderBy("name"));
+        const snap = await getDocs(q);
+        const students = [];
+        snap.forEach(d => students.push({ id: d.id, ...d.data() }));
+        console.log("Loaded students:", students.length);
+    } catch (e) {
+        console.error("loadAllStudentsData error:", e);
+    }
+};
+
+window.generateMonthSelector = function() {
+    console.log("generateMonthSelector: placeholder - implement in app-core.js");
+};
+
+window.setupKeyboardShortcuts = function() {
+    console.log("setupKeyboardShortcuts: placeholder - implement in app-core.js");
+};
+                     <span>حضور</span>
                                 <label class="toggle-switch" title="تسجيل الحضور">
                                     <input type="checkbox" aria-label="حضور ${act} يوم ${day}">
                                     <span class="toggle-slider"></span>

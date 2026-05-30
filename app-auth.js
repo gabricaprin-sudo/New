@@ -211,13 +211,28 @@ function logout() {
 }
 
 // Auth state listener
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        await completeLogin(user);
-    } else {
-        if (els.loginOverlay) els.loginOverlay.style.display = "flex";
-        if (els.mainApp) els.mainApp.style.display = "none";
-    }
+function initAuthListener() {
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            await completeLogin(user);
+        } else {
+            if (els.loginOverlay) els.loginOverlay.style.display = "flex";
+            if (els.mainApp) els.mainApp.style.display = "none";
+        }
+    });
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAuthListener);
+} else {
+    initAuthListener();
+}
+
+// Wire up auth buttons after DOM ready
+document.addEventListener("DOMContentLoaded", () => {
+    els.authToggleBtn?.addEventListener("click", toggleAuthMode);
+    els.loginBtn?.addEventListener("click", handleLogin);
+    els.registerBtn?.addEventListener("click", handleRegister);
 });
 
 // Exports for app-core.js

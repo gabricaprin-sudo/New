@@ -1,81 +1,72 @@
 // ============================================
-// app-config.js  -  الإعدادات والثوابت والـ Helpers
+// app-config.js - DOM refs & shared state
 // ============================================
 
-const CONFIG = {
-    saveDebounceMs: 600,
-    searchDebounceMs: 350,
-    maxRecords: 500,
-    maxLogEntries: 200,
-    monthsToShow: 6
+window.$ = id => document.getElementById(id);
+
+window.isRegisterMode = false;
+window.currentServer = null;
+
+window.els = {};
+
+function initEls() {
+    const ids = [
+        "loginOverlay","loginForm","registerForm","loginBtn","registerBtn",
+        "authToggleBtn","authToggleText","authSubtitle","loginError","loginSuccess",
+        "mainApp","serverDisplay","offlineBanner","toastContainer","saveStatus",
+        "studentSelect","studentName","studentYear","studentDocId","cardsGrid",
+        "allStudentsGrid","allStudentsCount","presentCount","absentCount",
+        "ratedActivities","avgRating","attendanceRate","logCount",
+        "saveBtn","btnPrint","btnExportJson","btnExportCsv","btnReset",
+        "btnToday","btnProfile","btnStats","btnLog","btnMonthly","btnLogout",
+        "btnNewStudent","btnLoadStudent","btnRefreshAll","quickSearch","searchResults",
+        "todayDateBadge","dupNameError","duplicateBanner","conflictBanner",
+        "addedTodayBanner","absentAlertBanner","absentAlertText",
+        "logModal","closeLog","logTableBody","logAggregatedView","logDetailedTable",
+        "filterDay","filterType","filterViewMode","logLoadingOverlay",
+        "statsModal","closeStats","statsGrid","statsLoadingOverlay",
+        "monthlyModal","closeMonthly","monthSelector","monthCalendar",
+        "monthDetails","monthDetailTitle","monthDetailContent",
+        "todayAttendanceModal","closeToday","todayAttLoadingOverlay",
+        "todayPresentCount","todayAbsentCount","todayNotRecorded","todayTotalStudents",
+        "topAttendeesList","absentTodayList",
+        "profileModal","closeProfile","profileLoadingOverlay",
+        "profileStudentName","profileStudentYear","profileTotalPresent",
+        "profileTotalAbsent","profileAvgRating","profileTimeline",
+        "shortcutToggle","shortcutsHelp"
+    ];
+    ids.forEach(id => { els[id] = $(id); });
+}
+
+window.showToast = function(msg, type = "info", duration = 3000) {
+    const container = els.toastContainer;
+    if (!container) return;
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    const icon = type === "success" ? "&#9989;" : type === "error" ? "&#10060;" : type === "warning" ? "&#9888;&#65039;" : "&#128161;";
+    toast.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add("hiding");
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
 };
 
-const DAYS = ["السبت","الإثنين","الأربعاء"];
-const ACTS = ["دراسي","محفوظات","قبطي","الحان"];
-const ACT_ICONS = { "دراسي": "&#128216;", "محفوظات": "&#128221;", "قبطي": "&#9961;&#65039;", "الحان": "&#127925;" };
-const ACT_CLASSES = { "دراسي": "icon-study", "محفوظات": "icon-mem", "قبطي": "icon-copt", "الحان": "icon-music" };
-const DAY_HEADERS = { "السبت": "sat", "الإثنين": "mon", "الأربعاء": "wed" };
-const DAY_ICONS = { "السبت": "&#128214;", "الإثنين": "&#127775;", "الأربعاء": "&#127919;" };
+window.setSaveStatus = function(status) {
+    const el = els.saveStatus;
+    if (!el) return;
+    el.className = `save-status ${status}`;
+    if (status === "online") el.innerHTML = "&#128308; متصل";
+    else if (status === "offline") el.innerHTML = "&#128268; جاري الاتصال...";
+    else if (status === "saving") el.innerHTML = '<div class="spinner"></div> جاري الحفظ...';
+    else if (status === "saved") el.innerHTML = "&#9989; تم الحفظ";
+};
 
-// safe element getter
-function $(id) { return document.getElementById(id); }
-
-// تهيئة عناصر DOM بأمان (null-safe)
-const els = {
-    name: $("studentName"),
-    year: $("studentYear"),
-    studentDocId: $("studentDocId"),
-    studentSelect: $("studentSelect"),
-    saveStatus: $("saveStatus"),
-    serverDisplay: $("serverDisplay"),
-    loginOverlay: $("loginOverlay"),
-    mainApp: $("mainApp"),
-    loginError: $("loginError"),
-    loginSuccess: $("loginSuccess"),
-    loginBtn: $("loginBtn"),
-    logModal: $("logModal"),
-    logTableBody: $("logTableBody"),
-    logAggregatedView: $("logAggregatedView"),
-    logDetailedTable: $("logDetailedTable"),
-    presentCount: $("presentCount"),
-    absentCount: $("absentCount"),
-    ratedActivities: $("ratedActivities"),
-    avgRating: $("avgRating"),
-    attendanceRate: $("attendanceRate"),
-    logCount: $("logCount"),
-    conflictBanner: $("conflictBanner"),
-    conflictText: $("conflictText"),           // ← كان ناقص ده!
-    dupNameError: $("dupNameError"),
-    addedTodayBanner: $("addedTodayBanner"),
-    todayDateBadge: $("todayDateBadge"),
-    absentAlertBanner: $("absentAlertBanner"),
-    absentAlertText: $("absentAlertText"),
-    offlineBanner: $("offlineBanner"),
-    cardsGrid: $("cardsGrid"),
-    statsModal: $("statsModal"),
-    monthlyModal: $("monthlyModal"),
-    monthCalendar: $("monthCalendar"),
-    monthDetails: $("monthDetails"),
-    monthDetailTitle: $("monthDetailTitle"),
-    monthDetailContent: $("monthDetailContent"),
-    monthSelector: $("monthSelector"),
-    searchResults: $("searchResults"),
-    logLoadingOverlay: $("logLoadingOverlay"),
-    statsLoadingOverlay: $("statsLoadingOverlay"),
-    shortcutsHelp: $("shortcutsHelp"),
-    saveBtn: $("saveBtn"),
-    toastContainer: $("toastContainer"),
-    loginForm: $("loginForm"),
-    registerForm: $("registerForm"),
-    authToggleText: $("authToggleText"),
-    authToggleBtn: $("authToggleBtn"),
-    authSubtitle: $("authSubtitle"),
-    todayAttendanceModal: $("todayAttendanceModal"),
-    todayAttLoadingOverlay: $("todayAttLoadingOverlay"),
-    duplicateBanner: $("duplicateBanner"),
-    duplicateText: $("duplicateText"),
-    profileModal: $("profileModal"),
-    profileLoadingOverlay: $("profileLoadingOverlay"),
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initEls);
+} else {
+    initEls();
+}
     profileStudentName: $("profileStudentName"),
     profileStudentYear: $("profileStudentYear"),
     profileTotalPresent: $("profileTotalPresent"),
