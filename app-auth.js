@@ -1,233 +1,233 @@
 // ============================================
-// app-auth.js - STANDALONE Local Authentication
-// No Firebase needed. Works immediately with localStorage.
+// app-auth.js - Firebase + LocalStorage Auth
+// Production-ready with all fixes
 // ============================================
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    onAuthStateChanged, signOut, updateProfile, setPersistence, browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+    getFirestore, doc, setDoc, getDoc, collection, addDoc, query,
+    where, orderBy, limit, getDocs, deleteDoc, Timestamp, serverTimestamp,
+    onSnapshot, documentId
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyB2cycBTKMjVg8S_fBYN8C-hwUk5FUF81Q",
+    authDomain: "kenesa-e5efd.firebaseapp.com",
+    projectId: "kenesa-e5efd",
+    storageBucket: "kenesa-e5efd.firebasestorage.app",
+    messagingSenderId: "227273753184",
+    appId: "1:227273753184:web:ecdf258142ad55ed5cf905",
+    measurementId: "G-6HS8KNW1GZ"
+};
+
+let app, db, auth;
+let firebaseReady = false;
+let authInitialized = false;
+
+try {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
+    firebaseReady = true;
+    console.log("Firebase initialized successfully");
+} catch (e) {
+    console.warn("Firebase init failed, using localStorage mode:", e);
+}
+
+// Export for app-core.js
+export { db, auth };
+
+// Expose to window for cross-module access
+window.db = db;
+window.auth = auth;
+window.firebaseReady = firebaseReady;
+
+// Expose Firestore functions to window (avoids dynamic import issues on file://)
+window.firestoreFns = {
+    doc, setDoc, getDoc, collection, addDoc, query,
+    where, orderBy, limit, getDocs, deleteDoc, Timestamp, serverTimestamp,
+    onSnapshot, documentId
+};
 
 const LS_USERS_KEY = "kenesa_users";
 const LS_CURRENT_USER_KEY = "kenesa_current_user";
 
-function getEl(id) {
-    return document.getElementById(id);
+// SHA-256 hash for password storage
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function getStoredUsers() {
-    try {
-        var data = localStorage.getItem(LS_USERS_KEY);
-        return data ? JSON.parse(data) : {};
-    } catch (e) {
-        return {};
-    }
+    try { return JSON.parse(localStorage.getItem(LS_USERS_KEY)) || {}; }
+    catch { return {}; }
 }
-
-function saveUsers(users) {
-    localStorage.setItem(LS_USERS_KEY, JSON.stringify(users));
+function saveUsers(users) { localStorage.setItem(LS_USERS_KEY, JSON.stringify(users)); }
+function getLocalUser() {
+    try { return JSON.parse(localStorage.getItem(LS_CURRENT_USER_KEY)); }
+    catch { return null; }
 }
-
-function getCurrentUser() {
-    try {
-        var data = localStorage.getItem(LS_CURRENT_USER_KEY);
-        return data ? JSON.parse(data) : null;
-    } catch (e) {
-        return null;
-    }
-}
-
-function setCurrentUser(user) {
-    if (user) {
-        localStorage.setItem(LS_CURRENT_USER_KEY, JSON.stringify(user));
-    } else {
-        localStorage.removeItem(LS_CURRENT_USER_KEY);
-    }
-}
-
-function showToast(msg, type, duration) {
-    type = type || "info";
-    duration = duration || 3000;
-    var container = getEl("toastContainer");
-    if (!container) return;
-    var toast = document.createElement("div");
-    toast.className = "toast " + type;
-    var icon = "&#128161;";
-    if (type === "success") icon = "&#9989;";
-    else if (type === "error") icon = "&#10060;";
-    else if (type === "warning") icon = "&#9888;&#65039;";
-    toast.innerHTML = "<span>" + icon + "</span><span>" + msg + "</span>";
-    container.appendChild(toast);
-    setTimeout(function() {
-        toast.classList.add("hiding");
-        setTimeout(function() { toast.remove(); }, 300);
-    }, duration);
+function setLocalUser(user) {
+    if (user) localStorage.setItem(LS_CURRENT_USER_KEY, JSON.stringify(user));
+    else localStorage.removeItem(LS_CURRENT_USER_KEY);
 }
 
 function showAuthError(msg) {
-    var el = getEl("loginError");
+    const el = document.getElementById("loginError");
     if (!el) return;
     el.innerHTML = msg;
     el.classList.add("active");
 }
-
 function hideAuthError() {
-    var el = getEl("loginError");
+    const el = document.getElementById("loginError");
     if (el) el.classList.remove("active");
 }
-
 function showAuthSuccess(msg) {
-    var el = getEl("loginSuccess");
+    const el = document.getElementById("loginSuccess");
     if (!el) return;
     el.innerHTML = msg;
     el.classList.add("active");
 }
-
 function resetLoginBtn() {
-    var btn = getEl("loginBtn");
-    if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = "&#10132; دخول";
-    }
+    const btn = document.getElementById("loginBtn");
+    if (btn) { btn.disabled = false; btn.innerHTML = "&#10132; دخول"; }
 }
-
 function resetRegisterBtn() {
-    var btn = getEl("registerBtn");
-    if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = "&#128221; إنشاء حساب";
-    }
+    const btn = document.getElementById("registerBtn");
+    if (btn) { btn.disabled = false; btn.innerHTML = "&#128221; إنشاء حساب"; }
 }
 
-var isRegisterMode = false;
-
+let isRegisterMode = false;
 function toggleAuthMode() {
     isRegisterMode = !isRegisterMode;
-    var loginForm = getEl("loginForm");
-    var registerForm = getEl("registerForm");
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
     if (!loginForm || !registerForm) return;
     hideAuthError();
-    var successEl = getEl("loginSuccess");
+    const successEl = document.getElementById("loginSuccess");
     if (successEl) successEl.classList.remove("active");
     if (isRegisterMode) {
         loginForm.style.display = "none";
         registerForm.style.display = "block";
-        var t = getEl("authToggleText");
+        const t = document.getElementById("authToggleText");
         if (t) t.textContent = "لديك حساب بالفعل؟";
-        var b = getEl("authToggleBtn");
+        const b = document.getElementById("authToggleBtn");
         if (b) b.textContent = "تسجيل الدخول";
-        var s = getEl("authSubtitle");
+        const s = document.getElementById("authSubtitle");
         if (s) s.textContent = "أنشئي حساب جديد كخادم";
     } else {
         loginForm.style.display = "block";
         registerForm.style.display = "none";
-        var t2 = getEl("authToggleText");
-        if (t2) t2.textContent = "ليس لديك حساب؟";
-        var b2 = getEl("authToggleBtn");
-        if (b2) b2.textContent = "إنشاء حساب جديد";
-        var s2 = getEl("authSubtitle");
-        if (s2) s2.textContent = "أدخل بياناتك للوصول إلى نظام المتابعة";
+        const t = document.getElementById("authToggleText");
+        if (t) t.textContent = "ليس لديك حساب؟";
+        const b = document.getElementById("authToggleBtn");
+        if (b) b.textContent = "إنشاء حساب جديد";
+        const s = document.getElementById("authSubtitle");
+        if (s) s.textContent = "أدخل بياناتك للوصول إلى نظام المتابعة";
     }
 }
 
-function handleRegister() {
-    var nameEl = getEl("regName");
-    var emailEl = getEl("regEmail");
-    var passEl = getEl("regPassword");
-    var confirmEl = getEl("regPasswordConfirm");
-    var btn = getEl("registerBtn");
-    var name = nameEl ? nameEl.value.trim() : "";
-    var email = emailEl ? emailEl.value.trim().toLowerCase() : "";
-    var password = passEl ? passEl.value : "";
-    var passwordConfirm = confirmEl ? confirmEl.value : "";
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;margin-left:6px;"></div> جاري الإنشاء...';
-    }
+async function handleRegister() {
+    const name = document.getElementById("regName")?.value.trim();
+    const email = document.getElementById("regEmail")?.value.trim().toLowerCase();
+    const password = document.getElementById("regPassword")?.value;
+    const passwordConfirm = document.getElementById("regPasswordConfirm")?.value;
+    const btn = document.getElementById("registerBtn");
+    if (btn) { btn.disabled = true; btn.innerHTML = \'<div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;margin-left:6px;"></div> جاري الإنشاء...\'; }
     hideAuthError();
-    if (!name || !email || !password) {
-        showAuthError("&#10060; يرجى ملء جميع الحقول");
-        resetRegisterBtn();
-        return;
+    if (!name || !email || !password) { showAuthError("&#10060; يرجى ملء جميع الحقول"); resetRegisterBtn(); return; }
+    if (password.length < 6) { showAuthError("&#10060; كلمة المرور يجب أن تكون 6 أحرف على الأقل"); resetRegisterBtn(); return; }
+    if (password !== passwordConfirm) { showAuthError("&#10060; كلمتا المرور غير متطابقتين"); resetRegisterBtn(); return; }
+
+    if (firebaseReady && auth) {
+        try {
+            const cred = await createUserWithEmailAndPassword(auth, email, password);
+            const user = cred.user;
+            await updateProfile(user, { displayName: name });
+            await setDoc(doc(db, "users", user.uid), { name, email, role: "khadem", createdAt: new Date().toISOString(), uid: user.uid });
+            showAuthSuccess("&#9989; تم إنشاء الحساب بنجاح! جاري الدخول...");
+            setTimeout(() => completeLogin({ uid: user.uid, name, email, role: "khadem" }), 800);
+            return;
+        } catch (err) {
+            if (err.code === "auth/email-already-in-use") { showAuthError("&#10060; البريد الإلكتروني مستخدم بالفعل"); resetRegisterBtn(); return; }
+            console.warn("Firebase register failed, falling back to localStorage:", err);
+        }
     }
-    if (password.length < 6) {
-        showAuthError("&#10060; كلمة المرور يجب أن تكون 6 أحرف على الأقل");
-        resetRegisterBtn();
-        return;
-    }
-    if (password !== passwordConfirm) {
-        showAuthError("&#10060; كلمتا المرور غير متطابقتين");
-        resetRegisterBtn();
-        return;
-    }
-    var users = getStoredUsers();
-    if (users[email]) {
-        showAuthError("&#10060; البريد الإلكتروني مستخدم بالفعل");
-        resetRegisterBtn();
-        return;
-    }
-    var user = {
-        uid: "user_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9),
-        name: name,
-        email: email,
-        password: password,
-        role: "khadem",
-        createdAt: new Date().toISOString()
-    };
+
+    // LocalStorage fallback with hashed password
+    const users = getStoredUsers();
+    if (users[email]) { showAuthError("&#10060; البريد الإلكتروني مستخدم بالفعل"); resetRegisterBtn(); return; }
+    const hashedPassword = await hashPassword(password);
+    const user = { uid: "local_" + Date.now(), name, email, passwordHash: hashedPassword, role: "khadem", createdAt: new Date().toISOString() };
     users[email] = user;
     saveUsers(users);
     showAuthSuccess("&#9989; تم إنشاء الحساب بنجاح! جاري الدخول...");
-    setTimeout(function() {
-        completeLogin(user);
-    }, 800);
+    setTimeout(() => completeLogin(user), 800);
 }
 
-function handleLogin() {
-    var btn = getEl("loginBtn");
-    var emailEl = getEl("loginEmail");
-    var passEl = getEl("loginPassword");
-    var email = emailEl ? emailEl.value.trim().toLowerCase() : "";
-    var password = passEl ? passEl.value : "";
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;margin-left:6px;"></div> جاري الدخول...';
-    }
+async function handleLogin() {
+    const btn = document.getElementById("loginBtn");
+    const email = document.getElementById("loginEmail")?.value.trim().toLowerCase();
+    const password = document.getElementById("loginPassword")?.value;
+    if (btn) { btn.disabled = true; btn.innerHTML = \'<div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;margin-left:6px;"></div> جاري الدخول...\'; }
     hideAuthError();
-    if (!email || !password) {
-        showAuthError("&#10060; يرجى إدخال البريد الإلكتروني وكلمة المرور");
-        resetLoginBtn();
-        return;
+    if (!email || !password) { showAuthError("&#10060; يرجى إدخال البريد الإلكتروني وكلمة المرور"); resetLoginBtn(); return; }
+
+    if (firebaseReady && auth) {
+        try {
+            const cred = await signInWithEmailAndPassword(auth, email, password);
+            const userDoc = await getDoc(doc(db, "users", cred.user.uid));
+            const userData = userDoc.exists() ? userDoc.data() : { name: cred.user.displayName || "خادم", email: cred.user.email, role: "khadem" };
+            await completeLogin({ uid: cred.user.uid, ...userData });
+            return;
+        } catch (err) {
+            console.warn("Firebase login failed, falling back to localStorage:", err);
+        }
     }
-    var users = getStoredUsers();
-    var user = users[email];
-    if (!user) {
-        showAuthError("&#10060; لا يوجد حساب بهذا البريد. أنشئي حساب جديد.");
-        resetLoginBtn();
-        return;
-    }
-    if (user.password !== password) {
-        showAuthError("&#10060; كلمة المرور غير صحيحة");
-        resetLoginBtn();
-        return;
-    }
+
+    // LocalStorage fallback with hash verification
+    const users = getStoredUsers();
+    const user = users[email];
+    if (!user) { showAuthError("&#10060; لا يوجد حساب بهذا البريد"); resetLoginBtn(); return; }
+    const hashedInput = await hashPassword(password);
+    if (user.passwordHash !== hashedInput) { showAuthError("&#10060; كلمة المرور غير صحيحة"); resetLoginBtn(); return; }
     completeLogin(user);
 }
 
-function completeLogin(user) {
+async function completeLogin(user) {
     try {
-        setCurrentUser(user);
-        var loginOverlay = getEl("loginOverlay");
-        var mainApp = getEl("mainApp");
-        var serverDisplay = getEl("serverDisplay");
-        var saveStatus = getEl("saveStatus");
+        window.currentServer = user;
+        setLocalUser(user);
+        const loginOverlay = document.getElementById("loginOverlay");
+        const mainApp = document.getElementById("mainApp");
+        const serverDisplay = document.getElementById("serverDisplay");
+        const saveStatus = document.getElementById("saveStatus");
         if (loginOverlay) loginOverlay.classList.add("hidden");
         if (mainApp) mainApp.style.display = "block";
         if (serverDisplay) serverDisplay.textContent = user.name + " (" + user.email + ")";
         if (saveStatus) {
-            saveStatus.className = "save-status online";
-            saveStatus.innerHTML = "&#128308; متصل";
+            saveStatus.className = firebaseReady ? "save-status online" : "save-status offline";
+            saveStatus.innerHTML = firebaseReady ? "&#128308; متصل" : "&#128268; وضع محلي";
         }
+
+        if (!firebaseReady) {
+            const offlineBanner = document.getElementById("offlineBanner");
+            if (offlineBanner) offlineBanner.classList.add("active");
+            showToast("وضع عدم الاتصال - البيانات هتحفظ محلياً", "warning", 5000);
+        }
+
         if (typeof generateCards === "function") generateCards();
-        if (typeof loadAllStudentsData === "function") loadAllStudentsData();
+        if (typeof loadAllStudentsData === "function") await loadAllStudentsData();
         if (typeof generateMonthSelector === "function") generateMonthSelector();
         if (typeof setupKeyboardShortcuts === "function") setupKeyboardShortcuts();
         showToast("&#9989; مرحباً " + user.name + "! تم تسجيل الدخول بنجاح", "success", 4000);
-        console.log("Login successful:", user);
     } catch (err) {
         console.error("completeLogin error:", err);
         showAuthError("&#10060; خطأ في تهيئة التطبيق");
@@ -237,54 +237,79 @@ function completeLogin(user) {
 
 function logout() {
     if (!confirm("تأكيد تسجيل الخروج؟")) return;
-    setCurrentUser(null);
+    setLocalUser(null);
+    if (auth) signOut(auth).catch(() => {});
+    window.currentServer = null;
     location.reload();
 }
 
-function checkAutoLogin() {
-    var user = getCurrentUser();
-    if (user) {
-        var users = getStoredUsers();
-        if (users[user.email]) {
-            completeLogin(user);
-            return;
-        }
-        setCurrentUser(null);
+// Setup persistence BEFORE auth state listener
+async function setupPersistence() {
+    if (!firebaseReady || !auth) return;
+    try {
+        await setPersistence(auth, browserLocalPersistence);
+        console.log("Firebase Auth persistence enabled");
+    } catch (e) {
+        console.error("Persistence failed:", e);
     }
-    var loginOverlay = getEl("loginOverlay");
-    var mainApp = getEl("mainApp");
-    if (loginOverlay) loginOverlay.style.display = "flex";
-    if (mainApp) mainApp.style.display = "none";
 }
 
 function initAuth() {
-    var authToggleBtn = getEl("authToggleBtn");
-    var loginBtn = getEl("loginBtn");
-    var registerBtn = getEl("registerBtn");
-    var btnLogout = getEl("btnLogout");
+    // Guard against duplicate initialization (hot reload, script injection)
+    if (window.__authInitialized) return;
+    window.__authInitialized = true;
+
+    const authToggleBtn = document.getElementById("authToggleBtn");
+    const loginBtn = document.getElementById("loginBtn");
+    const registerBtn = document.getElementById("registerBtn");
+    const btnLogout = document.getElementById("btnLogout");
     if (authToggleBtn) authToggleBtn.addEventListener("click", toggleAuthMode);
     if (loginBtn) loginBtn.addEventListener("click", handleLogin);
     if (registerBtn) registerBtn.addEventListener("click", handleRegister);
     if (btnLogout) btnLogout.addEventListener("click", logout);
-    var loginEmail = getEl("loginEmail");
-    var loginPassword = getEl("loginPassword");
-    if (loginEmail) {
-        loginEmail.addEventListener("keydown", function(e) {
-            if (e.key === "Enter") handleLogin();
-        });
+
+    const loginEmail = document.getElementById("loginEmail");
+    const loginPassword = document.getElementById("loginPassword");
+    if (loginEmail) loginEmail.addEventListener("keydown", (e) => { if (e.key === "Enter") handleLogin(); });
+    if (loginPassword) loginPassword.addEventListener("keydown", (e) => { if (e.key === "Enter") handleLogin(); });
+    const regPasswordConfirm = document.getElementById("regPasswordConfirm");
+    if (regPasswordConfirm) regPasswordConfirm.addEventListener("keydown", (e) => { if (e.key === "Enter") handleRegister(); });
+
+    // Check auto-login
+    const localUser = getLocalUser();
+    if (localUser) {
+        if (firebaseReady && auth) {
+            // Let Firebase onAuthStateChanged handle it after persistence is set
+        } else {
+            completeLogin(localUser);
+            return;
+        }
     }
-    if (loginPassword) {
-        loginPassword.addEventListener("keydown", function(e) {
-            if (e.key === "Enter") handleLogin();
+
+    // Setup Firebase auth state listener
+    if (firebaseReady && auth) {
+        setupPersistence().then(() => {
+            onAuthStateChanged(auth, async (user) => {
+                if (authInitialized) return; // Prevent loops
+                authInitialized = true;
+                if (user) {
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    const userData = userDoc.exists() ? userDoc.data() : { name: user.displayName || "خادم", email: user.email, role: "khadem" };
+                    await completeLogin({ uid: user.uid, ...userData });
+                } else {
+                    const loginOverlay = document.getElementById("loginOverlay");
+                    const mainApp = document.getElementById("mainApp");
+                    if (loginOverlay) loginOverlay.style.display = "flex";
+                    if (mainApp) mainApp.style.display = "none";
+                }
+            });
         });
+    } else {
+        const loginOverlay = document.getElementById("loginOverlay");
+        const mainApp = document.getElementById("mainApp");
+        if (loginOverlay) loginOverlay.style.display = "flex";
+        if (mainApp) mainApp.style.display = "none";
     }
-    var regPasswordConfirm = getEl("regPasswordConfirm");
-    if (regPasswordConfirm) {
-        regPasswordConfirm.addEventListener("keydown", function(e) {
-            if (e.key === "Enter") handleRegister();
-        });
-    }
-    checkAutoLogin();
 }
 
 if (document.readyState === "loading") {
@@ -293,9 +318,9 @@ if (document.readyState === "loading") {
     initAuth();
 }
 
+// Expose globally
 window.toggleAuthMode = toggleAuthMode;
 window.handleRegister = handleRegister;
 window.handleLogin = handleLogin;
 window.logout = logout;
 window.completeLogin = completeLogin;
-window.showToast = showToast;

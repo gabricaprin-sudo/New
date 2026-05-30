@@ -1,8 +1,14 @@
-// app-config.js - minimal DOM refs
+// ============================================
+// app-config.js - DOM refs & shared helpers
+// ============================================
+
 window.$ = id => document.getElementById(id);
-window.els = {};
+
 window.isRegisterMode = false;
 window.currentServer = null;
+
+window.els = {};
+
 function initEls() {
     const ids = [
         "loginOverlay","loginForm","registerForm","loginBtn","registerBtn",
@@ -31,6 +37,33 @@ function initEls() {
     ];
     ids.forEach(id => { els[id] = $(id); });
 }
+
+window.showToast = function(msg, type = "info", duration = 3000) {
+    const container = els.toastContainer;
+    if (!container) return;
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    const icon = type === "success" ? "&#9989;" : type === "error" ? "&#10060;" : type === "warning" ? "&#9888;&#65039;" : "&#128161;";
+    toast.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add("hiding");
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+};
+
+window.setSaveStatus = function(status) {
+    const el = els.saveStatus;
+    if (!el) return;
+    el.className = `save-status ${status}`;
+    if (status === "online") el.innerHTML = "&#128308; متصل";
+    else if (status === "offline") el.innerHTML = "&#128268; جاري الاتصال...";
+    else if (status === "saving") el.innerHTML = '<div class="spinner"></div> جاري الحفظ...';
+    else if (status === "saved") el.innerHTML = "&#9989; تم الحفظ";
+};
+
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initEls);
-} else { initEls(); }
+} else {
+    initEls();
+}
