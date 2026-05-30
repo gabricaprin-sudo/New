@@ -1,1 +1,362 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="نظام متابعة المخدومات - تتبع حضور وتقييم الطالبات">
+    <meta name="theme-color" content="#6c5ce7">
+    <title>نظام متابعة المخدومات - النسخة المحسّنة v6.0</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-box">
+            <h2>&#128272; تسجيل دخول الخادم</h2>
+            <p id="authSubtitle">أدخل بياناتك للوصول إلى نظام المتابعة</p>
+            
+            <div id="loginForm">
+                <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" autocomplete="email" aria-label="البريد الإلكتروني">
+                <input type="password" id="loginPassword" placeholder="كلمة المرور" autocomplete="current-password" aria-label="كلمة المرور">
+                <button class="login-btn" id="loginBtn">&#10132; دخول</button>
+            </div>
+            
+            <div id="registerForm" style="display:none;">
+                <input type="text" id="regName" placeholder="اسم الخادم الكامل" autocomplete="name" aria-label="اسم الخادم">
+                <input type="email" id="regEmail" placeholder="البريد الإلكتروني" autocomplete="email" aria-label="البريد الإلكتروني">
+                <input type="password" id="regPassword" placeholder="كلمة المرور (6 أحرف على الأقل)" autocomplete="new-password" aria-label="كلمة المرور">
+                <input type="password" id="regPasswordConfirm" placeholder="تأكيد كلمة المرور" autocomplete="new-password" aria-label="تأكيد كلمة المرور">
+                <button class="login-btn" id="registerBtn">&#128221; إنشاء حساب</button>
+            </div>
+            
+            <div class="login-error" id="loginError"></div>
+            <div class="login-success" id="loginSuccess"></div>
+            
+            <div class="auth-toggle">
+                <span id="authToggleText">ليس لديك حساب؟</span>
+                <button id="authToggleBtn">إنشاء حساب جديد</button>
+            </div>
+            
+            <div style="margin-top:14px;font-size:0.8rem;color:var(--text-light);">
+                النسخة المحسّنة v6.0 &bull; تسجيل دخول دائم &bull; عرض كل البيانات فوراً
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="mainApp" style="display:none;">
+        <div class="server-bar">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div class="server-badge">
+                    <span>&#128100;</span>
+                    <span id="serverDisplay">غير مسجل</span>
+                </div>
+                <div class="save-status offline" id="saveStatus">&#128268; جاري الاتصال...</div>
+            </div>
+            <div class="server-actions">
+                <div class="search-wrap">
+                    <div class="search-box">
+                        <span>&#128269;</span>
+                        <input type="text" id="quickSearch" placeholder="بحث سريع عن طالبة..." aria-label="بحث عن طالبة">
+                    </div>
+                    <div class="search-results" id="searchResults"></div>
+                </div>
+                <button class="link-btn today-btn" id="btnToday">&#128204; حضور اليوم</button>
+                <button class="link-btn profile-btn" id="btnProfile">&#128203; ملف الطالبة</button>
+                <button class="link-btn" id="btnStats">&#128202; إحصائيات</button>
+                <button class="link-btn" id="btnLog">&#128203; السجل</button>
+                <button class="link-btn" id="btnMonthly">&#128197; الشهري</button>
+                <button class="link-btn danger" id="btnLogout">&#128682; خروج</button>
+            </div>
+        </div>
+
+        <div class="header">
+            <h1>&#127891; نظام متابعة المخدومات</h1>
+            <p>تسجيل الحضور والتقييم اليومي للأنشطة</p>
+            <div class="date-badge" id="todayDateBadge">&#128197; جاري التحميل...</div>
+        </div>
+
+        <div class="duplicate-banner" id="duplicateBanner">
+            <span>&#10060;</span>
+            <span id="duplicateText">هذه الطالبة مسجلة بالفعل!</span>
+        </div>
+
+        <div class="conflict-banner" id="conflictBanner">
+            <span>&#9888;&#65039;</span>
+            <span id="conflictText">حد تاني عدل على الطالبة دي وأنتي شغالة! حدّثي الصفحة عشان تشوفي آخر بيانات.</span>
+        </div>
+
+        <div class="added-today-banner" id="addedTodayBanner">
+            <span>&#9989;</span>
+            <span>تم تسجيل بيانات لهذه الطالبة اليوم. هتتحدث لو غيرتي حاجة.</span>
+        </div>
+
+        <div class="alert-banner" id="absentAlertBanner">
+            <span>&#128308;</span>
+            <span id="absentAlertText"></span>
+        </div>
+
+        <div class="offline-banner" id="offlineBanner">
+            <span>&#9888;&#65039;</span>
+            <span>وضع عدم الاتصال &bull; البيانات هتتحفظ محلياً وهتتزامن لما يكون فيه نت</span>
+        </div>
+
+        <!-- كل الطالبات -->
+        <div class="section-title" id="allStudentsTitle">
+            <h2>&#128101; كل المخدومات <span id="allStudentsCount" style="font-size:0.85rem;color:var(--text-light);">(جاري التحميل...)</span></h2>
+            <button class="btn btn-sm btn-secondary" id="btnRefreshAll">&#128260; تحديث</button>
+        </div>
+        <div class="all-students-grid" id="allStudentsGrid">
+            <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-light);">
+                <div class="spinner" style="border-color:var(--border);border-top-color:var(--primary);width:40px;height:40px;"></div>
+                <p style="margin-top:15px;">جاري تحميل بيانات الطالبات من السحابة...</p>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label for="studentSelect">&#128317; اختيار الطالبة</label>
+                <div class="student-select-row">
+                    <select id="studentSelect" aria-label="اختيار الطالبة">
+                        <option value="">-- اختيار طالبة من القائمة --</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" id="btnNewStudent">&#128221; جديدة</button>
+                    <button class="btn btn-primary btn-sm" id="btnLoadStudent">&#128269; تحميل / بحث</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="studentName">&#128105; اسم الطالبة</label>
+                <input type="text" id="studentName" placeholder="اكتبي اسم الطالبة..." aria-label="اسم الطالبة">
+                <input type="hidden" id="studentDocId">
+                <div class="duplicate-error" id="dupNameError"></div>
+            </div>
+            <div class="form-group">
+                <label for="studentYear">&#127891; السنة الدراسية</label>
+                <select id="studentYear" aria-label="السنة الدراسية">
+                    <option value="">-- اختيار السنة --</option>
+                    <option value="أولى إعدادي">أولى إعدادي</option>
+                    <option value="تانية إعدادي">تانية إعدادي</option>
+                    <option value="تالتة إعدادي">تالتة إعدادي</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="summary-bar">
+            <div class="stat-item"><h3 id="presentCount">0</h3><p>&#9989; حاضرة</p></div>
+            <div class="stat-item"><h3 id="absentCount">0</h3><p>&#10060; غائبة</p></div>
+            <div class="stat-item"><h3 id="ratedActivities">0</h3><p>&#11088; مقيمة</p></div>
+            <div class="stat-item"><h3 id="avgRating">0.0</h3><p>&#128200; متوسط</p></div>
+            <div class="stat-item"><h3 id="attendanceRate">0%</h3><p>&#128202; نسبة</p></div>
+            <div class="stat-item"><h3 id="logCount">0</h3><p>&#128203; عمليات</p></div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" id="btnPrint">&#128424;&#65039; طباعة</button>
+            <button class="btn btn-success" id="saveBtn">&#128190; حفظ سحابي</button>
+            <button class="btn btn-secondary" id="btnExportJson">&#128229; تصدير JSON</button>
+            <button class="btn btn-secondary" id="btnExportCsv">&#128229; تصدير CSV</button>
+            <button class="btn btn-danger" id="btnReset">&#128260; مسح الكل</button>
+        </div>
+
+        <div class="cards-grid" id="cardsGrid">
+            <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-light);">
+                <p>اختر طالبة من الأعلى أو اضغط على "جديدة" لتسجيل بيانات</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="logModal">
+        <div class="modal-box" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3>&#128203; السجل التاريخي المجمّع</h3>
+                <button class="modal-close" id="closeLog" aria-label="إغلاق">&#215;</button>
+            </div>
+            <div class="modal-body">
+                <div class="audit-badge">
+                    <span>&#128227;</span>
+                    <span>سجل دائم في Firebase &bull; كل تعديل مسجل مع مين عمله وإمتى والسبب</span>
+                </div>
+                <div class="security-note">
+                    <span>&#128272;</span>
+                    <span>السجل محمي بـ Firebase Auth &bull; مينفعش يتمسح إلا من Firebase Console</span>
+                </div>
+                <div class="filter-bar">
+                    <select id="filterDay" aria-label="تصفية باليوم">
+                        <option value="">كل الأيام</option>
+                        <option value="السبت">السبت</option>
+                        <option value="الإثنين">الإثنين</option>
+                        <option value="الأربعاء">الأربعاء</option>
+                    </select>
+                    <select id="filterType" aria-label="تصفية بالنوع">
+                        <option value="">كل الأنواع</option>
+                        <option value="attendance">حضور/غياب</option>
+                        <option value="rating">تقييم</option>
+                        <option value="note">ملاحظة</option>
+                    </select>
+                    <select id="filterViewMode" aria-label="طريقة العرض">
+                        <option value="aggregated">عرض مجمّع (اليوم في صف واحد)</option>
+                        <option value="detailed">عرض مفصّل (كل نشاط لوحده)</option>
+                    </select>
+                </div>
+                <div class="loading-overlay" id="logLoadingOverlay">
+                    <div class="spinner" style="border-color:var(--border);border-top-color:var(--primary);width:32px;height:32px;"></div>
+                </div>
+                <div id="logAggregatedView"></div>
+                <table class="log-table" id="logDetailedTable" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>الوقت</th>
+                            <th>الخادم</th>
+                            <th>الطالبة</th>
+                            <th>اليوم / النشاط</th>
+                            <th>التغيير</th>
+                            <th>السبب</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="statsModal">
+        <div class="modal-box" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>&#128202; لوحة الإحصائيات</h3>
+                <button class="modal-close" id="closeStats" aria-label="إغلاق">&#215;</button>
+            </div>
+            <div class="modal-body">
+                <div class="loading-overlay" id="statsLoadingOverlay">
+                    <div class="spinner" style="border-color:var(--border);border-top-color:var(--primary);width:32px;height:32px;"></div>
+                </div>
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stats-card"><h4 id="statTotalStudents">0</h4><p>إجمالي المخدومات</p></div>
+                    <div class="stats-card success"><h4 id="statTopPresent">-</h4><p>أكثر الحضور</p></div>
+                    <div class="stats-card danger"><h4 id="statLeastPresent">-</h4><p>أقل الحضور</p></div>
+                    <div class="stats-card warning"><h4 id="statAvgRating">0.0</h4><p>متوسط التقييم</p></div>
+                    <div class="stats-card danger"><h4 id="statMonthlyAbsents">0</h4><p>غيابات الشهر</p></div>
+                    <div class="stats-card"><h4 id="statNeedFollow">0</h4><p>يحتاجون متابعة</p></div>
+                </div>
+                <div style="margin-top:24px;">
+                    <h4 style="color:var(--primary);margin-bottom:14px;font-size:1.1rem;">&#127919; توزيع الحالة</h4>
+                    <div id="statusDistribution" style="display:flex;flex-direction:column;gap:12px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="monthlyModal">
+        <div class="modal-box" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>&#128197; السجل الشهري (السبت - الإثنين - الأربعاء)</h3>
+                <button class="modal-close" id="closeMonthly" aria-label="إغلاق">&#215;</button>
+            </div>
+            <div class="modal-body">
+                <div class="month-selector" id="monthSelector"></div>
+                <div id="monthCalendar" class="month-calendar"></div>
+                <div id="monthDetails" style="margin-top:15px;padding:18px;background:var(--bg);border-radius:var(--radius-sm);display:none;">
+                    <h4 style="color:var(--primary);margin-bottom:10px;font-size:1rem;" id="monthDetailTitle"></h4>
+                    <div id="monthDetailContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="todayAttendanceModal">
+        <div class="modal-box" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>&#128204; لوحة حضور اليوم</h3>
+                <button class="modal-close" id="closeToday" aria-label="إغلاق">&#215;</button>
+            </div>
+            <div class="modal-body">
+                <div class="loading-overlay" id="todayAttLoadingOverlay">
+                    <div class="spinner" style="border-color:var(--border);border-top-color:var(--primary);width:32px;height:32px;"></div>
+                </div>
+
+                <div class="stats-grid" style="margin-bottom: 20px;">
+                    <div class="stats-card success">
+                        <h4 id="todayPresentCount">0</h4>
+                        <p>&#9989; حاضرين النهاردة</p>
+                    </div>
+                    <div class="stats-card danger">
+                        <h4 id="todayAbsentCount">0</h4>
+                        <p>&#10060; غائبات النهاردة</p>
+                    </div>
+                    <div class="stats-card warning">
+                        <h4 id="todayNotRecorded">0</h4>
+                        <p>&#9898; لم يُسجّل لهم</p>
+                    </div>
+                    <div class="stats-card">
+                        <h4 id="todayTotalStudents">0</h4>
+                        <p>&#128101; إجمالي الطالبات</p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 24px;">
+                    <h4 style="color:var(--primary);margin-bottom:12px;font-size:1.1rem;">&#127942; الأكثر حضوراً هذا الشهر</h4>
+                    <div id="topAttendeesList" style="display:flex;flex-direction:column;gap:10px;">
+                        <p style="color:var(--text-light);text-align:center;padding:20px;">جاري التحميل...</p>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 style="color:var(--danger);margin-bottom:12px;font-size:1.1rem;">&#128308; لم يحضرن النهاردة</h4>
+                    <div id="absentTodayList" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;">
+                        <p style="color:var(--text-light);text-align:center;padding:20px;">جاري التحميل...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="profileModal">
+        <div class="modal-box" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3>&#128203; ملف الطالبة الشامل</h3>
+                <button class="modal-close" id="closeProfile" aria-label="إغلاق">&#215;</button>
+            </div>
+            <div class="modal-body">
+                <div class="loading-overlay" id="profileLoadingOverlay">
+                    <div class="spinner" style="border-color:var(--border);border-top-color:var(--primary);width:32px;height:32px;"></div>
+                </div>
+                
+                <div style="margin-bottom: 20px; padding: 16px; background: var(--bg); border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h4 style="color: var(--primary); font-size: 1.2rem; font-weight: 800;" id="profileStudentName">-</h4>
+                        <p style="color: var(--text-light); font-size: 0.9rem;" id="profileStudentYear">-</p>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <span class="tag tag-present" id="profileTotalPresent">حاضر: 0</span>
+                        <span class="tag tag-absent" id="profileTotalAbsent">غائب: 0</span>
+                        <span class="tag tag-rating" id="profileAvgRating">متوسط: 0.0</span>
+                    </div>
+                </div>
+
+                <div id="profileTimeline" class="profile-timeline">
+                    <div class="profile-empty">اختر طالبة أولاً لعرض ملفها الشامل</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="shortcut-toggle" id="shortcutToggle" title="اختصارات الكيبورد" aria-label="اختصارات الكيبورد">&#9000;</button>
+    <div class="shortcuts-help" id="shortcutsHelp">
+        <h4>&#9000; اختصارات الكيبورد</h4>
+        <div class="shortcut-item"><span>طباعة</span><span class="shortcut-key">Ctrl+P</span></div>
+        <div class="shortcut-item"><span>حفظ</span><span class="shortcut-key">Ctrl+S</span></div>
+        <div class="shortcut-item"><span>بحث</span><span class="shortcut-key">Ctrl+F</span></div>
+        <div class="shortcut-item"><span>سجل جديد</span><span class="shortcut-key">Ctrl+N</span></div>
+        <div class="shortcut-item"><span>السجل التاريخي</span><span class="shortcut-key">Ctrl+H</span></div>
+        <div class="shortcut-item"><span>إحصائيات</span><span class="shortcut-key">Ctrl+I</span></div>
+        <div class="shortcut-item"><span>ملف الطالبة</span><span class="shortcut-key">Ctrl+M</span></div>
+        <div class="shortcut-item"><span>مسح البحث</span><span class="shortcut-key">Escape</span></div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
