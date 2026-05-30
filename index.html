@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="نظام متابعة المخدومات - تتبع حضور وتقييم الطالبات">
     <meta name="theme-color" content="#6c5ce7">
-    <title>نظام متابعة المخدومات - النسخة المحسّنة v6.0</title>
+    <title>نظام متابعة المخدومات - النسخة المحسّنة v8.0</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
 </head>
 <body>
 
-    <div class="toast-container" id="toastContainer"></div>
+    <div class="toast-container" id="toastContainer" role="region" aria-live="polite" aria-label="إشعارات"></div>
 
     <div class="login-overlay" id="loginOverlay">
         <div class="login-box">
@@ -23,7 +23,7 @@
             <div id="loginForm">
                 <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" autocomplete="email" aria-label="البريد الإلكتروني">
                 <input type="password" id="loginPassword" placeholder="كلمة المرور" autocomplete="current-password" aria-label="كلمة المرور">
-                <button class="login-btn" id="loginBtn">&#10132; دخول</button>
+                <button type="button" class="login-btn" id="loginBtn">&#10132; دخول</button>
             </div>
             
             <div id="registerForm" style="display:none;">
@@ -31,7 +31,7 @@
                 <input type="email" id="regEmail" placeholder="البريد الإلكتروني" autocomplete="email" aria-label="البريد الإلكتروني">
                 <input type="password" id="regPassword" placeholder="كلمة المرور (6 أحرف على الأقل)" autocomplete="new-password" aria-label="كلمة المرور">
                 <input type="password" id="regPasswordConfirm" placeholder="تأكيد كلمة المرور" autocomplete="new-password" aria-label="تأكيد كلمة المرور">
-                <button class="login-btn" id="registerBtn">&#128221; إنشاء حساب</button>
+                <button type="button" class="login-btn" id="registerBtn">&#128221; إنشاء حساب</button>
             </div>
             
             <div class="login-error" id="loginError"></div>
@@ -39,11 +39,11 @@
             
             <div class="auth-toggle">
                 <span id="authToggleText">ليس لديك حساب؟</span>
-                <button id="authToggleBtn">إنشاء حساب جديد</button>
+                <button type="button" id="authToggleBtn">إنشاء حساب جديد</button>
             </div>
             
             <div style="margin-top:14px;font-size:0.8rem;color:var(--text-light);">
-                النسخة المحسّنة v6.0 &bull; تسجيل دخول دائم &bull; عرض كل البيانات فوراً
+                النسخة المحسّنة v8.0 &bull; تسجيل دخول دائم &bull; عرض كل البيانات فوراً
             </div>
         </div>
     </div>
@@ -56,6 +56,7 @@
                     <span id="serverDisplay">غير مسجل</span>
                 </div>
                 <div class="save-status offline" id="saveStatus">&#128268; جاري الاتصال...</div>
+                <div class="auto-save-indicator" id="autoSaveIndicator" aria-live="polite"></div>
             </div>
             <div class="server-actions">
                 <div class="search-wrap">
@@ -65,12 +66,12 @@
                     </div>
                     <div class="search-results" id="searchResults"></div>
                 </div>
-                <button class="link-btn today-btn" id="btnToday">&#128204; حضور اليوم</button>
-                <button class="link-btn profile-btn" id="btnProfile">&#128203; ملف الطالبة</button>
-                <button class="link-btn" id="btnStats">&#128202; إحصائيات</button>
-                <button class="link-btn" id="btnLog">&#128203; السجل</button>
-                <button class="link-btn" id="btnMonthly">&#128197; الشهري</button>
-                <button class="link-btn danger" id="btnLogout">&#128682; خروج</button>
+                <button type="button" class="link-btn today-btn" id="btnToday">&#128204; حضور اليوم</button>
+                <button type="button" class="link-btn profile-btn" id="btnProfile">&#128203; ملف الطالبة</button>
+                <button type="button" class="link-btn" id="btnStats">&#128202; إحصائيات</button>
+                <button type="button" class="link-btn" id="btnLog">&#128203; السجل</button>
+                <button type="button" class="link-btn" id="btnMonthly">&#128197; الشهري</button>
+                <button type="button" class="link-btn danger" id="btnLogout">&#128682; خروج</button>
             </div>
         </div>
 
@@ -108,7 +109,20 @@
         <!-- كل الطالبات -->
         <div class="section-title" id="allStudentsTitle">
             <h2>&#128101; كل المخدومات <span id="allStudentsCount" style="font-size:0.85rem;color:var(--text-light);">(جاري التحميل...)</span></h2>
-            <button class="btn btn-sm btn-secondary" id="btnRefreshAll">&#128260; تحديث</button>
+            <div class="filter-sort-row">
+                <select id="yearFilter" aria-label="تصفية بالسنة الدراسية">
+                    <option value="">كل السنوات</option>
+                    <option value="أولى إعدادي">أولى إعدادي</option>
+                    <option value="تانية إعدادي">تانية إعدادي</option>
+                    <option value="تالتة إعدادي">تالتة إعدادي</option>
+                </select>
+                <select id="sortFilter" aria-label="ترتيب حسب">
+                    <option value="name">الاسم (أبجدي)</option>
+                    <option value="attendance">الحضور (الأعلى)</option>
+                    <option value="recent">آخر تحديث</option>
+                </select>
+                <button type="button" class="btn btn-sm btn-secondary" id="btnRefreshAll">&#128260; تحديث</button>
+            </div>
         </div>
         <div class="all-students-grid" id="allStudentsGrid">
             <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-light);">
@@ -116,6 +130,7 @@
                 <p style="margin-top:15px;">جاري تحميل بيانات الطالبات من السحابة...</p>
             </div>
         </div>
+        <div id="paginationContainer"></div>
 
         <div class="info-card">
             <div class="form-group" style="grid-column: 1 / -1;">
@@ -124,14 +139,14 @@
                     <select id="studentSelect" aria-label="اختيار الطالبة">
                         <option value="">-- اختيار طالبة من القائمة --</option>
                     </select>
-                    <button class="btn btn-secondary btn-sm" id="btnNewStudent">&#128221; جديدة</button>
-                    <button class="btn btn-primary btn-sm" id="btnLoadStudent">&#128269; تحميل / بحث</button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btnNewStudent">&#128221; جديدة</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btnLoadStudent">&#128269; تحميل / بحث</button>
                 </div>
             </div>
             <div class="form-group">
                 <label for="studentName">&#128105; اسم الطالبة</label>
                 <input type="text" id="studentName" placeholder="اكتبي اسم الطالبة..." aria-label="اسم الطالبة">
-                <input type="hidden" id="studentDocId">
+                <input type="hidden" id="studentDocId" aria-hidden="true">
                 <div class="duplicate-error" id="dupNameError"></div>
             </div>
             <div class="form-group">
@@ -155,11 +170,12 @@
         </div>
 
         <div class="actions">
-            <button class="btn btn-primary" id="btnPrint">&#128424;&#65039; طباعة</button>
-            <button class="btn btn-success" id="saveBtn">&#128190; حفظ سحابي</button>
-            <button class="btn btn-secondary" id="btnExportJson">&#128229; تصدير JSON</button>
-            <button class="btn btn-secondary" id="btnExportCsv">&#128229; تصدير CSV</button>
-            <button class="btn btn-danger" id="btnReset">&#128260; مسح الكل</button>
+            <button type="button" class="btn btn-primary" id="saveBtn">&#128190; حفظ سحابي</button>
+            <button type="button" class="btn btn-success" id="btnPrint">&#128424;&#65039; طباعة</button>
+            <button type="button" class="btn btn-secondary" id="btnExportJson">&#128229; تصدير JSON</button>
+            <button type="button" class="btn btn-secondary" id="btnExportCsv">&#128229; تصدير CSV</button>
+            <button type="button" class="btn btn-secondary" id="btnImportJson">&#128228; استيراد JSON</button>
+            <button type="button" class="btn btn-danger" id="btnReset">&#128260; مسح الكل</button>
         </div>
 
         <div class="cards-grid" id="cardsGrid">
@@ -170,11 +186,11 @@
     </div>
 
     <!-- Modals -->
-    <div class="modal-overlay" id="logModal">
+    <div class="modal-overlay" id="logModal" role="dialog" aria-modal="true" aria-label="السجل التاريخي">
         <div class="modal-box" style="max-width: 900px;">
             <div class="modal-header">
                 <h3>&#128203; السجل التاريخي المجمّع</h3>
-                <button class="modal-close" id="closeLog" aria-label="إغلاق">&#215;</button>
+                <button type="button" class="modal-close" id="closeLog" aria-label="إغلاق">&#215;</button>
             </div>
             <div class="modal-body">
                 <div class="audit-badge">
@@ -224,11 +240,11 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="statsModal">
+    <div class="modal-overlay" id="statsModal" role="dialog" aria-modal="true" aria-label="لوحة الإحصائيات">
         <div class="modal-box" style="max-width: 700px;">
             <div class="modal-header">
                 <h3>&#128202; لوحة الإحصائيات</h3>
-                <button class="modal-close" id="closeStats" aria-label="إغلاق">&#215;</button>
+                <button type="button" class="modal-close" id="closeStats" aria-label="إغلاق">&#215;</button>
             </div>
             <div class="modal-body">
                 <div class="loading-overlay" id="statsLoadingOverlay">
@@ -250,11 +266,11 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="monthlyModal">
+    <div class="modal-overlay" id="monthlyModal" role="dialog" aria-modal="true" aria-label="السجل الشهري">
         <div class="modal-box" style="max-width: 600px;">
             <div class="modal-header">
                 <h3>&#128197; السجل الشهري (السبت - الإثنين - الأربعاء)</h3>
-                <button class="modal-close" id="closeMonthly" aria-label="إغلاق">&#215;</button>
+                <button type="button" class="modal-close" id="closeMonthly" aria-label="إغلاق">&#215;</button>
             </div>
             <div class="modal-body">
                 <div class="month-selector" id="monthSelector"></div>
@@ -267,11 +283,11 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="todayAttendanceModal">
+    <div class="modal-overlay" id="todayAttendanceModal" role="dialog" aria-modal="true" aria-label="حضور اليوم">
         <div class="modal-box" style="max-width: 700px;">
             <div class="modal-header">
                 <h3>&#128204; لوحة حضور اليوم</h3>
-                <button class="modal-close" id="closeToday" aria-label="إغلاق">&#215;</button>
+                <button type="button" class="modal-close" id="closeToday" aria-label="إغلاق">&#215;</button>
             </div>
             <div class="modal-body">
                 <div class="loading-overlay" id="todayAttLoadingOverlay">
@@ -314,11 +330,11 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="profileModal">
+    <div class="modal-overlay" id="profileModal" role="dialog" aria-modal="true" aria-label="ملف الطالبة">
         <div class="modal-box" style="max-width: 800px;">
             <div class="modal-header">
                 <h3>&#128203; ملف الطالبة الشامل</h3>
-                <button class="modal-close" id="closeProfile" aria-label="إغلاق">&#215;</button>
+                <button type="button" class="modal-close" id="closeProfile" aria-label="إغلاق">&#215;</button>
             </div>
             <div class="modal-body">
                 <div class="loading-overlay" id="profileLoadingOverlay">
@@ -344,7 +360,7 @@
         </div>
     </div>
 
-    <button class="shortcut-toggle" id="shortcutToggle" title="اختصارات الكيبورد" aria-label="اختصارات الكيبورد">&#9000;</button>
+    <button type="button" class="shortcut-toggle" id="shortcutToggle" title="اختصارات الكيبورد" aria-label="اختصارات الكيبورد">&#9000;</button>
     <div class="shortcuts-help" id="shortcutsHelp">
         <h4>&#9000; اختصارات الكيبورد</h4>
         <div class="shortcut-item"><span>طباعة</span><span class="shortcut-key">Ctrl+P</span></div>
@@ -357,9 +373,9 @@
         <div class="shortcut-item"><span>مسح البحث</span><span class="shortcut-key">Escape</span></div>
     </div>
 
-<script type="module" src="app-config.js"></script>
-<script src="app-auth.js"></script>
-<script type="module" src="app-core.js"></script>
+    <script type="module" src="app-config.js"></script>
+    <script src="app-auth.js"></script>
+    <script type="module" src="app-core.js"></script>
 
 </body>
 </html>

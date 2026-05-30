@@ -1,5 +1,5 @@
 // ============================================
-// app-core.js - Core Application Logic v7
+// app-core.js - Core Application Logic v8
 // Enterprise-grade + Mobile-optimized for 200+ students
 // ============================================
 
@@ -25,7 +25,7 @@ let allStudents = [];
 let currentStudent = null;
 let localData = {};
 let studentsMap = new Map();
-let idToIndex = new Map(); // id -> index in allStudents
+let idToIndex = new Map();
 let attendanceDateIndex = new Set();
 let searchIndex = new Map();
 let saveQueue = new Map();
@@ -34,6 +34,10 @@ let modalControllers = new Map();
 let autoSaveTimer = null;
 let currentPage = 0;
 let currentFilter = { year: "", sort: "name", search: "" };
+let hasUnsavedChanges = false;
+let statsCache = null;
+let statsCacheTime = 0;
+const STATS_CACHE_TTL = 30000; // 30 seconds
 
 // ========== HELPERS ==========
 const ESCAPE_MAP = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -396,6 +400,7 @@ async function performSave(id, data) {
 
     updateStudentCard(id);
     updateStudentSelectOption(id);
+    hasUnsavedChanges = true;
 
     await deleteBackup(id).catch(() => {});
 }
@@ -416,6 +421,7 @@ function triggerAutoSave() {
         indicator.textContent = "جارٍ الحفظ...";
         indicator.className = "auto-save-indicator pending";
     }
+    hasUnsavedChanges = true;
 
     autoSaveTimer = setTimeout(() => {
         const docIdEl = document.getElementById("studentDocId");
@@ -493,7 +499,7 @@ function cleanupPendingSync(id) {
 }
 
 window.addEventListener("online", () => {
-    showToast("🌐 الاتصال restored - جاري المزامنة", "info", 3000);
+    showToast("🌐 تم استعادة الاتصال - جاري المزامنة", "info", 3000);
     retryPendingSyncs();
 });
 
@@ -819,7 +825,7 @@ function getStudentTodayStatus(s) {
 
     DAYS.forEach(day => {
         const dayAtt = todayAtt[day];
-        if (dayAtt) {
+        if (dayAtt && typeof dayAtt === "object") {
             ACTIVITIES.forEach(act => {
                 if (Object.prototype.hasOwnProperty.call(dayAtt, act.id)) {
                     hasRecord = true;
@@ -867,7 +873,7 @@ function renderAllStudents() {
     const filtered = getFilteredStudents();
 
     if (!filtered.length) {
-        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-light);">لا يوجد طالبات مسجلات</div>';
+        grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👥</div><p>لا يوجد طالبات مسجلات</p><span>اضغطي على "جديدة" لإضافة طالبة</span></div>';
         return;
     }
 
@@ -904,7 +910,7 @@ function renderPagination(total) {
     }
     let html = '<div class="pagination">';
     for (let i = 0; i < totalPages; i++) {
-        html += '<button class="page-btn ' + (i === currentPage ? 'active' : '') + '" onclick="changePage(' + i + ')">' + (i + 1) + '</button>';
+        html += '<button type="button" class="page-btn ' + (i === currentPage ? 'active' : '') + '" onclick="changePage(' + i + ')">' + (i + 1) + '</button>';
     }
     html += '</div>';
     container.innerHTML = html;
@@ -913,6 +919,7 @@ function renderPagination(total) {
 window.changePage = function(page) {
     currentPage = page;
     renderAllStudents();
+    document.getElementById("allStudentsGrid")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 };
 
 function createStudentCard(s) {
@@ -921,6 +928,9 @@ function createStudentCard(s) {
     card.className = "student-mini-card";
     card.dataset.id = s.id;
     card.id = "student-card-" + s.id;
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
+    card.setAttribute("aria-label", "طالبة: " + (s.name || "بدون اسم"));
     card.innerHTML = 
         '<div class="mini-status-strip" style="background:' + (s.year === 'أولى إعدادي' ? '#6c5ce7' : s.year === 'تانية إعدادي' ? '#00b894' : '#e17055') + '"></div>' +
         '<div class="mini-name">' + escapeHtml(s.name || 'بدون اسم') + '</div>' +
@@ -1069,6 +1079,7 @@ async function handleSave() {
             }
         }, 2000);
     }
+    hasUnsavedChanges = false;
     showToast("✅ تم حفظ بيانات " + escapeHtml(name) + " بنجاح", "success", 3000);
 }
 
@@ -1186,6 +1197,7 @@ function handleReset() {
     searchIndex.clear();
     allStudents = [];
     currentPage = 0;
+    hasUnsavedChanges = false;
     clearIndexedDB().catch(e => console.warn("IndexedDB clear failed:", e));
     renderAllStudents();
     updateStudentSelect();
@@ -1242,12 +1254,19 @@ function handleQuickSearch() {
     results.classList.add("active");
 }
 
-// ========== STATS MODAL (lazy) ==========
+// ========== STATS MODAL (with caching) ==========
 function openStats() {
     const modal = document.getElementById("statsModal");
     if (modal) modal.classList.add("active");
 
     const renderStats = () => {
+        // Use cached stats if available and fresh
+        const now = Date.now();
+        if (statsCache && (now - statsCacheTime) < STATS_CACHE_TTL) {
+            applyStatsCache();
+            return;
+        }
+
         const total = allStudents.length;
         let topPresent = "-", leastPresent = "-", avgRating = 0, totalRating = 0, totalCount = 0, monthlyAbsents = 0, needFollow = 0;
         let maxP = -1, minP = 9999;
@@ -1256,7 +1275,7 @@ function openStats() {
             const p = s.presentCount || 0;
             const a = s.absentCount || 0;
             if (p > maxP) { maxP = p; topPresent = s.name; }
-            if (p < minP) { minP = p; leastPresent = s.name; }
+            if (total > 0 && p < minP) { minP = p; leastPresent = s.name; }
             if (s.totalRating && s.ratingCount) {
                 totalRating += s.totalRating;
                 totalCount += s.ratingCount;
@@ -1275,15 +1294,23 @@ function openStats() {
         set("statNeedFollow", needFollow);
 
         const dist = document.getElementById("statusDistribution");
+        let excellent = 0, good = 0, bad = 0;
+        allStudents.forEach(s => {
+            if (s.ratingCount && (s.totalRating / s.ratingCount) >= 4) excellent++;
+            else if (s.ratingCount && (s.totalRating / s.ratingCount) >= 3) good++;
+            else bad++;
+        });
+
         if (dist) {
-            const excellent = allStudents.filter(s => (s.ratingCount && (s.totalRating / s.ratingCount) >= 4)).length;
-            const good = allStudents.filter(s => (s.ratingCount && (s.totalRating / s.ratingCount) >= 3 && (s.totalRating / s.ratingCount) < 4)).length;
-            const bad = allStudents.filter(s => (!s.ratingCount || (s.totalRating / s.ratingCount) < 3)).length;
             dist.innerHTML = 
                 '<div style="display:flex;align-items:center;gap:10px;"><div class="progress-bar-container"><div class="progress-bar-fill" style="width:' + (total ? (excellent/total*100) : 0) + '%;background:var(--status-excellent)"></div></div><span>ممتاز: ' + excellent + '</span></div>' +
                 '<div style="display:flex;align-items:center;gap:10px;"><div class="progress-bar-container"><div class="progress-bar-fill" style="width:' + (total ? (good/total*100) : 0) + '%;background:var(--status-good)"></div></div><span>جيد: ' + good + '</span></div>' +
                 '<div style="display:flex;align-items:center;gap:10px;"><div class="progress-bar-container"><div class="progress-bar-fill" style="width:' + (total ? (bad/total*100) : 0) + '%;background:var(--status-bad)"></div></div><span>يحتاج متابعة: ' + bad + '</span></div>';
         }
+
+        // Cache the results
+        statsCache = { total, topPresent, leastPresent, avgRating, monthlyAbsents, needFollow, excellent, good, bad };
+        statsCacheTime = now;
     };
 
     if (typeof requestIdleCallback !== "undefined") {
@@ -1291,6 +1318,33 @@ function openStats() {
     } else {
         renderStats();
     }
+}
+
+function applyStatsCache() {
+    if (!statsCache) return;
+    const c = statsCache;
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set("statTotalStudents", c.total);
+    set("statTopPresent", escapeHtml(c.topPresent));
+    set("statLeastPresent", escapeHtml(c.leastPresent));
+    set("statAvgRating", c.avgRating);
+    set("statMonthlyAbsents", c.monthlyAbsents);
+    set("statNeedFollow", c.needFollow);
+
+    const dist = document.getElementById("statusDistribution");
+    const total = allStudents.length;
+    if (dist) {
+        dist.innerHTML = 
+            '<div style="display:flex;align-items:center;gap:10px;"><div class="progress-bar-container"><div class="progress-bar-fill" style="width:' + (total ? (c.excellent/total*100) : 0) + '%;background:var(--status-excellent)"></div></div><span>ممتاز: ' + c.excellent + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:10px;"><div class="progress-bar-container"><div class="progress-bar-fill" style="width:' + (total ? (c.good/total*100) : 0) + '%;background:var(--status-good)"></div></div><span>جيد: ' + c.good + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:10px;"><div class="progress-bar-container"><div class="progress-bar-fill" style="width:' + (total ? (c.bad/total*100) : 0) + '%;background:var(--status-bad)"></div></div><span>يحتاج متابعة: ' + c.bad + '</span></div>';
+    }
+}
+
+// Invalidate stats cache on save
+function invalidateStatsCache() {
+    statsCache = null;
+    statsCacheTime = 0;
 }
 
 // ========== LOG MODAL (lazy + cleanup) ==========
@@ -1396,7 +1450,7 @@ window.generateMonthSelector = function() {
     const months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
     const now = new Date();
     sel.innerHTML = months.map((m, i) => 
-        '<button class="month-btn ' + (i === now.getMonth() ? 'active' : '') + '" onclick="showMonth(' + i + ')">' + m + '</button>'
+        '<button type="button" class="month-btn ' + (i === now.getMonth() ? 'active' : '') + '" onclick="showMonth(' + i + ')">' + m + '</button>'
     ).join("");
     showMonth(now.getMonth());
 };
@@ -1472,11 +1526,11 @@ async function openTodayAttendance() {
 
     const today = getTodayDateStr();
     let present = 0, absent = 0, notRecorded = 0;
-    const presentList = [], absentList = [];
+    const absentList = [];
 
     allStudents.forEach(s => {
         const todayStatus = getStudentTodayStatus(s);
-        if (todayStatus.status === "present") { present++; presentList.push(s); }
+        if (todayStatus.status === "present") { present++; }
         else if (todayStatus.status === "absent") { absent++; absentList.push(s); }
         else { notRecorded++; }
     });
@@ -1599,12 +1653,16 @@ async function openProfile() {
 // ========== KEYBOARD SHORTCUTS ==========
 window.setupKeyboardShortcuts = function() {
     document.addEventListener("keydown", (e) => {
+        // Don't trigger shortcuts when typing in inputs
+        if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+        
         if (e.ctrlKey && e.key === "p") { e.preventDefault(); handlePrint(); }
         if (e.ctrlKey && e.key === "s") { e.preventDefault(); handleSave(); }
         if (e.ctrlKey && e.key === "f") { e.preventDefault(); document.getElementById("quickSearch")?.focus(); }
         if (e.ctrlKey && e.key === "h") { e.preventDefault(); openLog(); }
         if (e.ctrlKey && e.key === "i") { e.preventDefault(); openStats(); }
         if (e.ctrlKey && e.key === "m") { e.preventDefault(); openProfile(); }
+        if (e.ctrlKey && e.key === "n") { e.preventDefault(); handleNewStudent(); }
         if (e.key === "Escape") {
             document.getElementById("searchResults")?.classList.remove("active");
             document.querySelectorAll(".modal-overlay").forEach(m => m.classList.remove("active"));
@@ -1633,7 +1691,16 @@ function checkDuplicateName() {
     const name = nameEl ? nameEl.value.trim() : "";
     if (!name || !dupEl) return;
     const normalizedName = normalizeArabic(name);
-    const dup = allStudents.find(s => normalizeArabic(s.name) === normalizedName && s.id !== (document.getElementById("studentDocId")?.value || ""));
+    const currentId = document.getElementById("studentDocId")?.value || "";
+    
+    // Search in both allStudents and localData
+    let dup = allStudents.find(s => normalizeArabic(s.name) === normalizedName && s.id !== currentId);
+    if (!dup) {
+        const localIds = Object.keys(localData);
+        const dupId = localIds.find(id => id !== currentId && normalizeArabic(localData[id].name) === normalizedName);
+        if (dupId) dup = { name: localData[dupId].name, year: localData[dupId].year };
+    }
+    
     if (dup) {
         dupEl.innerHTML = "⚠️ يوجد طالبة بنفس الاسم: " + escapeHtml(dup.name) + " (" + escapeHtml(dup.year) + ")";
         dupEl.classList.add("active");
@@ -1662,6 +1729,15 @@ function setupBackupScheduler() {
         }).catch(e => console.warn("Snapshot failed:", e));
     }
 }
+
+// ========== UNSAVED CHANGES WARNING ==========
+window.addEventListener("beforeunload", (e) => {
+    if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "لديك بيانات غير محفوظة. هل تريد المغادرة؟";
+        return e.returnValue;
+    }
+});
 
 // ========== DOM READY ==========
 document.addEventListener("DOMContentLoaded", async () => {
@@ -1778,414 +1854,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     });
 });
-.studentName || '-') + '</td>' +
-                    '<td>' + escapeHtml(l.day || '-') + ' / ' + escapeHtml(l.type || '-') + '</td>' +
-                    '<td>' + escapeHtml(l.change || '-') + '</td>' +
-                    '<td>' + escapeHtml(l.reason || '-') + '</td>' +
-                '</tr>'
-            ).join("");
-        }
-    }
-}
 
-// ========== MONTHLY CALENDAR ==========
-window.generateMonthSelector = function() {
-    const sel = document.getElementById("monthSelector");
-    if (!sel) return;
-    const months = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
-    const now = new Date();
-    sel.innerHTML = months.map((m, i) => 
-        '<button class="month-btn ' + (i === now.getMonth() ? 'active' : '') + '" onclick="showMonth(' + i + ')">' + m + '</button>'
-    ).join("");
-    showMonth(now.getMonth());
-};
-
-window.showMonth = function(monthIndex) {
-    const cal = document.getElementById("monthCalendar");
-    if (!cal) return;
-    const year = new Date().getFullYear();
-    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-    const firstDayOfWeek = new Date(year, monthIndex, 1).getDay();
-
-    const weekdayNames = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
-    let html = weekdayNames.map(d => '<div class="cal-header">' + d + '</div>').join("");
-
-    for (let i = 0; i < firstDayOfWeek; i++) {
-        html += '<div class="cal-day empty"></div>';
-    }
-
-    for (let d = 1; d <= daysInMonth; d++) {
-        const date = new Date(year, monthIndex, d);
-        const dayNum = date.getDay();
-        const isService = (dayNum === 6 || dayNum === 1 || dayNum === 3);
-        const dateStr = year + "-" + String(monthIndex + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
-        const hasData = attendanceDateIndex.has(dateStr);
-        const isToday = dateStr === getTodayDateStr();
-        const serviceClass = isService ? 'service-day' : '';
-        if (isService) {
-            html += '<div class="cal-day ' + serviceClass + ' ' + (hasData ? 'has-data' : '') + ' ' + (isToday ? 'today' : '') + '" onclick="showDayDetails(\'' + dateStr + '\')">' + d + (hasData ? '<div class="cal-dot"></div>' : '') + '</div>';
-        } else {
-            html += '<div class="cal-day ' + serviceClass + ' ' + (isToday ? 'today' : '') + '">' + d + '</div>';
-        }
-    }
-    cal.innerHTML = html;
-};
-
-window.showDayDetails = function(dateStr) {
-    const details = document.getElementById("monthDetails");
-    const title = document.getElementById("monthDetailTitle");
-    const content = document.getElementById("monthDetailContent");
-    if (title) title.textContent = "تفاصيل: " + dateStr;
-    let html = "";
-    Object.keys(localData).forEach(id => {
-        const s = localData[id];
-        if (!s.attendance || !s.attendance[dateStr]) return;
-        const acts = [];
-        Object.keys(s.attendance[dateStr]).forEach(day => {
-            Object.keys(s.attendance[dateStr][day]).forEach(actId => {
-                if (s.attendance[dateStr][day][actId] === true) {
-                    const act = ACTIVITIES.find(a => a.id === actId);
-                    if (act) acts.push(act.name);
-                }
-            });
-        });
-        if (acts.length) html += '<div style="padding:6px 0;border-bottom:1px solid #f0f0f0;"><strong>' + escapeHtml(s.name) + '</strong>: ' + escapeHtml(acts.join("، ")) + '</div>';
-    });
-    if (content) content.innerHTML = html || "<p style='color:var(--text-light)'>لا يوجد بيانات</p>";
-    if (details) details.style.display = "block";
-};
-
-// ========== TODAY ATTENDANCE (lazy) ==========
-async function openTodayAttendance() {
-    const modal = document.getElementById("todayAttendanceModal");
-    if (!modal) return;
-    modal.classList.add("active");
-
-    const oldController = modalControllers.get("today");
-    if (oldController) oldController.abort();
-    const controller = new AbortController();
-    modalControllers.set("today", controller);
-
-    const loading = document.getElementById("todayAttLoadingOverlay");
-    if (loading) loading.classList.add("active");
-
-    const today = getTodayDateStr();
-    let present = 0, absent = 0, notRecorded = 0;
-    const presentList = [], absentList = [];
-
-    allStudents.forEach(s => {
-        const todayStatus = getStudentTodayStatus(s);
-        if (todayStatus.status === "present") { present++; presentList.push(s); }
-        else if (todayStatus.status === "absent") { absent++; absentList.push(s); }
-        else { notRecorded++; }
-    });
-
-    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-    set("todayPresentCount", present);
-    set("todayAbsentCount", absent);
-    set("todayNotRecorded", notRecorded);
-    set("todayTotalStudents", allStudents.length);
-
-    const topList = document.getElementById("topAttendeesList");
-    if (topList) {
-        const sorted = [...allStudents].sort((a, b) => (b.presentCount || 0) - (a.presentCount || 0)).slice(0, 5);
-        topList.innerHTML = sorted.length ? sorted.map((s, i) => 
-            '<div style="display:flex;justify-content:space-between;padding:8px;background:var(--bg);border-radius:8px;">' +
-                '<span><strong>#' + (i+1) + '</strong> ' + escapeHtml(s.name) + '</span>' +
-                '<span style="color:var(--accent1);font-weight:700;">' + (s.presentCount || 0) + ' حضور</span>' +
-            '</div>'
-        ).join("") : "<p style='color:var(--text-light);text-align:center;'>لا يوجد بيانات</p>";
-    }
-
-    const absList = document.getElementById("absentTodayList");
-    if (absList) {
-        absList.innerHTML = absentList.length ? absentList.map(s => 
-            '<div class="attendance-row">' +
-                '<div class="student-info">' +
-                    '<div class="student-name">' + escapeHtml(s.name) + '</div>' +
-                    '<div class="student-year">' + escapeHtml(s.year || '') + '</div>' +
-                '</div>' +
-                '<span class="status-badge absent">غائبة</span>' +
-            '</div>'
-        ).join("") : "<p style='color:var(--text-light);text-align:center;padding:20px;'>لا يوجد غائبات اليوم 🎉</p>";
-    }
-
-    if (loading) loading.classList.remove("active");
-}
-
-// ========== PROFILE MODAL (lazy + cached timeline) ==========
-async function openProfile() {
-    const modal = document.getElementById("profileModal");
-    if (!modal) return;
-    modal.classList.add("active");
-
-    const oldController = modalControllers.get("profile");
-    if (oldController) oldController.abort();
-    const controller = new AbortController();
-    modalControllers.set("profile", controller);
-
-    const sel = document.getElementById("studentSelect");
-    const id = sel ? sel.value : "";
-    if (!id) {
-        const timeline = document.getElementById("profileTimeline");
-        if (timeline) timeline.innerHTML = '<div class="profile-empty">اختر طالبة أولاً</div>';
-        return;
-    }
-    const loading = document.getElementById("profileLoadingOverlay");
-    if (loading) loading.classList.add("active");
-
-    const s = getStudentLocal(id);
-    const nameEl = document.getElementById("profileStudentName");
-    const yearEl = document.getElementById("profileStudentYear");
-    const presEl = document.getElementById("profileTotalPresent");
-    const absEl = document.getElementById("profileTotalAbsent");
-    const avgEl = document.getElementById("profileAvgRating");
-    const timeline = document.getElementById("profileTimeline");
-
-    if (nameEl) nameEl.textContent = s.name || "-";
-    if (yearEl) yearEl.textContent = s.year || "-";
-    if (presEl) presEl.textContent = "حاضر: " + (s.presentCount || 0);
-    if (absEl) absEl.textContent = "غائب: " + (s.absentCount || 0);
-    const avg = s.ratingCount ? (s.totalRating / s.ratingCount).toFixed(1) : "0.0";
-    if (avgEl) avgEl.textContent = "متوسط: " + avg;
-
-    if (timeline) {
-        let html = s.cachedTimeline || "";
-        if (!html) {
-            const dateGroups = {};
-            Object.keys(s.attendance || {}).forEach(date => {
-                Object.keys(s.attendance[date]).forEach(day => {
-                    Object.keys(s.attendance[date][day]).forEach(actId => {
-                        if (s.attendance[date][day][actId] === true) {
-                            if (!dateGroups[date]) dateGroups[date] = { day, activities: [] };
-                            const act = ACTIVITIES.find(a => a.id === actId);
-                            if (act) {
-                                const rating = s.ratings && s.ratings[date] && s.ratings[date][day] && s.ratings[date][day][actId] ? s.ratings[date][day][actId] : 0;
-                                dateGroups[date].activities.push({ name: act.name, rating });
-                            }
-                        }
-                    });
-                });
-            });
-
-            html = "";
-            Object.keys(dateGroups).sort().reverse().forEach(date => {
-                const group = dateGroups[date];
-                const acts = group.activities.map(a => 
-                    '<div class="profile-activity-item">' +
-                        '<span>' + escapeHtml(a.name) + '</span>' +
-                        '<span>' + (a.rating ? '⭐'.repeat(a.rating) : '✅') + '</span>' +
-                    '</div>'
-                ).join("");
-                html += 
-                    '<div class="profile-day-card">' +
-                        '<div class="profile-day-title">' +
-                            '<span class="day-name">' + group.day + '</span>' +
-                            '<span style="color:var(--text-light);font-size:0.8rem;">' + date + '</span>' +
-                        '</div>' +
-                        acts +
-                    '</div>';
-            });
-            html = html || '<div class="profile-empty">لا يوجد سجل لهذه الطالبة</div>';
-            s.cachedTimeline = html;
-        }
-        timeline.innerHTML = html;
-    }
-
-    if (loading) loading.classList.remove("active");
-}
-
-// ========== KEYBOARD SHORTCUTS ==========
-window.setupKeyboardShortcuts = function() {
-    document.addEventListener("keydown", safeHandler(function(e) {
-        if (e.ctrlKey && e.key === "p") { e.preventDefault(); handlePrint(); }
-        if (e.ctrlKey && e.key === "s") { e.preventDefault(); handleSave(); }
-        if (e.ctrlKey && e.key === "f") { e.preventDefault(); document.getElementById("quickSearch")?.focus(); }
-        if (e.ctrlKey && e.key === "h") { e.preventDefault(); openLog(); }
-        if (e.ctrlKey && e.key === "i") { e.preventDefault(); openStats(); }
-        if (e.ctrlKey && e.key === "m") { e.preventDefault(); openProfile(); }
-        if (e.key === "Escape") {
-            document.getElementById("searchResults")?.classList.remove("active");
-            document.querySelectorAll(".modal-overlay").forEach(m => m.classList.remove("active"));
-            modalControllers.forEach((ctrl, id) => { ctrl.abort(); });
-            modalControllers.clear();
-        }
-    }));
-
-    const toggle = document.getElementById("shortcutToggle");
-    const help = document.getElementById("shortcutsHelp");
-    if (toggle && help) {
-        toggle.addEventListener("click", safeHandler(function() { help.classList.toggle("active"); }));
-    }
-};
-
-// ========== DATE BADGE ==========
-function updateDateBadge() {
-    const badge = document.getElementById("todayDateBadge");
-    if (badge) badge.innerHTML = "📅 " + getArabicDate();
-}
-
-// ========== DUPLICATE CHECK ==========
-function checkDuplicateName() {
-    const nameEl = document.getElementById("studentName");
-    const dupEl = document.getElementById("dupNameError");
-    const name = nameEl ? nameEl.value.trim() : "";
-    if (!name || !dupEl) return;
-    const normalizedName = normalizeArabic(name);
-    const dup = allStudents.find(s => normalizeArabic(s.name) === normalizedName && s.id !== (document.getElementById("studentDocId")?.value || ""));
-    if (dup) {
-        dupEl.innerHTML = "⚠️ يوجد طالبة بنفس الاسم: " + escapeHtml(dup.name) + " (" + escapeHtml(dup.year) + ")";
-        dupEl.classList.add("active");
-    } else {
-        dupEl.classList.remove("active");
-    }
-}
-
-// ========== MODAL CLEANUP ==========
-function cleanupModal(modalId) {
-    const controller = modalControllers.get(modalId);
-    if (controller) {
-        controller.abort();
-        modalControllers.delete(modalId);
-    }
-}
-
-// ========== BACKUP SCHEDULER ==========
-function setupBackupScheduler() {
-    const lastSnapshot = localStorage.getItem("kenesa_last_snapshot");
-    const today = getTodayDateStr();
-    if (lastSnapshot !== today) {
-        saveSnapshot().then(() => {
-            localStorage.setItem("kenesa_last_snapshot", today);
-            console.log("📸 Daily snapshot saved");
-        }).catch(e => console.warn("Snapshot failed:", e));
-    }
-}
-
-// ========== DOM READY ==========
-document.addEventListener("DOMContentLoaded", safeAsync(async function() {
-    updateDateBadge();
-    await initializeStorage();
-    await checkCrashRecovery();
-    setupBackupScheduler();
-
-    const saveBtn = document.getElementById("saveBtn");
-    const btnPrint = document.getElementById("btnPrint");
-    const btnExportJson = document.getElementById("btnExportJson");
-    const btnExportCsv = document.getElementById("btnExportCsv");
-    const btnImportJson = document.getElementById("btnImportJson");
-    const btnReset = document.getElementById("btnReset");
-    const btnNewStudent = document.getElementById("btnNewStudent");
-    const btnLoadStudent = document.getElementById("btnLoadStudent");
-    const btnRefreshAll = document.getElementById("btnRefreshAll");
-    const btnToday = document.getElementById("btnToday");
-    const btnProfile = document.getElementById("btnProfile");
-    const btnStats = document.getElementById("btnStats");
-    const btnLog = document.getElementById("btnLog");
-    const btnMonthly = document.getElementById("btnMonthly");
-
-    if (saveBtn) saveBtn.addEventListener("click", safeHandler(handleSave));
-    if (btnPrint) btnPrint.addEventListener("click", safeHandler(handlePrint));
-    if (btnExportJson) btnExportJson.addEventListener("click", safeHandler(handleExportJson));
-    if (btnExportCsv) btnExportCsv.addEventListener("click", safeHandler(handleExportCsv));
-    if (btnImportJson) btnImportJson.addEventListener("click", safeHandler(handleImportJson));
-    if (btnReset) btnReset.addEventListener("click", safeHandler(handleReset));
-    if (btnNewStudent) btnNewStudent.addEventListener("click", safeHandler(handleNewStudent));
-    if (btnLoadStudent) btnLoadStudent.addEventListener("click", safeHandler(handleLoadStudent));
-    if (btnRefreshAll) btnRefreshAll.addEventListener("click", safeHandler(loadAllStudentsData));
-    if (btnToday) btnToday.addEventListener("click", safeHandler(openTodayAttendance));
-    if (btnProfile) btnProfile.addEventListener("click", safeHandler(openProfile));
-    if (btnStats) btnStats.addEventListener("click", safeHandler(openStats));
-    if (btnLog) btnLog.addEventListener("click", safeHandler(openLog));
-    if (btnMonthly) btnMonthly.addEventListener("click", safeHandler(function() {
-        const m = document.getElementById("monthlyModal");
-        if (m) m.classList.add("active");
-    }));
-
-    const quickSearch = document.getElementById("quickSearch");
-    if (quickSearch) {
-        quickSearch.addEventListener("input", safeHandler(debouncedSearch));
-        quickSearch.addEventListener("focus", safeHandler(debouncedSearch));
-    }
-
-    const studentName = document.getElementById("studentName");
-    if (studentName) studentName.addEventListener("input", safeHandler(checkDuplicateName));
-
-    const studentSelect = document.getElementById("studentSelect");
-    if (studentSelect) studentSelect.addEventListener("change", safeHandler(function() {
-        if (studentSelect.value) selectStudentById(studentSelect.value);
-    }));
-
-    // Filter & Sort UI
-    const yearFilter = document.getElementById("yearFilter");
-    const sortFilter = document.getElementById("sortFilter");
-    if (yearFilter) {
-        yearFilter.addEventListener("change", safeHandler(function() {
-            currentFilter.year = yearFilter.value;
-            currentPage = 0;
-            renderAllStudents();
-        }));
-    }
-    if (sortFilter) {
-        sortFilter.addEventListener("change", safeHandler(function() {
-            currentFilter.sort = sortFilter.value;
-            currentPage = 0;
-            renderAllStudents();
-        }));
-    }
-
-    const closeLog = document.getElementById("closeLog");
-    const closeStats = document.getElementById("closeStats");
-    const closeMonthly = document.getElementById("closeMonthly");
-    const closeToday = document.getElementById("closeToday");
-    const closeProfile = document.getElementById("closeProfile");
-
-    if (closeLog) closeLog.addEventListener("click", safeHandler(function() {
-        document.getElementById("logModal")?.classList.remove("active");
-        cleanupModal("log");
-    }));
-    if (closeStats) closeStats.addEventListener("click", safeHandler(function() {
-        document.getElementById("statsModal")?.classList.remove("active");
-        cleanupModal("stats");
-    }));
-    if (closeMonthly) closeMonthly.addEventListener("click", safeHandler(function() {
-        document.getElementById("monthlyModal")?.classList.remove("active");
-    }));
-    if (closeToday) closeToday.addEventListener("click", safeHandler(function() {
-        document.getElementById("todayAttendanceModal")?.classList.remove("active");
-        cleanupModal("today");
-    }));
-    if (closeProfile) closeProfile.addEventListener("click", safeHandler(function() {
-        document.getElementById("profileModal")?.classList.remove("active");
-        cleanupModal("profile");
-    }));
-
-    const filterDay = document.getElementById("filterDay");
-    const filterType = document.getElementById("filterType");
-    const filterViewMode = document.getElementById("filterViewMode");
-    if (filterDay) filterDay.addEventListener("change", safeHandler(openLog));
-    if (filterType) filterType.addEventListener("change", safeHandler(openLog));
-    if (filterViewMode) filterViewMode.addEventListener("change", safeHandler(openLog));
-
-    document.querySelectorAll(".modal-overlay").forEach(overlay => {
-        overlay.addEventListener("click", safeHandler(function(e) {
-            if (e.target === overlay) {
-                overlay.classList.remove("active");
-                modalControllers.forEach(ctrl => ctrl.abort());
-                modalControllers.clear();
-            }
-        }));
-    });
-
-    // Auto-save before unload
-    window.addEventListener("beforeunload", safeHandler(function() {
-        if (autoSaveTimer) {
-            clearTimeout(autoSaveTimer);
-            const docIdEl = document.getElementById("studentDocId");
-            const nameEl = document.getElementById("studentName");
-            if (docIdEl && docIdEl.value && nameEl && nameEl.value.trim()) {
-                handleSave();
-            }
-        }
-    }));
-}));
+// ========== EXPOSE FUNCTIONS TO WINDOW ==========
+window.handleSave = handleSave;
+window.handleNewStudent = handleNewStudent;
+window.handleLoadStudent = handleLoadStudent;
+window.handlePrint = handlePrint;
+window.handleExportJson = handleExportJson;
+window.handleExportCsv = handleExportCsv;
+window.handleImportJson = handleImportJson;
+window.handleReset = handleReset;
+window.openLog = openLog;
+window.openStats = openStats;
+window.openProfile = openProfile;
+window.openTodayAttendance = openTodayAttendance;
+window.selectStudentById = selectStudentById;
+window.generateMonthSelector = generateMonthSelector;
+window.showMonth = showMonth;
+window.showDayDetails = showDayDetails;
+window.changePage = changePage;
+window.setupKeyboardShortcuts = setupKeyboardShortcuts;
+window.loadAllStudentsData = loadAllStudentsData;
+window.generateCards = generateCards;
