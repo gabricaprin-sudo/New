@@ -391,13 +391,13 @@ async function performSave(id, data) {
     await saveBackup(id, data).catch(e => console.warn("Backup failed:", e));
 
     const existingIdx = idToIndex.get(id);
-    if (existingIdx === undefined) {
-        allStudents.push({ id, ...data });
-        idToIndex.set(id, allStudents.length - 1);
-    } else {
-        allStudents[existingIdx] = { id, ...data };
-    }
 
+if (existingIdx === undefined) {
+    allStudents.push({ id, ...data });
+    idToIndex.set(id, allStudents.length - 1);
+} else {
+    allStudents[existingIdx] = { id, ...data };
+}
     updateStudentCard(id);
     updateStudentSelectOption(id);
     hasUnsavedChanges = true;
