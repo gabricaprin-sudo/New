@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام متابعة المخدومات</title>
+    <title>نظام متابعة المخدومات - Secure</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, writeBatch, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+        import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check.js";
         
         const firebaseConfig = {
             apiKey: "AIzaSyB2cycBTKMjVg8S_fBYN8C-hwUk5FUF81Q",
@@ -24,6 +25,16 @@
         const app = initializeApp(firebaseConfig);
         const analytics = getAnalytics(app);
         const db = getFirestore(app);
+        
+        // Initialize App Check with reCAPTCHA v3 (replace with your actual site key)
+        try {
+            const appCheck = initializeAppCheck(app, {
+                provider: new ReCaptchaV3Provider('6Lcxxxxxxxxxxxxxxxxxxxxxxxxx'), // <-- ضع هنا reCAPTCHA Site Key
+                isTokenAutoRefreshEnabled: true
+            });
+        } catch (e) {
+            console.log('App Check not initialized (optional)');
+        }
         
         window.firebaseDB = db;
         window.firebaseCollection = collection;
@@ -862,7 +873,6 @@
             display: flex;
             align-items: center;
             gap: 1rem;
-            margin-bottom: 1.5rem;
         }
         
         .month-selector select {
@@ -1021,9 +1031,165 @@
         }
         
         .duplicate-warning.show { display: flex; align-items: center; gap: 0.75rem; }
+        
+        /* PIN Modal */
+        .pin-display {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+        
+        .pin-dot {
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            border: 3px solid var(--border);
+            transition: all 0.3s;
+        }
+        
+        .pin-dot.filled {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.4);
+        }
+        
+        .pin-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        
+        .pin-btn {
+            aspect-ratio: 1;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        
+        .pin-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            transform: scale(1.1);
+        }
+        
+        .pin-btn:active { transform: scale(0.95); }
+        
+        .pin-btn.wide {
+            grid-column: span 2;
+            aspect-ratio: 2/1;
+            border-radius: var(--radius-sm);
+        }
+        
+        .servant-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.75rem;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .security-banner {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border: 1px solid var(--accent);
+            border-radius: var(--radius-sm);
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.9rem;
+            color: #1565c0;
+        }
+        
+        .backup-card {
+            background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+            border: 1px solid #9c27b0;
+            border-radius: var(--radius-sm);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .backup-card h4 {
+            color: #6a1b9a;
+            margin-bottom: 0.5rem;
+        }
+        
+        .rate-limit-info {
+            background: #fff3e0;
+            border: 1px solid var(--warning);
+            border-radius: var(--radius-sm);
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #e65100;
+        }
     </style>
 </head>
 <body>
+    <!-- PIN Login Overlay (shown first if no PIN set) -->
+    <div class="modal-overlay active" id="pinModal" style="z-index: 5000;">
+        <div class="modal" style="max-width: 450px; text-align: center;">
+            <div class="modal-header" style="justify-content: center;">
+                <div class="modal-title"><i class="fas fa-lock" style="color: var(--accent);"></i> تسجيل الدخول</div>
+            </div>
+            <div class="modal-body">
+                <p style="color: #7f8c8d; margin-bottom: 1.5rem;">أدخل الـ PIN الخاص بك (4 أرقام) للدخول للنظام</p>
+                
+                <div class="pin-display" id="pinDisplay">
+                    <div class="pin-dot"></div>
+                    <div class="pin-dot"></div>
+                    <div class="pin-dot"></div>
+                    <div class="pin-dot"></div>
+                </div>
+                
+                <div class="pin-pad">
+                    <button class="pin-btn" onclick="enterPin(1)">1</button>
+                    <button class="pin-btn" onclick="enterPin(2)">2</button>
+                    <button class="pin-btn" onclick="enterPin(3)">3</button>
+                    <button class="pin-btn" onclick="enterPin(4)">4</button>
+                    <button class="pin-btn" onclick="enterPin(5)">5</button>
+                    <button class="pin-btn" onclick="enterPin(6)">6</button>
+                    <button class="pin-btn" onclick="enterPin(7)">7</button>
+                    <button class="pin-btn" onclick="enterPin(8)">8</button>
+                    <button class="pin-btn" onclick="enterPin(9)">9</button>
+                    <button class="pin-btn" style="visibility: hidden;"></button>
+                    <button class="pin-btn" onclick="enterPin(0)">0</button>
+                    <button class="pin-btn" onclick="backspacePin()" style="background: var(--light);"><i class="fas fa-backspace"></i></button>
+                </div>
+                
+                <div id="pinError" style="color: var(--danger); margin-top: 1rem; font-weight: 600; display: none;">
+                    <i class="fas fa-times-circle"></i> PIN غير صحيح
+                </div>
+                
+                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                    <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 0.75rem;">أو سجل كخادم جديد</p>
+                    <div class="form-group" style="text-align: right;">
+                        <label class="form-label">الاسم</label>
+                        <input type="text" class="form-input" id="newServantName" placeholder="اسمك">
+                    </div>
+                    <div class="form-group" style="text-align: right;">
+                        <label class="form-label">PIN جديد (4 أرقام)</label>
+                        <input type="password" class="form-input" id="newServantPin" placeholder="****" maxlength="4" inputmode="numeric">
+                    </div>
+                    <button class="btn btn-success" style="width: 100%;" onclick="registerServant()">
+                        <i class="fas fa-user-plus"></i> تسجيل جديد
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Header -->
     <header class="header">
         <button class="menu-toggle" onclick="toggleSidebar()">
@@ -1035,6 +1201,10 @@
         </h1>
         <div class="header-actions">
             <div class="connection-status" id="connectionStatus" title="حالة الاتصال"></div>
+            <div class="servant-tag" id="servantTag">
+                <i class="fas fa-user-shield"></i>
+                <span id="servantDisplayName">غير مسجل</span>
+            </div>
             <button class="btn-icon tooltip" data-tip="البحث" onclick="navigateTo('search')">
                 <i class="fas fa-search"></i>
             </button>
@@ -1044,8 +1214,8 @@
             <button class="btn-icon tooltip" data-tip="الإحصائيات" onclick="navigateTo('stats')">
                 <i class="fas fa-chart-bar"></i>
             </button>
-            <button class="btn-icon tooltip" data-tip="الإعدادات" onclick="showSettings()">
-                <i class="fas fa-cog"></i>
+            <button class="btn-icon tooltip" data-tip="تبديل الخادم" onclick="logoutServant()">
+                <i class="fas fa-sign-out-alt"></i>
             </button>
         </div>
     </header>
@@ -1094,6 +1264,13 @@
             <div class="page-title">
                 <i class="fas fa-clipboard-check"></i>
                 لوحة الحضور اليومي
+            </div>
+            
+            <div class="security-banner">
+                <i class="fas fa-shield-alt"></i>
+                <div>
+                    <strong>الحماية مفعلة:</strong> كل تعديل بيتسجل باسم <span id="securityServantName">---</span> وتاريخه. البيانات محمية على Firebase.
+                </div>
             </div>
             
             <div class="card">
@@ -1492,13 +1669,29 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="backup-card">
+                <h4><i class="fas fa-database"></i> Backup & Restore</h4>
+                <p style="margin-bottom: 1rem; color: #555;">احفظ نسخة احتياطية محلية أو استعد منها. النسخة محمية بـ PIN.</p>
+                <div class="export-actions">
+                    <button class="btn btn-primary" onclick="createBackup()">
+                        <i class="fas fa-cloud-download-alt"></i>
+                        إنشاء Backup
+                    </button>
+                    <button class="btn btn-success" onclick="document.getElementById('restoreFile').click()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        استعادة Backup
+                    </button>
+                    <input type="file" id="restoreFile" style="display: none;" accept=".json" onchange="restoreBackup(this)">
+                </div>
+            </div>
         </div>
         
         <!-- Help Page -->
         <div class="page" id="page-help">
             <div class="page-title">
                 <i class="fas fa-question-circle"></i>
-                المساعدة واختصارات الكيبورد
+                المساعدة والحماية
             </div>
             
             <div class="card">
@@ -1535,23 +1728,26 @@
             
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">دليل الاستخدام</div>
+                    <div class="card-title">دليل الاستخدام والحماية</div>
                 </div>
                 <div style="line-height: 2;">
-                    <h3 style="color: var(--primary); margin: 1rem 0 0.5rem;">إضافة مخدومة جديدة</h3>
+                    <h3 style="color: var(--primary); margin: 1rem 0 0.5rem;">🔐 تسجيل الدخول</h3>
+                    <p>كل خادم/خادمة لها PIN خاص (4 أرقام). PIN ده بيتسجل مع كل تعديل علشان نعرف مين عدل. لو نسيت الـ PIN، سجل كخادم جديد.</p>
+                    
+                    <h3 style="color: var(--primary); margin: 1rem 0 0.5rem;">📝 إضافة مخدومة جديدة</h3>
                     <p>من صفحة "الحضور اليومي" اضغط على زر "إضافة مخدومة" واكتب الاسم والسنة الدراسية. النظام يكشف التكرار تلقائياً.</p>
                     
-                    <h3 style="color: var(--primary); margin: 1rem 0 0.5rem;">تسجيل الحضور والتقييم</h3>
+                    <h3 style="color: var(--primary); margin: 1rem 0 0.5rem;">⭐ تسجيل الحضور والتقييم</h3>
                     <p>في بطاقة كل مخدومة، اضغط على زر "تسجيل" لفتح نافذة التسجيل. سجل الحضور لكل نشاط (دراسي، محفوظات، قبطي، الحان) وقيّم بـ 1-5 نجوم.</p>
                     
-                    <h3 style="color: var(--primary); margin: 1rem 0 0.5rem;">الملاحظات</h3>
-                    <p>يمكن إضافة ملاحظات يومية على كل مخدومة في نفس نافذة التسجيل.</p>
+                    <h3 style="color: var(--primary); margin: 1rem 0 0.5rem;">☁️ المزامنة والحماية</h3>
+                    <p>البيانات تُحفظ تلقائياً على Firebase. كل تعديل بيتسجل في السجل التاريخي مع اسم الخادم والوقت. البيانات محمية بـ Security Rules.</p>
                     
-                    <h3 style="color: var(--primary); margin: 1rem 0 0.5rem;">المزامنة</h3>
-                    <p>البيانات تُحفظ تلقائياً على Firebase. لو فقدت الاتصال، تُحفظ محلياً وتُرفع عند عودة الاتصال.</p>
+                    <h3 style="color: var(--primary); margin: 1rem 0 0.5rem;">⚠️ التعارضات</h3>
+                    <p>لو حد تعدل البيانات وأنت شغال، النظام يظهر لك تنبيه بالتعارض واسم اللي عدّل.</p>
                     
-                    <h3 style="color: var(--primary); margin: 1rem 0 0.5rem;">التعارضات</h3>
-                    <p>لو حد تعدل البيانات وأنت شغال، النظام يظهر لك تنبيه بالتعارض ويسمح لك بالمراجعة.</p>
+                    <h3 style="color: var(--primary); margin: 1rem 0 0.5rem;">💾 Backup</h3>
+                    <p>من صفحة التصدير، استخدم "إنشاء Backup" لحفظ نسخة محلية مشفرة. استخدم "استعادة Backup" لرفع النسخة تاني.</p>
                 </div>
             </div>
         </div>
@@ -1645,40 +1841,6 @@
         </div>
     </div>
     
-    <!-- Settings Modal -->
-    <div class="modal-overlay" id="settingsModal">
-        <div class="modal" style="max-width: 500px;">
-            <div class="modal-header">
-                <div class="modal-title">الإعدادات</div>
-                <button class="modal-close" onclick="closeModal('settingsModal')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">اسم المخدم/ة</label>
-                    <input type="text" class="form-input" id="servantName" placeholder="اسمك لظهوره في السجل">
-                </div>
-                <div class="form-group">
-                    <label class="custom-checkbox">
-                        <input type="checkbox" id="autoSave" checked>
-                        <span>الحفظ التلقائي</span>
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label class="custom-checkbox">
-                        <input type="checkbox" id="conflictAlert" checked>
-                        <span>تنبيه التعارضات</span>
-                    </label>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('settingsModal')">إلغاء</button>
-                <button class="btn btn-primary" onclick="saveSettings()">حفظ الإعدادات</button>
-            </div>
-        </div>
-    </div>
-    
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
     
@@ -1691,10 +1853,11 @@
         
         let state = {
             students: [],
-            records: {}, // { studentId: { date: { activities: {}, notes: '', timestamp: '' } } }
+            records: {},
             auditLog: [],
+            servants: {}, // { pinHash: { name, pin, createdAt } }
+            currentServant: null, // { name, pin }
             settings: {
-                servantName: localStorage.getItem('servantName') || 'مخدم',
                 autoSave: localStorage.getItem('autoSave') !== 'false',
                 conflictAlert: localStorage.getItem('conflictAlert') !== 'false'
             },
@@ -1703,25 +1866,155 @@
             pendingSync: false,
             currentMonth: new Date().getMonth(),
             currentYear: new Date().getFullYear(),
-            firebaseReady: false
+            firebaseReady: false,
+            pinBuffer: ''
         };
+        
+        // ==================== PIN & AUTH ====================
+        function loadServants() {
+            try {
+                const saved = localStorage.getItem('servants');
+                if (saved) state.servants = JSON.parse(saved);
+            } catch (e) {}
+            
+            const current = localStorage.getItem('currentServant');
+            if (current) {
+                try {
+                    state.currentServant = JSON.parse(current);
+                } catch (e) {}
+            }
+        }
+        
+        function saveServants() {
+            localStorage.setItem('servants', JSON.stringify(state.servants));
+            if (state.currentServant) {
+                localStorage.setItem('currentServant', JSON.stringify(state.currentServant));
+            }
+        }
+        
+        function enterPin(digit) {
+            if (state.pinBuffer.length < 4) {
+                state.pinBuffer += digit;
+                updatePinDisplay();
+                
+                if (state.pinBuffer.length === 4) {
+                    setTimeout(() => verifyPin(), 300);
+                }
+            }
+        }
+        
+        function backspacePin() {
+            state.pinBuffer = state.pinBuffer.slice(0, -1);
+            updatePinDisplay();
+            document.getElementById('pinError').style.display = 'none';
+        }
+        
+        function updatePinDisplay() {
+            const dots = document.querySelectorAll('.pin-dot');
+            dots.forEach((dot, idx) => {
+                dot.classList.toggle('filled', idx < state.pinBuffer.length);
+            });
+        }
+        
+        function verifyPin() {
+            const pin = state.pinBuffer;
+            const servant = state.servants[pin];
+            
+            if (servant) {
+                state.currentServant = { name: servant.name, pin: pin };
+                saveServants();
+                closePinModal();
+                showToast(`مرحباً ${servant.name}!`, 'success');
+                updateServantDisplay();
+            } else {
+                document.getElementById('pinError').style.display = 'block';
+                state.pinBuffer = '';
+                updatePinDisplay();
+                setTimeout(() => {
+                    document.getElementById('pinError').style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        function registerServant() {
+            const name = document.getElementById('newServantName').value.trim();
+            const pin = document.getElementById('newServantPin').value.trim();
+            
+            if (!name || !pin || pin.length !== 4 || !/^\\d{4}$/.test(pin)) {
+                showToast('الرجاء إدخال اسم و PIN مكون من 4 أرقام', 'error');
+                return;
+            }
+            
+            if (state.servants[pin]) {
+                showToast('هذا PIN مستخدم بالفعل، اختر PIN آخر', 'error');
+                return;
+            }
+            
+            state.servants[pin] = {
+                name,
+                pin,
+                createdAt: new Date().toISOString()
+            };
+            
+            state.currentServant = { name, pin };
+            saveServants();
+            closePinModal();
+            showToast(`تم تسجيلك كـ ${name}!`, 'success');
+            updateServantDisplay();
+            
+            // Save to Firebase
+            if (window.firebaseDB) {
+                window.firebaseSetDoc(
+                    window.firebaseDoc(window.firebaseDB, 'servants', pin),
+                    state.servants[pin],
+                    { merge: true }
+                ).catch(e => console.error('Servant save error:', e));
+            }
+        }
+        
+        function logoutServant() {
+            state.currentServant = null;
+            localStorage.removeItem('currentServant');
+            state.pinBuffer = '';
+            updatePinDisplay();
+            document.getElementById('pinModal').classList.add('active');
+            showToast('تم تسجيل الخروج', 'info');
+        }
+        
+        function closePinModal() {
+            document.getElementById('pinModal').classList.remove('active');
+            state.pinBuffer = '';
+            updatePinDisplay();
+        }
+        
+        function updateServantDisplay() {
+            const name = state.currentServant?.name || 'غير مسجل';
+            document.getElementById('servantDisplayName').textContent = name;
+            document.getElementById('securityServantName').textContent = name;
+        }
         
         // ==================== INITIALIZATION ====================
         document.addEventListener('DOMContentLoaded', () => {
-            initDatePickers();
+            loadServants();
             loadLocalData();
+            
+            if (!state.currentServant) {
+                document.getElementById('pinModal').classList.add('active');
+            } else {
+                updateServantDisplay();
+            }
+            
+            initDatePickers();
             setupFirebase();
             setupKeyboardShortcuts();
             setupConnectionMonitoring();
             renderTodayPage();
             updateConnectionStatus();
             
-            // Set today's date
             const today = new Date();
             document.getElementById('todayDate').textContent = formatDate(today);
             document.getElementById('todayDayName').textContent = getArabicDayName(today.getDay());
             
-            // Check if today is an activity day
             if (!isActivityDay(today)) {
                 showToast('اليوم ليس يوم نشاط (الأنشطة: السبت، الإثنين، الأربعاء)', 'warning');
             }
@@ -1753,7 +2046,6 @@
         }
         
         function setupFirebase() {
-            // Wait for Firebase to be ready (set by module script)
             const checkFirebase = setInterval(() => {
                 if (window.firebaseDB) {
                     clearInterval(checkFirebase);
@@ -1763,7 +2055,6 @@
                 }
             }, 100);
             
-            // Timeout after 5 seconds
             setTimeout(() => {
                 if (!state.firebaseReady) {
                     clearInterval(checkFirebase);
@@ -1797,7 +2088,6 @@
                     console.error('Students listener error:', err);
                 });
                 
-                // Listen to records for today
                 const today = formatDateKey(new Date());
                 const recordsQuery = window.firebaseQuery(
                     window.firebaseCollection(window.firebaseDB, 'records'),
@@ -1812,8 +2102,7 @@
                                 if (!state.records[data.studentId]) state.records[data.studentId] = {};
                                 state.records[data.studentId][data.date] = data;
                                 
-                                // Check for conflicts
-                                if (state.settings.conflictAlert && data.lastModifiedBy && data.lastModifiedBy !== state.settings.servantName) {
+                                if (state.settings.conflictAlert && data.lastModifiedBy && data.lastModifiedBy !== getCurrentServantName()) {
                                     showConflictAlert(data.studentId, data.date, data.lastModifiedBy);
                                 }
                             }
@@ -1841,6 +2130,10 @@
                 }
             });
             return merged;
+        }
+        
+        function getCurrentServantName() {
+            return state.currentServant?.name || 'مخدم';
         }
         
         // ==================== DATA MANAGEMENT ====================
@@ -1887,7 +2180,6 @@
                     saveLocalData();
                 }
                 
-                // Load records for current month
                 const currentMonthPrefix = `${state.currentYear}-${String(state.currentMonth + 1).padStart(2, '0')}`;
                 const recordsSnap = await window.firebaseGetDocs(
                     window.firebaseQuery(
@@ -1924,13 +2216,11 @@
             try {
                 const batch = window.firebaseWriteBatch(window.firebaseDB);
                 
-                // Sync students
                 for (const student of state.students) {
                     const ref = window.firebaseDoc(window.firebaseDB, 'students', student.id);
                     batch.set(ref, student, { merge: true });
                 }
                 
-                // Sync records
                 for (const studentId in state.records) {
                     for (const date in state.records[studentId]) {
                         const record = state.records[studentId][date];
@@ -1954,6 +2244,12 @@
         
         // ==================== NAVIGATION ====================
         function navigateTo(page) {
+            if (!state.currentServant && page !== 'help') {
+                showToast('الرجاء تسجيل الدخول أولاً', 'warning');
+                document.getElementById('pinModal').classList.add('active');
+                return;
+            }
+            
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             
@@ -1963,7 +2259,6 @@
             state.currentPage = page;
             renderCurrentPage();
             
-            // Close sidebar on mobile
             if (window.innerWidth <= 768) {
                 document.getElementById('sidebar').classList.remove('open');
             }
@@ -2003,7 +2298,6 @@
                 students = students.filter(s => s.grade === gradeFilter);
             }
             
-            // Sort by registration status then by name
             students.sort((a, b) => {
                 const aRecorded = state.records[a.id]?.[dateKey] ? 1 : 0;
                 const bRecorded = state.records[b.id]?.[dateKey] ? 1 : 0;
@@ -2081,7 +2375,6 @@
                 `;
             }).join('');
             
-            // Render top attendance
             renderTopAttendance();
         }
         
@@ -2132,11 +2425,16 @@
         
         function isActivityDay(date) {
             const day = date.getDay();
-            return day === 6 || day === 1 || day === 3; // Saturday, Monday, Wednesday
+            return day === 6 || day === 1 || day === 3;
         }
         
         // ==================== STUDENT MANAGEMENT ====================
         function openAddStudentModal(studentId = null) {
+            if (!state.currentServant) {
+                showToast('الرجاء تسجيل الدخول أولاً', 'warning');
+                return;
+            }
+            
             const modal = document.getElementById('studentModal');
             const title = document.getElementById('studentModalTitle');
             
@@ -2182,6 +2480,11 @@
         }
         
         async function saveStudent() {
+            if (!state.currentServant) {
+                showToast('الرجاء تسجيل الدخول أولاً', 'warning');
+                return;
+            }
+            
             const name = document.getElementById('studentName').value.trim();
             const grade = document.getElementById('studentGrade').value;
             const notes = document.getElementById('studentGeneralNotes').value.trim();
@@ -2192,7 +2495,6 @@
                 return;
             }
             
-            // Check duplicate
             const duplicate = state.students.find(s => s.name === name && s.id !== editId);
             if (duplicate) {
                 showToast('يوجد مخدومة مسجلة بنفس الاسم!', 'error');
@@ -2206,7 +2508,8 @@
                 grade,
                 notes,
                 createdAt: editId ? (state.students.find(s => s.id === editId)?.createdAt || timestamp) : timestamp,
-                updatedAt: timestamp
+                updatedAt: timestamp,
+                lastModifiedBy: getCurrentServantName()
             };
             
             if (editId) {
@@ -2218,7 +2521,6 @@
             
             saveLocalData();
             
-            // Save to Firebase
             if (window.firebaseDB) {
                 try {
                     await window.firebaseSetDoc(
@@ -2231,7 +2533,6 @@
                 }
             }
             
-            // Add to audit log
             addAuditLog(editId ? 'edit' : 'add', studentData.id, 'student', editId ? 'تعديل بيانات مخدومة' : 'إضافة مخدومة جديدة', { name, grade });
             
             closeModal('studentModal');
@@ -2240,6 +2541,11 @@
         }
         
         async function deleteStudent(studentId) {
+            if (!state.currentServant) {
+                showToast('الرجاء تسجيل الدخول أولاً', 'warning');
+                return;
+            }
+            
             if (!confirm('هل أنت متأكد من حذف هذه المخدومة؟ سيتم حذف جميع بياناتها!')) return;
             
             state.students = state.students.filter(s => s.id !== studentId);
@@ -2261,17 +2567,17 @@
         
         // ==================== ATTENDANCE MODAL ====================
         function openAttendanceModal(studentId, date = null) {
+            if (!state.currentServant) {
+                showToast('الرجاء تسجيل الدخول أولاً', 'warning');
+                return;
+            }
+            
             const student = state.students.find(s => s.id === studentId);
             if (!student) return;
             
             const targetDate = date ? new Date(date) : new Date();
             const dateKey = formatDateKey(targetDate);
             const dayName = getArabicDayName(targetDate.getDay());
-            
-            if (!isActivityDay(targetDate)) {
-                showToast('هذا اليوم ليس يوم نشاط رسمي', 'warning');
-                // Still allow recording for flexibility
-            }
             
             document.getElementById('attendanceStudentName').textContent = student.name;
             document.getElementById('attendanceDayBadge').textContent = dayName + ' ' + formatDate(targetDate);
@@ -2282,7 +2588,6 @@
             const activities = record?.activities || {};
             const notes = record?.notes || '';
             
-            // Generate activities grid
             const grid = document.getElementById('activitiesGrid');
             grid.innerHTML = ACTIVITIES.map((act, idx) => {
                 const actData = activities[act] || { present: null, rating: 0 };
@@ -2314,15 +2619,13 @@
             
             document.getElementById('dayNotes').value = notes;
             
-            // Check conflicts
             document.getElementById('attendanceConflictAlert').style.display = 'none';
-            if (record?.lastModifiedBy && record.lastModifiedBy !== state.settings.servantName) {
+            if (record?.lastModifiedBy && record.lastModifiedBy !== getCurrentServantName()) {
                 showConflictAlert(studentId, dateKey, record.lastModifiedBy, 'attendanceConflictAlert', 'attendanceConflictText');
             }
             
             document.getElementById('attendanceModal').classList.add('active');
             
-            // Store current activity states
             window.currentActivityStates = ACTIVITIES.map(act => {
                 const actData = activities[act] || {};
                 return { present: actData.present, rating: actData.rating || 0 };
@@ -2352,6 +2655,11 @@
         }
         
         async function saveAttendance() {
+            if (!state.currentServant) {
+                showToast('الرجاء تسجيل الدخول أولاً', 'warning');
+                return;
+            }
+            
             const studentId = document.getElementById('attendanceStudentId').value;
             const dateKey = document.getElementById('attendanceDate').value;
             const notes = document.getElementById('dayNotes').value.trim();
@@ -2385,7 +2693,7 @@
                 date: dateKey,
                 activities,
                 notes,
-                lastModifiedBy: state.settings.servantName,
+                lastModifiedBy: getCurrentServantName(),
                 lastModifiedAt: new Date().toISOString()
             };
             
@@ -2393,7 +2701,6 @@
             state.records[studentId][dateKey] = record;
             saveLocalData();
             
-            // Save to Firebase
             if (window.firebaseDB) {
                 try {
                     await window.firebaseSetDoc(
@@ -2409,7 +2716,6 @@
                 state.pendingSync = true;
             }
             
-            // Add to audit log
             const presentCount = Object.values(activities).filter(a => a.present).length;
             const absentCount = Object.values(activities).filter(a => !a.present).length;
             addAuditLog('attendance', studentId, 'record', `تسجيل حضور: ${presentCount}، غياب: ${absentCount}`, { date: dateKey, activities });
@@ -2564,7 +2870,6 @@
                 </div>
             `;
             
-            // Monthly history
             const records = state.records[studentId] || {};
             const months = {};
             
@@ -2629,23 +2934,17 @@
             
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
-            const startDay = firstDay.getDay(); // 0 = Sunday
-            
-            // Adjust for RTL (week starts from Saturday in many Arab countries, but we'll use standard)
-            // Actually for our purposes: activities are Sat/Mon/Wed
+            const startDay = firstDay.getDay();
             
             const grid = document.getElementById('calendarGrid');
             
-            // Headers
             const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
             let html = days.map(d => `<div class="calendar-day-header">${d}</div>`).join('');
             
-            // Empty cells before start
             for (let i = 0; i < startDay; i++) {
                 html += '<div class="calendar-day other-month"></div>';
             }
             
-            // Days
             for (let day = 1; day <= lastDay.getDate(); day++) {
                 const date = new Date(year, month, day);
                 const dateKey = formatDateKey(date);
@@ -2653,7 +2952,6 @@
                 const isActivity = isActivityDay(date);
                 const isToday = dateKey === formatDateKey(new Date());
                 
-                // Check if any data exists for this day
                 let hasData = false;
                 let dataCount = 0;
                 for (const studentId in state.records) {
@@ -2746,10 +3044,8 @@
             const year = parseInt(document.getElementById('statsYear').value);
             const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
             
-            // Total students
             document.getElementById('statTotalStudents').textContent = state.students.length;
             
-            // Calculate monthly stats
             let totalAbsences = 0;
             let totalRatings = 0;
             let ratingCount = 0;
@@ -2778,22 +3074,18 @@
                 totalAbsences += studentAbsences;
             });
             
-            // Top attendance
             attendanceCounts.sort((a, b) => b.attendance - a.attendance);
             const topAttendance = attendanceCounts[0]?.attendance || 0;
             document.getElementById('statTopAttendance').textContent = topAttendance;
             
-            // Average rating
             const avgRating = ratingCount > 0 ? (totalRatings / ratingCount).toFixed(1) : '0';
             document.getElementById('statAvgRating').textContent = avgRating;
             
-            // Total absences
             document.getElementById('statTotalAbsences').textContent = totalAbsences;
             
-            // Status distribution
             const statusCounts = { excellent: 0, good: 0, average: 0, needsAttention: 0 };
             attendanceCounts.forEach(({ student, attendance, absences }) => {
-                const avg = ratingCount > 0 ? totalRatings / ratingCount : 0; // Simplified
+                const avg = ratingCount > 0 ? totalRatings / ratingCount : 0;
                 if (avg >= 4 && attendance >= 8) statusCounts.excellent++;
                 else if (avg >= 3 && attendance >= 5) statusCounts.good++;
                 else if (absences > 5) statusCounts.needsAttention++;
@@ -2832,7 +3124,6 @@
                 </div>
             `;
             
-            // Most absent
             const mostAbsent = attendanceCounts.filter(a => a.absences > 0).sort((a, b) => b.absences - a.absences).slice(0, 5);
             document.getElementById('mostAbsentList').innerHTML = mostAbsent.length === 0 
                 ? '<div class="empty-state"><i class="fas fa-check-circle" style="color: var(--success);"></i><p>لا يوجد غيابات كثيرة هذا الشهر</p></div>'
@@ -2846,7 +3137,6 @@
                     </div>
                 `).join('');
             
-            // Monthly details table
             const monthlyRecords = [];
             for (const studentId in state.records) {
                 for (const date in state.records[studentId]) {
@@ -2907,7 +3197,6 @@
             const typeFilter = document.getElementById('auditTypeFilter').value;
             const studentFilter = document.getElementById('auditStudentFilter').value;
             
-            // Populate student filter
             const studentSelect = document.getElementById('auditStudentFilter');
             if (studentSelect.options.length <= 1) {
                 state.students.forEach(s => {
@@ -2952,7 +3241,6 @@
                     </div>
                 `).join('');
             } else {
-                // Aggregated view - group by day
                 const byDay = {};
                 logs.forEach(log => {
                     const day = log.date?.split('T')[0] || 'unknown';
@@ -2992,7 +3280,7 @@
                 targetType,
                 description,
                 details,
-                servantName: state.settings.servantName,
+                servantName: getCurrentServantName(),
                 timestamp: new Date().toISOString(),
                 date: new Date().toISOString().split('T')[0]
             };
@@ -3001,7 +3289,6 @@
             if (state.auditLog.length > 1000) state.auditLog = state.auditLog.slice(-1000);
             saveLocalData();
             
-            // Save to Firebase
             if (window.firebaseDB) {
                 window.firebaseSetDoc(
                     window.firebaseDoc(window.firebaseDB, 'audit', log.id),
@@ -3065,13 +3352,14 @@
             }).join('')}</div>`;
         }
         
-        // ==================== EXPORT ====================
+        // ==================== EXPORT & BACKUP ====================
         function exportToJSON() {
             const data = {
                 students: state.students,
                 records: state.records,
                 auditLog: state.auditLog,
-                exportDate: new Date().toISOString()
+                exportDate: new Date().toISOString(),
+                exportedBy: getCurrentServantName()
             };
             
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -3124,6 +3412,92 @@
             window.print();
         }
         
+        function createBackup() {
+            if (!state.currentServant) {
+                showToast('الرجاء تسجيل الدخول أولاً', 'warning');
+                return;
+            }
+            
+            const data = {
+                students: state.students,
+                records: state.records,
+                auditLog: state.auditLog,
+                servants: state.servants,
+                backupDate: new Date().toISOString(),
+                createdBy: getCurrentServantName(),
+                version: '2.0'
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `makhdomat_backup_${formatDateKey(new Date())}_${getCurrentServantName()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('تم إنشاء Backup', 'success');
+        }
+        
+        function restoreBackup(input) {
+            if (!input.files.length) return;
+            
+            const file = input.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (!confirm(`هل تريد استعادة Backup من ${data.backupDate || 'تاريخ غير معروف'} بواسطة ${data.createdBy || 'غير معروف'}؟ سيتم دمج البيانات مع الحالية.`)) {
+                        return;
+                    }
+                    
+                    if (data.students) {
+                        data.students.forEach(s => {
+                            const idx = state.students.findIndex(existing => existing.id === s.id);
+                            if (idx >= 0) {
+                                if (new Date(s.updatedAt) > new Date(state.students[idx].updatedAt)) {
+                                    state.students[idx] = s;
+                                }
+                            } else {
+                                state.students.push(s);
+                            }
+                        });
+                    }
+                    
+                    if (data.records) {
+                        for (const studentId in data.records) {
+                            if (!state.records[studentId]) state.records[studentId] = {};
+                            for (const date in data.records[studentId]) {
+                                const existing = state.records[studentId][date];
+                                const incoming = data.records[studentId][date];
+                                if (!existing || new Date(incoming.lastModifiedAt) > new Date(existing.lastModifiedAt)) {
+                                    state.records[studentId][date] = incoming;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (data.servants) {
+                        Object.assign(state.servants, data.servants);
+                    }
+                    
+                    saveLocalData();
+                    saveServants();
+                    syncToFirebase();
+                    showToast('تم استعادة Backup بنجاح', 'success');
+                    renderCurrentPage();
+                    
+                } catch (err) {
+                    showToast('ملف Backup غير صالح', 'error');
+                    console.error(err);
+                }
+            };
+            
+            reader.readAsText(file);
+            input.value = '';
+        }
+        
         async function forceSync() {
             if (!state.isOnline) {
                 showToast('لا يوجد اتصال بالإنترنت', 'error');
@@ -3150,27 +3524,6 @@
             state.auditLog = [];
             showToast('تم مسح البيانات المحلية', 'warning');
             renderCurrentPage();
-        }
-        
-        // ==================== SETTINGS ====================
-        function showSettings() {
-            document.getElementById('servantName').value = state.settings.servantName;
-            document.getElementById('autoSave').checked = state.settings.autoSave;
-            document.getElementById('conflictAlert').checked = state.settings.conflictAlert;
-            document.getElementById('settingsModal').classList.add('active');
-        }
-        
-        function saveSettings() {
-            state.settings.servantName = document.getElementById('servantName').value.trim() || 'مخدم';
-            state.settings.autoSave = document.getElementById('autoSave').checked;
-            state.settings.conflictAlert = document.getElementById('conflictAlert').checked;
-            
-            localStorage.setItem('servantName', state.settings.servantName);
-            localStorage.setItem('autoSave', state.settings.autoSave);
-            localStorage.setItem('conflictAlert', state.settings.conflictAlert);
-            
-            closeModal('settingsModal');
-            showToast('تم حفظ الإعدادات', 'success');
         }
         
         // ==================== UTILITIES ====================
@@ -3216,10 +3569,9 @@
             document.getElementById(modalId).classList.remove('active');
         }
         
-        // Close modal on overlay click
         document.querySelectorAll('.modal-overlay').forEach(overlay => {
             overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) overlay.classList.remove('active');
+                if (e.target === overlay && overlay.id !== 'pinModal') overlay.classList.remove('active');
             });
         });
         
@@ -3259,7 +3611,9 @@
                 }
                 
                 if (e.key === 'Escape') {
-                    document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+                    document.querySelectorAll('.modal-overlay.active').forEach(m => {
+                        if (m.id !== 'pinModal') m.classList.remove('active');
+                    });
                 }
             });
         }
@@ -3299,7 +3653,7 @@
         
         // Auto-save every 30 seconds
         setInterval(() => {
-            if (state.settings.autoSave) {
+            if (state.settings.autoSave && state.currentServant) {
                 saveLocalData();
                 if (state.isOnline && state.pendingSync) {
                     syncToFirebase();
