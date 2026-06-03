@@ -24,7 +24,7 @@ function hideSplashForced() {
   const splash = document.getElementById('splash');
   if (splash) {
     splash.classList.add('fade-out');
-    setTimeout(() => splash.remove(), 500);
+    setTimeout(() => splash.remove(), 300);
   }
   // Show login screen as fallback if app isn't initialized
   setTimeout(() => {
@@ -34,7 +34,7 @@ function hideSplashForced() {
       loginScreen.classList.remove('hidden');
       showLogin();
     }
-  }, 600);
+  }, 350);
 }
 
 // ============================================================
@@ -450,9 +450,11 @@ function hideSplash() {
   if (splashDone) return;
   splashDone = true;
   splashForceHidden = true;
-  if (DOM.splash) {
-    DOM.splash.classList.add('fade-out');
-    setTimeout(() => { if (DOM.splash) DOM.splash.remove(); }, 500);
+  // Always use getElementById (fresh reference) — DOM.splash can be stale after remove()
+  const splashEl = document.getElementById('splash');
+  if (splashEl) {
+    splashEl.classList.add('fade-out');
+    setTimeout(() => { splashEl.remove(); }, 300);
   }
 }
 
@@ -2494,6 +2496,4 @@ if (DOM.exportPrint) {
       .sum-box span{font-size:13px;color:#6b7a99}
       table{width:100%;border-collapse:collapse;margin-top:20px}
       th,td{border:1px solid #ddd;padding:8px;text-align:right;font-size:13px}
-      th{background:#1a2744;color:white}
-      .present{color:green}.absent{color:red}
-      .footer{margin-top:20px;font-size:12px
+      th{
