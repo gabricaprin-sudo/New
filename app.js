@@ -1,5 +1,5 @@
 // ============================================================
-// نظام متابعة المخدومات — Fully Fixed & Production Ready
+// نظام متابعة المخدومات — Offline Ready & Guest Mode
 // ============================================================
 
 // ============================================================
@@ -14,8 +14,8 @@ window.addEventListener('unhandledrejection', (e) => {
   hideSplashForced();
 });
 
-// Force hide splash after 10 seconds max — never get stuck
-setTimeout(hideSplashForced, 10000);
+// Force hide splash after 6 seconds max — never get stuck
+setTimeout(hideSplashForced, 6000);
 
 let splashForceHidden = false;
 function hideSplashForced() {
@@ -24,7 +24,7 @@ function hideSplashForced() {
   const splash = document.getElementById('splash');
   if (splash) {
     splash.classList.add('fade-out');
-    setTimeout(() => splash.remove(), 300);
+    setTimeout(() => splash.remove(), 500);
   }
   // Show login screen as fallback if app isn't initialized
   setTimeout(() => {
@@ -34,7 +34,7 @@ function hideSplashForced() {
       loginScreen.classList.remove('hidden');
       showLogin();
     }
-  }, 350);
+  }, 600);
 }
 
 // ============================================================
@@ -151,6 +151,7 @@ const DOM = {
   presentTabCount: $('presentTabCount'),
   absentTabCount: $('absentTabCount'),
   menuBtn: $('menuBtn'), signOutBtn: $('signOutBtn'), googleSignIn: $('googleSignIn'),
+  guestSignIn: $('guestSignIn'),
   darkModeToggle: $('darkModeToggle'), darkToggleSwitch: $('darkToggleSwitch'),
   shareProfileBtn: $('shareProfileBtn'), editProfileBtn: $('editProfileBtn'),
   statsGradeFilter: $('statsGradeFilter'),
@@ -193,7 +194,8 @@ const state = {
   searchDebounceTimer: null,
   attSearchDebounceTimer: null,
   attendancePageInitialized: false,
-  savingGirl: false
+  savingGirl: false,
+  isGuest: false
 };
 
 const HISTORY_PAGE_SIZE = 30;
@@ -450,11 +452,9 @@ function hideSplash() {
   if (splashDone) return;
   splashDone = true;
   splashForceHidden = true;
-  // Always use getElementById (fresh reference) — DOM.splash can be stale after remove()
-  const splashEl = document.getElementById('splash');
-  if (splashEl) {
-    splashEl.classList.add('fade-out');
-    setTimeout(() => { splashEl.remove(); }, 300);
+  if (DOM.splash) {
+    DOM.splash.classList.add('fade-out');
+    setTimeout(() => { if (DOM.splash) DOM.splash.remove(); }, 500);
   }
 }
 
@@ -514,7 +514,7 @@ async function syncPending() {
 }
 
 // ============================================================
-// AUTH — Fixed with better error handling
+// AUTH — Fixed with better error handling + Guest Mode
 // ============================================================
 async function initAuth() {
   if (!firebaseReady || !window._fb) {
@@ -526,21 +526,13 @@ async function initAuth() {
 
   try {
     const { getRedirectResult, onAuthStateChanged } = window._fb;
-
-    // getRedirectResult with 5s timeout — never let it block the login screen
-    try {
-      await Promise.race([
-        getRedirectResult(auth),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
-      ]);
-    } catch (e) {
-      if (!e.message?.includes('timeout')) console.error('getRedirectResult error:', e);
-    }
+    try { await getRedirectResult(auth); } catch (e) { console.error('getRedirectResult error:', e); }
 
     onAuthStateChanged(auth, async (user) => {
       hideSplash();
       if (!user) {
         state.currentUser = null;
+        state.isGuest = false;
         state.appInitialized = false;
         state.girls = [];
         state.attendanceData = {};
@@ -549,6 +541,7 @@ async function initAuth() {
         return;
       }
       state.currentUser = user;
+      state.isGuest = false;
       showApp(user);
       if (!state.appInitialized) {
         state.appInitialized = true;
@@ -561,6 +554,30 @@ async function initAuth() {
     hideSplash();
     showLogin();
   }
+}
+
+// Guest Sign In
+if (DOM.guestSignIn) {
+  DOM.guestSignIn.addEventListener('click', async () => {
+    const guestUser = {
+      displayName: 'زائر',
+      email: 'guest@local.offline',
+      uid: 'guest_' + Date.now(),
+      photoURL: null
+    };
+    state.currentUser = guestUser;
+    state.isGuest = true;
+    state.isOnline = false;
+    hideSplash();
+    showApp(guestUser);
+    if (!state.appInitialized) {
+      state.appInitialized = true;
+      await loadData();
+      renderPage();
+    }
+    showToast('أهلاً بيك! البيانات هتحفظ محلياً على الجهاز.', 'success');
+    updateSyncUI();
+  });
 }
 
 if (DOM.googleSignIn) {
@@ -589,6 +606,14 @@ if (DOM.googleSignIn) {
 
 if (DOM.signOutBtn) {
   DOM.signOutBtn.addEventListener('click', async () => {
+    if (state.isGuest) {
+      // Guest logout
+      state.currentUser = null;
+      state.isGuest = false;
+      state.appInitialized = false;
+      showLogin();
+      return;
+    }
     if (!firebaseReady || !window._fb) {
       state.currentUser = null;
       state.appInitialized = false;
@@ -624,7 +649,7 @@ function showLogin() {
       const card = document.getElementById('loginCard');
       if (card) {
         card.classList.add('animate-in');
-        card.querySelectorAll('.login-cross-icon, .login-church-name, .login-system-title, .login-divider, .login-welcome, .btn-google').forEach(el => {
+        card.querySelectorAll('.login-cross-icon, .login-church-name, .login-system-title, .login-divider, .login-welcome, .btn-google, .btn-guest, .login-hint').forEach(el => {
           el.classList.add('animate-in');
         });
       }
@@ -652,7 +677,7 @@ async function loadData() {
       localAtt.forEach(a => { state.attendanceData[a.id] = a; });
       renderPage();
     }
-    if (!state.isOnline || !firebaseReady || !window._fb) return;
+    if (!state.isOnline || !firebaseReady || !window._fb || state.isGuest) return;
 
     const { getDocs, query, collection, orderBy, onSnapshot, doc, setDoc } = window._fb;
 
@@ -1156,7 +1181,7 @@ if (DOM.deleteGirlBtn) {
             await Promise.all(toDelete.map(a => IDB.delete('attendance', a.id)));
           }
 
-          if (state.isOnline && firebaseReady && window._fb) {
+          if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
             try {
               const { setDoc, doc, collection, query, where, getDocs, writeBatch } = window._fb;
               await setDoc(doc(db, 'girls', id), {
@@ -1240,7 +1265,7 @@ if (DOM.saveGirlBtn) {
 
       await logHistory(state.editingGirlId ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} - ${grade}`);
 
-      if (state.isOnline && firebaseReady && window._fb) {
+      if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
         try { await window._fb.setDoc(window._fb.doc(db, 'girls', id), girlData); }
         catch (e) { await addPending('girl', girlData); }
       } else {
@@ -1466,7 +1491,7 @@ async function toggleAttendanceStatus(girlId, girlName, date) {
   if (state.idb) await IDB.put('attendance', rec);
   state.attendanceData[key] = rec;
 
-  if (state.isOnline && firebaseReady && window._fb) {
+  if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
     try { await window._fb.setDoc(window._fb.doc(db, 'attendance', key), rec); }
     catch (e) { await addPending('attendance', rec); }
   } else {
@@ -1513,7 +1538,7 @@ async function markAllAbsent(date) {
     if (state.idb) await IDB.put('attendance', rec);
   }
 
-  if (state.isOnline && firebaseReady && window._fb && batchRecords.length > 0) {
+  if (state.isOnline && firebaseReady && window._fb && !state.isGuest && batchRecords.length > 0) {
     try {
       const batch = window._fb.writeBatch(db);
       for (const rec of batchRecords) {
@@ -1562,7 +1587,7 @@ async function selectAllStatus(status) {
     if (state.idb) await IDB.put('attendance', rec);
   }
 
-  if (state.isOnline && firebaseReady && window._fb && batchRecords.length > 0) {
+  if (state.isOnline && firebaseReady && window._fb && !state.isGuest && batchRecords.length > 0) {
     try {
       const batch = window._fb.writeBatch(db);
       for (const rec of batchRecords) {
@@ -1665,7 +1690,7 @@ async function deleteAttendanceRecord(key) {
       try {
         delete state.attendanceData[key];
         if (state.idb) await IDB.delete('attendance', key);
-        if (state.isOnline && firebaseReady && window._fb) {
+        if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
           try { await window._fb.deleteDoc(window._fb.doc(db, 'attendance', key)); }
           catch (e) { console.error('Delete attendance Firestore error:', e); }
         }
@@ -1744,7 +1769,7 @@ if (DOM.saveAttendanceEntry) {
     if (state.idb) await IDB.put('attendance', rec);
     state.attendanceData[key] = rec;
 
-    if (state.isOnline && firebaseReady && window._fb) {
+    if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
       try { await window._fb.setDoc(window._fb.doc(db, 'attendance', key), rec); }
       catch (e) { await addPending('attendance', rec); }
     } else {
@@ -2104,7 +2129,7 @@ function renderStats() {
       <div class="big-stat-card orange-card"><div class="big-num">${followupCount}</div><div>تحتاج متابعة</div></div>`;
   }
 
-  renderActivityStats(state.statsTimeFilter, gradeFilter, selectedDate);
+  renderActivityStats(state.statsTimeFilter, gradeFilter);
 
   const gradeLabel = gradeFilter ? `· ${gradeFilter}` : '';
   if (DOM.activityStatsGrade) DOM.activityStatsGrade.textContent = gradeLabel;
@@ -2235,7 +2260,7 @@ if (DOM.clearHistoryBtn) {
       onOk: async () => {
         if (state.idb) await IDB.clear('history');
         state.historyAllLogs = [];
-        if (state.isOnline && firebaseReady && window._fb) {
+        if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
           try {
             const snap = await window._fb.getDocs(window._fb.collection(db, 'history'));
             if (snap.docs.length) {
@@ -2269,7 +2294,7 @@ async function logHistory(action, detail) {
     timestamp: Date.now()
   };
   if (state.idb) await IDB.put('history', log);
-  if (state.isOnline && firebaseReady && window._fb) {
+  if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
     try { await window._fb.setDoc(window._fb.doc(db, 'history', log.id), log); } catch (e) { }
   }
 }
@@ -2445,8 +2470,8 @@ if (DOM.exportPrint) {
     const fmtAttPrint = (act) => {
       const total = act.present + act.absent;
       if (total === 0) return '—';
-      if (act.present === total) return '<span style='color:#2ecc71;font-weight:700'>✔</span>';
-      if (act.present === 0) return '<span style='color:#e74c3c;font-weight:700'>✘</span>';
+      if (act.present === total) return '<span style="color:#2ecc71;font-weight:700">✔</span>';
+      if (act.present === 0) return '<span style="color:#e74c3c;font-weight:700">✘</span>';
       return act.present + '/' + total;
     };
 
@@ -2496,4 +2521,277 @@ if (DOM.exportPrint) {
       .sum-box span{font-size:13px;color:#6b7a99}
       table{width:100%;border-collapse:collapse;margin-top:20px}
       th,td{border:1px solid #ddd;padding:8px;text-align:right;font-size:13px}
-      th{
+      th{background:#1a2744;color:white}
+      .present{color:green}.absent{color:red}
+      .footer{margin-top:20px;font-size:12px;color:#6b7a99;border-top:1px solid #e2e8f0;padding-top:10px}
+      @media print{body{padding:10px} h2{page-break-before:auto}}
+      </style></head><body>
+      <h1>تقرير متابعة المخدومات - ${monthName}</h1>
+      <p style="color:#6b7a99;font-size:14px">الفترة: من ${exportStart} إلى ${exportEnd}</p>
+      <div class="summary">
+        <div class="sum-box"><b>${activeGirls.length}</b><br><span>عدد المخدومات</span></div>
+        <div class="sum-box"><b>${presents}</b><br><span>حالات الحضور</span></div>
+        <div class="sum-box"><b>${absents}</b><br><span>حالات الغياب</span></div>
+        <div class="sum-box"><b>${Object.keys(grouped).length}</b><br><span>مخدومات مشاركة</span></div>
+      </div>
+      <table>
+        <tr><th>#</th><th>الاسم</th><th>السنة</th><th>دراسي</th><th>قبطي</th><th>محفوظات</th><th>ألحان</th><th>الحضور</th><th>الغياب</th><th>النسبة</th></tr>
+        ${htmlRows}
+      </table>
+
+      <h2>السجل اليومي التفصيلي</h2>
+      <table>
+        <tr><th>التاريخ</th><th>اليوم</th><th>المخدومة</th><th>السنة</th><th>النشاط</th><th>الحالة</th><th>التقييم</th><th>ملاحظات</th></tr>
+        ${dailyRows}
+      </table>
+
+      <div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div>
+      </body></html>`;
+
+    const w = window.open('', '_blank');
+    if (!w) { showToast('تم حجب النافذة من المتصفح', 'error'); return; }
+    w.document.write(html);
+    w.document.close();
+    w.print();
+  });
+}
+
+function downloadFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ============================================================
+// PENDING SYNC
+// ============================================================
+async function addPending(type, data) {
+  if (!state.idb) return;
+  await IDB.put('pending', { id: 'pending_' + Date.now(), type, data });
+}
+
+// ============================================================
+// MODAL HELPERS
+// ============================================================
+function openModal(id) {
+  if (!DOM[id]) return;
+  DOM[id].classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  if (!DOM[id]) return;
+  DOM[id].classList.remove('show');
+  const anyOpen = document.querySelector('.modal-overlay.show');
+  if (!anyOpen) document.body.style.overflow = '';
+}
+
+// ============================================================
+// CONFIRM MODAL
+// ============================================================
+let confirmResolve = null;
+
+function showConfirm({ icon = '&#9888;', title, msg, okLabel = 'تأكيد', okClass = '', onOk }) {
+  if (DOM.confirmIcon) DOM.confirmIcon.innerHTML = icon;
+  if (DOM.confirmTitle) DOM.confirmTitle.textContent = title;
+  if (DOM.confirmMsg) DOM.confirmMsg.textContent = msg;
+  const okBtn = DOM.confirmOk;
+  if (okBtn) {
+    okBtn.textContent = okLabel;
+    okBtn.className = 'confirm-ok';
+    if (okClass) okBtn.classList.add(...okClass.split(' ').filter(Boolean));
+  }
+  confirmResolve = onOk;
+  if (DOM.confirmOverlay) DOM.confirmOverlay.classList.add('show');
+}
+
+if (DOM.confirmOk) {
+  DOM.confirmOk.addEventListener('click', async () => {
+    if (DOM.confirmOverlay) DOM.confirmOverlay.classList.remove('show');
+    if (confirmResolve) {
+      const fn = confirmResolve;
+      confirmResolve = null;
+      try { await fn(); } catch (e) { console.error('Confirm ok error:', e); }
+    }
+  });
+}
+
+if (DOM.confirmCancel) {
+  DOM.confirmCancel.addEventListener('click', () => {
+    if (DOM.confirmOverlay) DOM.confirmOverlay.classList.remove('show');
+    confirmResolve = null;
+  });
+}
+
+if (DOM.confirmOverlay) {
+  DOM.confirmOverlay.addEventListener('click', e => {
+    if (e.target === DOM.confirmOverlay) {
+      DOM.confirmOverlay.classList.remove('show');
+      confirmResolve = null;
+    }
+  });
+}
+
+if (DOM.closeGirlModal) DOM.closeGirlModal.addEventListener('click', () => closeModal('girlModal'));
+if (DOM.cancelGirlModal) DOM.cancelGirlModal.addEventListener('click', () => closeModal('girlModal'));
+if (DOM.closeAttendanceModal) DOM.closeAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
+if (DOM.cancelAttendanceModal) DOM.cancelAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
+
+$$('.modal-overlay').forEach(overlay => overlay.addEventListener('click', e => {
+  if (e.target === overlay) closeModal(overlay.id);
+}));
+
+// ============================================================
+// EVENT DELEGATION
+// ============================================================
+function setupDelegation() {
+  if (DOM.needsFollowup) {
+    DOM.needsFollowup.addEventListener('click', e => {
+      const item = e.target.closest('.followup-item');
+      if (item) showGirlProfile(item.dataset.girlId);
+    });
+  }
+
+  if (DOM.girlsList) {
+    DOM.girlsList.addEventListener('click', e => {
+      const editBtn = e.target.closest('.edit-btn');
+      if (editBtn) { e.stopPropagation(); editGirl(editBtn.dataset.girlId); return; }
+      const card = e.target.closest('.girl-card');
+      if (card) showGirlProfile(card.dataset.girlId);
+    });
+  }
+
+  if (DOM.searchResults) {
+    DOM.searchResults.addEventListener('click', e => {
+      const item = e.target.closest('.search-item');
+      if (item && item.dataset.girlId) showGirlProfile(item.dataset.girlId);
+    });
+  }
+
+  if (DOM.attendanceList) {
+    DOM.attendanceList.addEventListener('click', e => {
+      const delBtn = e.target.closest('.att-delete-btn');
+      if (delBtn) {
+        e.stopPropagation();
+        e.preventDefault();
+        deleteAttendanceRecord(delBtn.dataset.attKey);
+        return;
+      }
+      if (state.isLongPress) {
+        state.isLongPress = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      const item = e.target.closest('.att-item');
+      if (item) {
+        const g = state.girls.find(x => x.id === item.dataset.girlId);
+        if (g && DOM.attendanceDate) toggleAttendanceStatus(g.id, g.name, DOM.attendanceDate.value);
+      }
+    });
+
+    DOM.attendanceList.addEventListener('mousedown', e => {
+      const item = e.target.closest('.att-item');
+      if (!item) return;
+      state.isLongPress = false;
+      state.longPressTimer = setTimeout(() => {
+        state.isLongPress = true;
+        const g = state.girls.find(x => x.id === item.dataset.girlId);
+        if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
+      }, 500);
+    });
+    DOM.attendanceList.addEventListener('mouseup', () => {
+      if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
+      setTimeout(() => { state.isLongPress = false; }, 100);
+    });
+    DOM.attendanceList.addEventListener('mouseleave', () => {
+      if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
+    });
+
+    DOM.attendanceList.addEventListener('touchstart', e => {
+      const item = e.target.closest('.att-item');
+      if (!item) return;
+      state.isLongPress = false;
+      state.longPressTimer = setTimeout(() => {
+        state.isLongPress = true;
+        const g = state.girls.find(x => x.id === item.dataset.girlId);
+        if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
+      }, 500);
+    }, { passive: true });
+    DOM.attendanceList.addEventListener('touchend', () => {
+      if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
+      setTimeout(() => { state.isLongPress = false; }, 100);
+    });
+    DOM.attendanceList.addEventListener('touchcancel', () => {
+      if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
+    });
+  }
+
+  if (DOM.calendarGrid) {
+    DOM.calendarGrid.addEventListener('click', e => {
+      const day = e.target.closest('.cal-day');
+      if (day && !day.classList.contains('empty')) showDayDetail(day.dataset.date);
+    });
+  }
+}
+
+// Grade filter button handlers
+if (DOM.homeGradeFilters) {
+  DOM.homeGradeFilters.addEventListener('click', e => {
+    const btn = e.target.closest('.grade-filter-btn');
+    if (!btn) return;
+    state.homeGradeFilter = btn.dataset.grade;
+    renderHome();
+  });
+}
+
+if (DOM.girlsGradeFilters) {
+  DOM.girlsGradeFilters.addEventListener('click', e => {
+    const btn = e.target.closest('.grade-filter-btn');
+    if (!btn) return;
+    state.girlsGradeFilter = btn.dataset.grade;
+    renderGirlsList();
+  });
+}
+
+// Girls search
+const girlsSearchInput = document.getElementById('girlsSearch');
+if (girlsSearchInput) {
+  let girlsSearchTimer = null;
+  girlsSearchInput.addEventListener('input', () => {
+    clearTimeout(girlsSearchTimer);
+    girlsSearchTimer = setTimeout(() => {
+      state.girlsSearchQuery = girlsSearchInput.value;
+      renderGirlsList();
+    }, 250);
+  });
+}
+
+setupDelegation();
+
+// ============================================================
+// BOOTSTRAP — Fixed with proper error handling
+// ============================================================
+async function bootstrap() {
+  initDarkMode();
+  try { await IDB.open(); } catch (e) { console.error('IDB open failed:', e); }
+
+  // Initialize Firebase modules first
+  const modulesReady = await initModules();
+
+  if (modulesReady) {
+    // Firebase loaded successfully
+    await initAuth();
+  } else {
+    // Firebase failed — show login anyway (offline mode)
+    console.warn('Running in offline mode - Firebase not available');
+    hideSplash();
+    showLogin();
+    showToast('وضع عدم الاتصال - البيانات ستحفظ محلياً', 'warning');
+  }
+}
+
+bootstrap();

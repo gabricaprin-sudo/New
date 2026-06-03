@@ -11,7 +11,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-<base target="_blank">
 </head>
 <body>
   <div id="app">
@@ -32,7 +31,7 @@
       <!-- Hero Image -->
       <div class="login-hero">
         <img
-          src="./group_photo.jpg"
+          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='381' viewBox='0 0 640 381'%3E%3Crect width='640' height='381' fill='%230F2B5B'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23D4AF37' font-family='serif' font-size='120'%3E&#10013;%3C/text%3E%3C/svg%3E"
           alt="Photo"
           class="login-hero-img"
           fetchpriority="high"
@@ -73,6 +72,13 @@
           <span class="btn-spinner"></span>
           <span class="btn-text">تسجيل الدخول بـ Google</span>
         </button>
+
+        <button id="guestSignIn" class="btn-guest">
+          <span>&#128100;</span>
+          <span>الدخول كزائر (Offline)</span>
+        </button>
+
+        <p class="login-hint">لو مفيش نت، اضغط "الدخول كزائر" عشان تستخدم التطبيق محلياً على الجهاز.</p>
       </div>
     </div>
 
@@ -485,6 +491,6 @@
     <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
