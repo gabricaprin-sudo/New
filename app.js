@@ -14,8 +14,8 @@ window.addEventListener('unhandledrejection', (e) => {
   hideSplashForced();
 });
 
-// Force hide splash after 6 seconds max — never get stuck
-setTimeout(hideSplashForced, 6000);
+// Force hide splash after 10 seconds max — never get stuck
+setTimeout(hideSplashForced, 10000);
 
 let splashForceHidden = false;
 function hideSplashForced() {
@@ -524,7 +524,16 @@ async function initAuth() {
 
   try {
     const { getRedirectResult, onAuthStateChanged } = window._fb;
-    try { await getRedirectResult(auth); } catch (e) { console.error('getRedirectResult error:', e); }
+
+    // getRedirectResult with 5s timeout — never let it block the login screen
+    try {
+      await Promise.race([
+        getRedirectResult(auth),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+      ]);
+    } catch (e) {
+      if (!e.message?.includes('timeout')) console.error('getRedirectResult error:', e);
+    }
 
     onAuthStateChanged(auth, async (user) => {
       hideSplash();
@@ -2487,275 +2496,4 @@ if (DOM.exportPrint) {
       th,td{border:1px solid #ddd;padding:8px;text-align:right;font-size:13px}
       th{background:#1a2744;color:white}
       .present{color:green}.absent{color:red}
-      .footer{margin-top:20px;font-size:12px;color:#6b7a99;border-top:1px solid #e2e8f0;padding-top:10px}
-      @media print{body{padding:10px} h2{page-break-before:auto}}
-      </style></head><body>
-      <h1>تقرير متابعة المخدومات - ${monthName}</h1>
-      <p style="color:#6b7a99;font-size:14px">الفترة: من ${exportStart} إلى ${exportEnd}</p>
-      <div class="summary">
-        <div class="sum-box"><b>${activeGirls.length}</b><br><span>عدد المخدومات</span></div>
-        <div class="sum-box"><b>${presents}</b><br><span>حالات الحضور</span></div>
-        <div class="sum-box"><b>${absents}</b><br><span>حالات الغياب</span></div>
-        <div class="sum-box"><b>${Object.keys(grouped).length}</b><br><span>مخدومات مشاركة</span></div>
-      </div>
-      <table>
-        <tr><th>#</th><th>الاسم</th><th>السنة</th><th>دراسي</th><th>قبطي</th><th>محفوظات</th><th>ألحان</th><th>الحضور</th><th>الغياب</th><th>النسبة</th></tr>
-        ${htmlRows}
-      </table>
-
-      <h2>السجل اليومي التفصيلي</h2>
-      <table>
-        <tr><th>التاريخ</th><th>اليوم</th><th>المخدومة</th><th>السنة</th><th>النشاط</th><th>الحالة</th><th>التقييم</th><th>ملاحظات</th></tr>
-        ${dailyRows}
-      </table>
-
-      <div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div>
-      </body></html>`;
-
-    const w = window.open('', '_blank');
-    if (!w) { showToast('تم حجب النافذة من المتصفح', 'error'); return; }
-    w.document.write(html);
-    w.document.close();
-    w.print();
-  });
-}
-
-function downloadFile(filename, content, mimeType) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-// ============================================================
-// PENDING SYNC
-// ============================================================
-async function addPending(type, data) {
-  if (!state.idb) return;
-  await IDB.put('pending', { id: 'pending_' + Date.now(), type, data });
-}
-
-// ============================================================
-// MODAL HELPERS
-// ============================================================
-function openModal(id) {
-  if (!DOM[id]) return;
-  DOM[id].classList.add('show');
-  document.body.style.overflow = 'hidden';
-}
-function closeModal(id) {
-  if (!DOM[id]) return;
-  DOM[id].classList.remove('show');
-  const anyOpen = document.querySelector('.modal-overlay.show');
-  if (!anyOpen) document.body.style.overflow = '';
-}
-
-// ============================================================
-// CONFIRM MODAL
-// ============================================================
-let confirmResolve = null;
-
-function showConfirm({ icon = '&#9888;', title, msg, okLabel = 'تأكيد', okClass = '', onOk }) {
-  if (DOM.confirmIcon) DOM.confirmIcon.innerHTML = icon;
-  if (DOM.confirmTitle) DOM.confirmTitle.textContent = title;
-  if (DOM.confirmMsg) DOM.confirmMsg.textContent = msg;
-  const okBtn = DOM.confirmOk;
-  if (okBtn) {
-    okBtn.textContent = okLabel;
-    okBtn.className = 'confirm-ok';
-    if (okClass) okBtn.classList.add(...okClass.split(' ').filter(Boolean));
-  }
-  confirmResolve = onOk;
-  if (DOM.confirmOverlay) DOM.confirmOverlay.classList.add('show');
-}
-
-if (DOM.confirmOk) {
-  DOM.confirmOk.addEventListener('click', async () => {
-    if (DOM.confirmOverlay) DOM.confirmOverlay.classList.remove('show');
-    if (confirmResolve) {
-      const fn = confirmResolve;
-      confirmResolve = null;
-      try { await fn(); } catch (e) { console.error('Confirm ok error:', e); }
-    }
-  });
-}
-
-if (DOM.confirmCancel) {
-  DOM.confirmCancel.addEventListener('click', () => {
-    if (DOM.confirmOverlay) DOM.confirmOverlay.classList.remove('show');
-    confirmResolve = null;
-  });
-}
-
-if (DOM.confirmOverlay) {
-  DOM.confirmOverlay.addEventListener('click', e => {
-    if (e.target === DOM.confirmOverlay) {
-      DOM.confirmOverlay.classList.remove('show');
-      confirmResolve = null;
-    }
-  });
-}
-
-if (DOM.closeGirlModal) DOM.closeGirlModal.addEventListener('click', () => closeModal('girlModal'));
-if (DOM.cancelGirlModal) DOM.cancelGirlModal.addEventListener('click', () => closeModal('girlModal'));
-if (DOM.closeAttendanceModal) DOM.closeAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
-if (DOM.cancelAttendanceModal) DOM.cancelAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
-
-$$('.modal-overlay').forEach(overlay => overlay.addEventListener('click', e => {
-  if (e.target === overlay) closeModal(overlay.id);
-}));
-
-// ============================================================
-// EVENT DELEGATION
-// ============================================================
-function setupDelegation() {
-  if (DOM.needsFollowup) {
-    DOM.needsFollowup.addEventListener('click', e => {
-      const item = e.target.closest('.followup-item');
-      if (item) showGirlProfile(item.dataset.girlId);
-    });
-  }
-
-  if (DOM.girlsList) {
-    DOM.girlsList.addEventListener('click', e => {
-      const editBtn = e.target.closest('.edit-btn');
-      if (editBtn) { e.stopPropagation(); editGirl(editBtn.dataset.girlId); return; }
-      const card = e.target.closest('.girl-card');
-      if (card) showGirlProfile(card.dataset.girlId);
-    });
-  }
-
-  if (DOM.searchResults) {
-    DOM.searchResults.addEventListener('click', e => {
-      const item = e.target.closest('.search-item');
-      if (item && item.dataset.girlId) showGirlProfile(item.dataset.girlId);
-    });
-  }
-
-  if (DOM.attendanceList) {
-    DOM.attendanceList.addEventListener('click', e => {
-      const delBtn = e.target.closest('.att-delete-btn');
-      if (delBtn) {
-        e.stopPropagation();
-        e.preventDefault();
-        deleteAttendanceRecord(delBtn.dataset.attKey);
-        return;
-      }
-      if (state.isLongPress) {
-        state.isLongPress = false;
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-      const item = e.target.closest('.att-item');
-      if (item) {
-        const g = state.girls.find(x => x.id === item.dataset.girlId);
-        if (g && DOM.attendanceDate) toggleAttendanceStatus(g.id, g.name, DOM.attendanceDate.value);
-      }
-    });
-
-    DOM.attendanceList.addEventListener('mousedown', e => {
-      const item = e.target.closest('.att-item');
-      if (!item) return;
-      state.isLongPress = false;
-      state.longPressTimer = setTimeout(() => {
-        state.isLongPress = true;
-        const g = state.girls.find(x => x.id === item.dataset.girlId);
-        if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
-      }, 500);
-    });
-    DOM.attendanceList.addEventListener('mouseup', () => {
-      if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
-      setTimeout(() => { state.isLongPress = false; }, 100);
-    });
-    DOM.attendanceList.addEventListener('mouseleave', () => {
-      if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
-    });
-
-    DOM.attendanceList.addEventListener('touchstart', e => {
-      const item = e.target.closest('.att-item');
-      if (!item) return;
-      state.isLongPress = false;
-      state.longPressTimer = setTimeout(() => {
-        state.isLongPress = true;
-        const g = state.girls.find(x => x.id === item.dataset.girlId);
-        if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
-      }, 500);
-    }, { passive: true });
-    DOM.attendanceList.addEventListener('touchend', () => {
-      if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
-      setTimeout(() => { state.isLongPress = false; }, 100);
-    });
-    DOM.attendanceList.addEventListener('touchcancel', () => {
-      if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
-    });
-  }
-
-  if (DOM.calendarGrid) {
-    DOM.calendarGrid.addEventListener('click', e => {
-      const day = e.target.closest('.cal-day');
-      if (day && !day.classList.contains('empty')) showDayDetail(day.dataset.date);
-    });
-  }
-}
-
-// Grade filter button handlers
-if (DOM.homeGradeFilters) {
-  DOM.homeGradeFilters.addEventListener('click', e => {
-    const btn = e.target.closest('.grade-filter-btn');
-    if (!btn) return;
-    state.homeGradeFilter = btn.dataset.grade;
-    renderHome();
-  });
-}
-
-if (DOM.girlsGradeFilters) {
-  DOM.girlsGradeFilters.addEventListener('click', e => {
-    const btn = e.target.closest('.grade-filter-btn');
-    if (!btn) return;
-    state.girlsGradeFilter = btn.dataset.grade;
-    renderGirlsList();
-  });
-}
-
-// Girls search
-const girlsSearchInput = document.getElementById('girlsSearch');
-if (girlsSearchInput) {
-  let girlsSearchTimer = null;
-  girlsSearchInput.addEventListener('input', () => {
-    clearTimeout(girlsSearchTimer);
-    girlsSearchTimer = setTimeout(() => {
-      state.girlsSearchQuery = girlsSearchInput.value;
-      renderGirlsList();
-    }, 250);
-  });
-}
-
-setupDelegation();
-
-// ============================================================
-// BOOTSTRAP — Fixed with proper error handling
-// ============================================================
-async function bootstrap() {
-  initDarkMode();
-  try { await IDB.open(); } catch (e) { console.error('IDB open failed:', e); }
-
-  // Initialize Firebase modules first
-  const modulesReady = await initModules();
-
-  if (modulesReady) {
-    // Firebase loaded successfully
-    await initAuth();
-  } else {
-    // Firebase failed — show login anyway (offline mode)
-    console.warn('Running in offline mode - Firebase not available');
-    hideSplash();
-    showLogin();
-    showToast('وضع عدم الاتصال - البيانات ستحفظ محلياً', 'warning');
-  }
-}
-
-bootstrap();
+      .footer{margin-top:20px;font-size:12px
