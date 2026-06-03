@@ -122,6 +122,7 @@ const state = {
   deleteInProgress: false,
   homeGradeFilter: '',
   girlsGradeFilter: '',
+  girlsSearchQuery: '',
   statsTimeFilter: 'month',
   statsGradeFilter: '',
   longPressTimer: null,
@@ -142,7 +143,7 @@ const SERVICE_DAY_NUMBERS = [1, 3, 6]; // Mon, Wed, Sat
 const DAY_NAMES = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 const ACTIVITIES = ['دراسي', 'محفوظات', 'قبطي', 'ألحان'];
 const ACTIVITY_ICONS = { 'دراسي': '&#128216;', 'ألحان': '&#127925;', 'قبطي': '&#9961;', 'محفوظات': '&#128221;' };
-const PERIOD_LABELS = { today: 'اليوم', month: 'هذا الشهر', year: 'هذه السنة', all: 'كل الفترات' };
+const PERIOD_LABELS = { today: 'اليوم', month: 'هذا الشهر', all: 'كل الفترات' };
 
 // ============================================================
 // XSS PROTECTION
@@ -190,6 +191,61 @@ const DateUtil = {
     return { 'الأحد': 'الاحد', 'الاثنين': 'الاثنين', 'الثلاثاء': 'الثلاثاء', 'الأربعاء': 'الاربعاء', 'الخميس': 'الخميس', 'الجمعة': 'الجمعة', 'السبت': 'السبت' }[d] || d;
   }
 };
+// Calculate actual service days in a given month (Saturday, Monday, Wednesday)
+function getServiceDaysInMonth(year, month) {
+  const days = [];
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dayOfWeek = new Date(year, month, d).getDay();
+    if (SERVICE_DAY_NUMBERS.includes(dayOfWeek)) {
+      days.push(`${year}-${DateUtil.pad(month + 1)}-${DateUtil.pad(d)}`);
+    }
+  }
+  return days;
+}
+
+// Calculate total service days from a start date up to today
+function getServiceDaysUpToDate(fromYear, fromMonth, toDate) {
+  let count = 0;
+  const to = new Date(toDate + 'T00:00:00');
+  const daysInMonth = new Date(fromYear, fromMonth + 1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${fromYear}-${DateUtil.pad(fromMonth + 1)}-${DateUtil.pad(d)}`;
+    const current = new Date(dateStr + 'T00:00:00');
+    if (current > to) break;
+    const dayOfWeek = current.getDay();
+    if (SERVICE_DAY_NUMBERS.includes(dayOfWeek)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+// Check if a girl has 2+ consecutive service day absences
+function hasConsecutiveAbsences(girlId, monthStr) {
+  const absRecords = Object.values(state.attendanceData)
+    .filter(a => a.girlId === girlId && a.date?.startsWith(monthStr) && a.status === 'غائب');
+
+  if (absRecords.length < 2) return { hasConsecutive: false, count: absRecords.length, dates: [] };
+
+  // Get unique absence dates sorted
+  const absDates = [...new Set(absRecords.map(a => a.date))].sort();
+
+  // Check for consecutive service days (gap of 2-3 days = consecutive service days)
+  for (let i = 0; i < absDates.length - 1; i++) {
+    const d1 = new Date(absDates[i] + 'T00:00:00');
+    const d2 = new Date(absDates[i + 1] + 'T00:00:00');
+    const diffDays = (d2 - d1) / (1000 * 60 * 60 * 24);
+    // Service days are Sat(6), Mon(1), Wed(3)
+    // Consecutive service days: Sat->Mon (2 days), Mon->Wed (2 days), Wed->Sat (3 days)
+    if (diffDays <= 3) {
+      return { hasConsecutive: true, count: absDates.length, dates: absDates };
+    }
+  }
+  return { hasConsecutive: false, count: absDates.length, dates: absDates };
+}
+
+
 
 // ============================================================
 // ARABIC TEXT NORMALIZATION
@@ -283,6 +339,61 @@ const IDB = {
     });
   }
 };
+// Calculate actual service days in a given month (Saturday, Monday, Wednesday)
+function getServiceDaysInMonth(year, month) {
+  const days = [];
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dayOfWeek = new Date(year, month, d).getDay();
+    if (SERVICE_DAY_NUMBERS.includes(dayOfWeek)) {
+      days.push(`${year}-${DateUtil.pad(month + 1)}-${DateUtil.pad(d)}`);
+    }
+  }
+  return days;
+}
+
+// Calculate total service days from a start date up to today
+function getServiceDaysUpToDate(fromYear, fromMonth, toDate) {
+  let count = 0;
+  const to = new Date(toDate + 'T00:00:00');
+  const daysInMonth = new Date(fromYear, fromMonth + 1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${fromYear}-${DateUtil.pad(fromMonth + 1)}-${DateUtil.pad(d)}`;
+    const current = new Date(dateStr + 'T00:00:00');
+    if (current > to) break;
+    const dayOfWeek = current.getDay();
+    if (SERVICE_DAY_NUMBERS.includes(dayOfWeek)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+// Check if a girl has 2+ consecutive service day absences
+function hasConsecutiveAbsences(girlId, monthStr) {
+  const absRecords = Object.values(state.attendanceData)
+    .filter(a => a.girlId === girlId && a.date?.startsWith(monthStr) && a.status === 'غائب');
+
+  if (absRecords.length < 2) return { hasConsecutive: false, count: absRecords.length, dates: [] };
+
+  // Get unique absence dates sorted
+  const absDates = [...new Set(absRecords.map(a => a.date))].sort();
+
+  // Check for consecutive service days (gap of 2-3 days = consecutive service days)
+  for (let i = 0; i < absDates.length - 1; i++) {
+    const d1 = new Date(absDates[i] + 'T00:00:00');
+    const d2 = new Date(absDates[i + 1] + 'T00:00:00');
+    const diffDays = (d2 - d1) / (1000 * 60 * 60 * 24);
+    // Service days are Sat(6), Mon(1), Wed(3)
+    // Consecutive service days: Sat->Mon (2 days), Mon->Wed (2 days), Wed->Sat (3 days)
+    if (diffDays <= 3) {
+      return { hasConsecutive: true, count: absDates.length, dates: absDates };
+    }
+  }
+  return { hasConsecutive: false, count: absDates.length, dates: absDates };
+}
+
+
 
 // ============================================================
 // DARK MODE
@@ -622,24 +733,32 @@ function closeDrawer() {
 // ============================================================
 function getBestGradeFiltered(monthStr, gradeFilter) {
   let activeGirls = state.girls.filter(g => !g.isDeleted);
+  const [year, month] = monthStr.split('-').map(Number);
+  const totalServiceDays = getServiceDaysInMonth(year, month - 1).length || 1;
+
   const gradeStats = {};
   activeGirls.forEach(g => {
     if (gradeFilter && g.grade !== gradeFilter) return;
-    if (!gradeStats[g.grade]) gradeStats[g.grade] = { totalGirls: 0, totalPresent: 0, totalRecords: 0 };
+    if (!gradeStats[g.grade]) gradeStats[g.grade] = { totalGirls: 0, presentDates: new Set() };
     gradeStats[g.grade].totalGirls++;
   });
+
+  // Count unique present dates per grade (not per-activity, not per-girl duplicate dates)
   Object.values(state.attendanceData).forEach(a => {
     if (!a.date?.startsWith(monthStr)) return;
+    if (a.status !== 'حاضر') return;
     const girl = activeGirls.find(g => g.id === a.girlId);
     if (!girl) return;
     if (gradeFilter && girl.grade !== gradeFilter) return;
     if (!gradeStats[girl.grade]) return;
-    gradeStats[girl.grade].totalRecords++;
-    if (a.status === 'حاضر') gradeStats[girl.grade].totalPresent++;
+    gradeStats[girl.grade].presentDates.add(a.date + '_' + a.girlId);
   });
+
   let best = null;
   Object.entries(gradeStats).forEach(([grade, data]) => {
-    const percent = data.totalRecords > 0 ? (data.totalPresent / data.totalRecords) * 100 : 0;
+    // Percentage = (unique girl-date present entries) / (total girls × total service days)
+    const maxPossible = data.totalGirls * totalServiceDays;
+    const percent = maxPossible > 0 ? (data.presentDates.size / maxPossible) * 100 : 0;
     if (!best || percent > best.percent) best = { grade, percent };
   });
   return best;
@@ -669,23 +788,24 @@ function getMostRegularGirlFiltered(monthStr, gradeFilter) {
   if (!activeGirls.length) return null;
   const activeGirlIds = new Set(activeGirls.map(g => g.id));
 
-  const serviceDates = new Set();
-  Object.values(state.attendanceData).forEach(a => {
-    if (a.date?.startsWith(monthStr) && activeGirlIds.has(a.girlId) && a.status === 'حاضر') {
-      serviceDates.add(a.date);
-    }
-  });
-  const totalServiceDays = serviceDates.size || 1;
+  // Get actual service days count from calendar for this month
+  const [year, month] = monthStr.split('-').map(Number);
+  const totalServiceDays = getServiceDaysInMonth(year, month - 1).length || 1;
 
-  const presentCounts = {};
-  activeGirls.forEach(g => presentCounts[g.id] = 0);
+  // Count unique dates each girl attended (not per-activity)
+  const presentDatesByGirl = {};
+  activeGirls.forEach(g => presentDatesByGirl[g.id] = new Set());
+
   Object.values(state.attendanceData).forEach(a => {
     if (!a.date?.startsWith(monthStr)) return;
-    if (a.status === 'حاضر' && presentCounts[a.girlId] !== undefined) presentCounts[a.girlId]++;
+    if (a.status === 'حاضر' && presentDatesByGirl[a.girlId] !== undefined) {
+      presentDatesByGirl[a.girlId].add(a.date);
+    }
   });
 
   let best = null;
-  Object.entries(presentCounts).forEach(([girlId, count]) => {
+  Object.entries(presentDatesByGirl).forEach(([girlId, dateSet]) => {
+    const count = dateSet.size;
     if (count === 0) return;
     const percent = (count / totalServiceDays) * 100;
     const girl = activeGirls.find(g => g.id === girlId);
@@ -734,13 +854,35 @@ function renderHome() {
 
   DOM.statTotal.textContent = activeGirls.length;
 
-  let presentToday = 0, absentToday = 0;
+  // \u2714 FIXED: Count each girl once regardless of activities
+  // A girl is "present" if she attended ANY activity today
+  // A girl is "absent" if she has NO present records for any activity today
+  const presentGirlIds = new Set();
+  const absentGirlIds = new Set();
+
+  // Check which girls have attendance records for today
+  const todayRecordsByGirl = {};
   Object.values(state.attendanceData).forEach(a => {
     if (a.date !== dateStr) return;
     if (!activeGirlIds.has(a.girlId)) return;
-    if (a.status === 'حاضر') presentToday++;
-    else if (a.status === 'غائب') absentToday++;
+    if (!todayRecordsByGirl[a.girlId]) todayRecordsByGirl[a.girlId] = [];
+    todayRecordsByGirl[a.girlId].push(a);
   });
+
+  // For each girl with records today, determine if present or absent
+  Object.entries(todayRecordsByGirl).forEach(([girlId, records]) => {
+    const hasAnyPresent = records.some(r => r.status === 'حاضر');
+    if (hasAnyPresent) {
+      presentGirlIds.add(girlId);
+    } else {
+      // All records are "غائب"
+      absentGirlIds.add(girlId);
+    }
+  });
+
+  // \u2714 Show "لا يوجد غيابات اليوم" message when appropriate
+  const presentToday = presentGirlIds.size;
+  const absentToday = absentGirlIds.size;
   DOM.statPresentToday.textContent = presentToday;
   DOM.statAbsentToday.textContent = absentToday;
 
@@ -779,12 +921,17 @@ function renderHome() {
     DOM.mostRegularPercent.textContent = 'أكثر مخدومة انتظامًا';
   }
 
-  const counts = {};
-  activeGirls.forEach(g => counts[g.id] = 0);
+  // Top attendees this month - count unique dates per girl
+  const presentDatesByGirl = {};
+  activeGirls.forEach(g => presentDatesByGirl[g.id] = new Set());
   Object.values(state.attendanceData).forEach(a => {
-    if (a.date?.startsWith(monthStr) && a.status === 'حاضر' && counts[a.girlId] !== undefined) {
-      counts[a.girlId]++;
+    if (a.date?.startsWith(monthStr) && a.status === 'حاضر' && presentDatesByGirl[a.girlId] !== undefined) {
+      presentDatesByGirl[a.girlId].add(a.date);
     }
+  });
+  const counts = {};
+  Object.entries(presentDatesByGirl).forEach(([id, dateSet]) => {
+    counts[id] = dateSet.size;
   });
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const topEl = DOM.topAttendees;
@@ -806,36 +953,29 @@ function renderHome() {
     topEl.appendChild(frag);
   }
 
+  // \u2714 FIXED: "Needs Follow-up" - only girls with 2+ CONSECUTIVE service day absences
   const needs = activeGirls.filter(g => {
-    const absDates = new Set(
-      Object.values(state.attendanceData)
-        .filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب')
-        .map(a => a.date)
-    );
-    return absDates.size >= 2;
+    const result = hasConsecutiveAbsences(g.id, monthStr);
+    return result.hasConsecutive;
   });
+
   const needsEl = DOM.needsFollowup;
   if (!needs.length) {
     needsEl.innerHTML = '<div class="empty-state">لا توجد حالات تحتاج متابعة</div>';
   } else {
     const frag = document.createDocumentFragment();
     needs.forEach(g => {
-      const abs = new Set(
-        Object.values(state.attendanceData)
-          .filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب')
-          .map(a => a.date)
-      ).size;
+      const result = hasConsecutiveAbsences(g.id, monthStr);
       const div = document.createElement('div');
       div.className = 'followup-item';
       div.dataset.girlId = g.id;
-      div.innerHTML = `<span class="followup-name">${esc(g.name)}</span><span class="followup-badge">${abs} غياب</span>`;
+      div.innerHTML = `<span class="followup-name">${esc(g.name)}</span><span class="followup-badge">${result.count} غياب متتالي</span>`;
       frag.appendChild(div);
     });
     needsEl.innerHTML = '';
     needsEl.appendChild(frag);
   }
 }
-
 // ============================================================
 // SEARCH — With debounce
 // ============================================================
@@ -861,7 +1001,15 @@ DOM.globalSearch.addEventListener('input', debouncedSearch);
 // ============================================================
 function renderGirlsList() {
   const filter = state.girlsGradeFilter;
-  const activeGirls = state.girls.filter(g => !g.isDeleted);
+  const searchQuery = (state.girlsSearchQuery || '').trim();
+  let activeGirls = state.girls.filter(g => !g.isDeleted);
+
+  // \u2714 Search filter
+  if (searchQuery) {
+    const qNorm = normalizeArabic(searchQuery);
+    activeGirls = activeGirls.filter(g => normalizeArabic(g.name).includes(qNorm));
+  }
+
   const filtered = filter ? activeGirls.filter(g => g.grade === filter) : activeGirls;
   const el = DOM.girlsList;
 
@@ -1244,8 +1392,21 @@ DOM.shareProfileBtn.addEventListener('click', async () => {
 // ============================================================
 // ATTENDANCE PAGE — Fixed: uses state.attendancePageInitialized
 // ============================================================
+function getCurrentServiceDay() {
+  const dayOfWeek = new Date().getDay();
+  const dayMap = { 6: 'السبت', 1: 'الاثنين', 3: 'الاربعاء' };
+  return dayMap[dayOfWeek] || null;
+}
+
 function renderAttendancePage() {
   if (!DOM.attendanceDate.value) DOM.attendanceDate.value = DateUtil.toStr();
+
+  // \u2714 Auto-select today\'s service day if visiting page for first time today
+  const currentServiceDay = getCurrentServiceDay();
+  if (currentServiceDay && !state.attendancePageInitialized) {
+    state.selectedDay = currentServiceDay;
+  }
+
   setActiveDay(state.selectedDay);
   setActiveActivity(state.selectedActivity);
 
@@ -1623,20 +1784,7 @@ DOM.saveAttendanceEntry.addEventListener('click', async () => {
   if (state.currentPage === 'calendar') renderCalendar();
 });
 
-// FIX #9: saveAttendanceBtn now actually syncs data instead of just showing toast
-DOM.saveAttendanceBtn.addEventListener('click', async () => {
-  if (!state.isOnline) {
-    showToast('أنت في وضع عدم الاتصال - سيتم الحفظ محلياً', 'warning');
-    return;
-  }
-  try {
-    await syncPending();
-    showToast('تمت مزامنة جميع البيانات', 'success');
-  } catch (e) {
-    console.error('Sync error:', e);
-    showToast('حدث خطأ أثناء المزامنة', 'error');
-  }
-});
+// saveAttendanceBtn removed - data syncs automatically on each toggle
 
 // ============================================================
 // CALENDAR PAGE — Fixed: uses SERVICE_DAY_NUMBERS consistently
@@ -1669,7 +1817,14 @@ function renderCalendar() {
   html += '</div>';
   DOM.calendarGrid.innerHTML = html;
 
-  if (currentDayDetailDate) {
+  // \u2714 Auto-show today's details if today is in the current month view
+  const todayStr = DateUtil.toStr();
+  const todayYear = new Date().getFullYear();
+  const todayMonth = new Date().getMonth();
+  if (year === todayYear && month === todayMonth) {
+    currentDayDetailDate = todayStr;
+    refreshDayDetail();
+  } else if (currentDayDetailDate) {
     refreshDayDetail();
   }
 }
@@ -1934,8 +2089,12 @@ DOM.activityStatsGrid.addEventListener('click', e => {
 // STATS PAGE — With grade filter
 // ============================================================
 function renderStats() {
-  const month = DOM.statsMonth.value || DateUtil.getMonthStr();
-  if (!DOM.statsMonth.value) DOM.statsMonth.value = month;
+  // Use date picker (month + day) instead of just month
+  const selectedDate = DOM.statsMonth.value || DateUtil.toStr();
+  if (!DOM.statsMonth.value) DOM.statsMonth.value = selectedDate;
+
+  // Derive month string from selected date for filtering
+  const month = selectedDate.substring(0, 7); // YYYY-MM
 
   // Time filter tabs
   $$('#timeFilterTabs .time-filter-tab').forEach(btn => {
@@ -1952,8 +2111,9 @@ function renderStats() {
   if (gradeFilter) activeGirls = activeGirls.filter(g => g.grade === gradeFilter);
   const activeGirlIds = new Set(activeGirls.map(g => g.id));
 
+  // Filter attendance up to selected date (not the whole month)
   const monthAtt = Object.values(state.attendanceData).filter(a =>
-    a.date?.startsWith(month) && activeGirlIds.has(a.girlId)
+    a.date?.startsWith(month) && a.date <= selectedDate && activeGirlIds.has(a.girlId)
   );
 
   const totalSessions = new Set(monthAtt.map(a => a.date)).size;
@@ -1962,9 +2122,13 @@ function renderStats() {
   const ratings = monthAtt.filter(a => a.rating > 0).map(a => a.rating);
   const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : '-';
 
-  const followupCount = activeGirls.filter(g =>
-    monthAtt.filter(a => a.girlId === g.id && a.status === 'غائب').length >= 2
-  ).length;
+  // Follow-up: consecutive absences
+  const followupCount = activeGirls.filter(g => {
+    const result = hasConsecutiveAbsences(g.id, month);
+    return result.hasConsecutive;
+  }).length;
+
+  const dateLabel = new Date(selectedDate + 'T00:00:00').toLocaleDateString('ar-EG', { month: 'long', day: 'numeric' });
 
   DOM.bigStatsGrid.innerHTML = `
     <div class="big-stat-card"><div class="big-num">${activeGirls.length}</div><div>المخدومات</div></div>
@@ -1998,7 +2162,7 @@ function renderStats() {
         <span class="chart-val">${count}</span>
       </div>`;
     }).join('')
-    : '<div class="empty-state">لا توجد غيابات هذا الشهر &#127881;</div>';
+    : `<div class="empty-state">لا توجد غيابات حتى ${dateLabel} \u127881;</div>`;
 
   const presentsByGirl = {};
   activeGirls.forEach(g => presentsByGirl[g.id] = 0);
@@ -2021,7 +2185,7 @@ function renderStats() {
         <span class="rank-count">${count} يوم</span>
       </div>`;
     }).join('')
-    : '<div class="empty-state">لا توجد بيانات حضور هذا الشهر</div>';
+    : `<div class="empty-state">لا توجد بيانات حضور حتى ${dateLabel}</div>`;
 }
 
 DOM.statsMonth.addEventListener('change', renderStats);
@@ -2571,6 +2735,19 @@ DOM.girlsGradeFilters.addEventListener('click', e => {
   state.girlsGradeFilter = btn.dataset.grade;
   renderGirlsList();
 });
+
+// \u2714 Girls search - filter for edit/delete
+const girlsSearchInput = document.getElementById('girlsSearch');
+if (girlsSearchInput) {
+  let girlsSearchTimer = null;
+  girlsSearchInput.addEventListener('input', () => {
+    clearTimeout(girlsSearchTimer);
+    girlsSearchTimer = setTimeout(() => {
+      state.girlsSearchQuery = girlsSearchInput.value;
+      renderGirlsList();
+    }, 250);
+  });
+}
 
 setupDelegation();
 
