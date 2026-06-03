@@ -12,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
   <div id="app">
@@ -272,6 +273,7 @@
           <div class="time-filter-tabs" id="timeFilterTabs">
             <button class="time-filter-tab" data-period="today">اليوم</button>
             <button class="time-filter-tab active" data-period="month">هذا الشهر</button>
+            <button class="time-filter-tab" data-period="year">هذه السنة</button>
             <button class="time-filter-tab" data-period="all">الكل</button>
           </div>
           <!-- Grade filter for stats -->
@@ -318,8 +320,8 @@
             <div class="export-icon">&#128202;</div>
             <h3>تصدير البيانات</h3>
             <div class="export-month-wrap">
-              <label for="exportMonth">اختر الشهر:</label>
-              <input type="month" id="exportMonth" class="month-input">
+              <label for="exportMonth">التاريخ:</label>
+              <input type="date" id="exportMonth" class="month-input">
             </div>
             <div class="export-btns">
               <button class="export-btn csv" id="exportCSV">

@@ -202,7 +202,7 @@ const SERVICE_DAY_NUMBERS = [1, 3, 6]; // Mon, Wed, Sat
 const DAY_NAMES = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 const ACTIVITIES = ['دراسي', 'محفوظات', 'قبطي', 'ألحان'];
 const ACTIVITY_ICONS = { 'دراسي': '&#128216;', 'ألحان': '&#127925;', 'قبطي': '&#9961;', 'محفوظات': '&#128221;' };
-const PERIOD_LABELS = { today: 'اليوم', month: 'هذا الشهر', all: 'كل الفترات' };
+const PERIOD_LABELS = { today: 'اليوم', month: 'هذا الشهر', year: 'هذه السنة', all: 'كل الفترات' };
 
 // ============================================================
 // XSS PROTECTION
@@ -296,6 +296,25 @@ function hasConsecutiveAbsences(girlId, monthStr) {
     }
   }
   return { hasConsecutive: false, count: absDates.length, dates: absDates };
+}
+
+
+// ============================================================
+// UNIFIED STATS BOUNDS — All stats use this single function
+// ============================================================
+function getStatsBounds() {
+  const selectedDate = DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : DateUtil.toStr();
+
+  switch (state.statsTimeFilter) {
+    case 'today':
+      return { start: selectedDate, end: selectedDate };
+    case 'month':
+      return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate };
+    case 'year':
+      return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate };
+    default: // 'all'
+      return { start: '2000-01-01', end: selectedDate };
+  }
 }
 
 // ============================================================
@@ -1060,6 +1079,7 @@ function renderGirlsList() {
       <div class="girl-info">
         <span class="girl-name">${esc(g.name)}</span>
         <span class="girl-grade">${esc(g.grade)}</span>
+        ${g.phone ? `<a href="tel:${esc(g.phone)}" class="girl-phone-link" data-phone="${esc(g.phone)}" onclick="event.stopPropagation();">${esc(g.phone)}</a>` : ''}
         <div class="girl-stats"><span class="green-text">&#10003;${presents}</span><span class="red-text">&#10007;${absents}</span></div>
       </div>
       <button class="edit-btn" data-girl-id="${esc(g.id)}" aria-label="تعديل ${esc(g.name)}">&#9999;</button>`;
@@ -1449,6 +1469,11 @@ async function toggleAttendanceStatus(girlId, girlName, date) {
 }
 
 async function markAllAbsent(date) {
+  // Only auto-lock attendance on service days (Sat, Mon, Wed)
+  const dateObj = new Date(date + 'T00:00:00');
+  const dayOfWeek = dateObj.getDay();
+  if (!SERVICE_DAY_NUMBERS.includes(dayOfWeek)) return; // Skip non-service days
+
   const activeGirls = state.girls.filter(g => !g.isDeleted);
   const batchRecords = [];
 
@@ -1822,23 +1847,22 @@ if (DOM.calNext) {
 // ============================================================
 // ACTIVITY STATS
 // ============================================================
-function getPeriodBounds(period) {
-  const now = new Date();
-  const todayStr = DateUtil.toStr(now);
+function getPeriodBounds(period, customDate) {
+  const selectedDate = customDate || DateUtil.toStr();
   switch (period) {
-    case 'today': return { start: todayStr, end: todayStr };
-    case 'month': return { start: DateUtil.getMonthStr(now) + '-01', end: todayStr };
-    case 'year': return { start: String(now.getFullYear()) + '-01-01', end: todayStr };
-    case 'all': default: return { start: '2000-01-01', end: todayStr };
+    case 'today': return { start: selectedDate, end: selectedDate };
+    case 'month': return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate };
+    case 'year': return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate };
+    case 'all': default: return { start: '2000-01-01', end: selectedDate };
   }
 }
 
-function getActivityStats(period, gradeFilter = '') {
+function getActivityStats(period, gradeFilter = '', customDate) {
   let activeGirls = state.girls.filter(g => !g.isDeleted);
   const activeGirlIds = gradeFilter
     ? new Set(activeGirls.filter(g => g.grade === gradeFilter).map(g => g.id))
     : new Set(activeGirls.map(g => g.id));
-  const { start, end } = getPeriodBounds(period);
+  const { start, end } = getPeriodBounds(period, customDate);
 
   const stats = { 'دراسي': 0, 'ألحان': 0, 'قبطي': 0, 'محفوظات': 0 };
 
@@ -1855,8 +1879,8 @@ function getActivityStats(period, gradeFilter = '') {
 // ============================================================
 // ACTIVITY DETAIL MODAL
 // ============================================================
-function openActivityDetailModal(activity, period, gradeFilter = '') {
-  const { start, end } = getPeriodBounds(period);
+function openActivityDetailModal(activity, period, gradeFilter = '', customDate) {
+  const { start, end } = getPeriodBounds(period, customDate);
   let activeGirls = state.girls.filter(g => !g.isDeleted);
   if (gradeFilter) activeGirls = activeGirls.filter(g => g.grade === gradeFilter);
   const activeGirlIds = new Set(activeGirls.map(g => g.id));
@@ -2003,7 +2027,8 @@ if (DOM.activityStatsGrid) {
   DOM.activityStatsGrid.addEventListener('click', e => {
     const card = e.target.closest('.activity-stat-card');
     if (!card || !card.dataset.activity) return;
-    openActivityDetailModal(card.dataset.activity, state.statsTimeFilter, state.statsGradeFilter);
+    const selectedDate = DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : DateUtil.toStr();
+    openActivityDetailModal(card.dataset.activity, state.statsTimeFilter, state.statsGradeFilter, selectedDate);
   });
 }
 
@@ -2014,7 +2039,8 @@ function renderStats() {
   const selectedDate = DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : DateUtil.toStr();
   if (DOM.statsMonth && !DOM.statsMonth.value) DOM.statsMonth.value = selectedDate;
 
-  const month = selectedDate.substring(0, 7);
+  // Unified date bounds from the three interconnected filters
+  const { start, end } = getStatsBounds();
 
   $$('#timeFilterTabs .time-filter-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.period === state.statsTimeFilter);
@@ -2029,8 +2055,9 @@ function renderStats() {
   if (gradeFilter) activeGirls = activeGirls.filter(g => g.grade === gradeFilter);
   const activeGirlIds = new Set(activeGirls.map(g => g.id));
 
+  // Filter attendance by unified bounds + grade filter
   const monthAtt = Object.values(state.attendanceData).filter(a =>
-    a.date?.startsWith(month) && a.date <= selectedDate && activeGirlIds.has(a.girlId)
+    a.date >= start && a.date <= end && activeGirlIds.has(a.girlId)
   );
 
   const totalSessions = new Set(monthAtt.map(a => a.date)).size;
@@ -2039,9 +2066,19 @@ function renderStats() {
   const ratings = monthAtt.filter(a => a.rating > 0).map(a => a.rating);
   const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : '-';
 
+  // Follow-up uses the same unified bounds
   const followupCount = activeGirls.filter(g => {
-    const result = hasConsecutiveAbsences(g.id, month);
-    return result.hasConsecutive;
+    const absRecords = Object.values(state.attendanceData)
+      .filter(a => a.girlId === g.id && a.date >= start && a.date <= end && a.status === 'غائب');
+    if (absRecords.length < 2) return false;
+    const absDates = [...new Set(absRecords.map(a => a.date))].sort();
+    for (let i = 0; i < absDates.length - 1; i++) {
+      const d1 = new Date(absDates[i] + 'T00:00:00');
+      const d2 = new Date(absDates[i + 1] + 'T00:00:00');
+      const diffDays = (d2 - d1) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 3) return true;
+    }
+    return false;
   }).length;
 
   const dateLabel = new Date(selectedDate + 'T00:00:00').toLocaleDateString('ar-EG', { month: 'long', day: 'numeric' });
@@ -2056,9 +2093,9 @@ function renderStats() {
       <div class="big-stat-card orange-card"><div class="big-num">${followupCount}</div><div>تحتاج متابعة</div></div>`;
   }
 
-  renderActivityStats(state.statsTimeFilter, gradeFilter);
+  renderActivityStats(state.statsTimeFilter, gradeFilter, selectedDate);
 
-  const gradeLabel = gradeFilter ? `\u00B7 ${gradeFilter}` : '';
+  const gradeLabel = gradeFilter ? `· ${gradeFilter}` : '';
   if (DOM.activityStatsGrade) DOM.activityStatsGrade.textContent = gradeLabel;
 
   const absenceByGirl = {};
@@ -2081,7 +2118,7 @@ function renderStats() {
           <span class="chart-val">${count}</span>
         </div>`;
       }).join('')
-      : `<div class="empty-state">لا توجد غيابات حتى ${dateLabel} \uD83C\uDF89</div>`;
+      : `<div class="empty-state">لا توجد غيابات حتى ${dateLabel} &#127881;</div>`;
   }
 
   const presentsByGirl = {};
@@ -2230,30 +2267,35 @@ async function logHistory(action, detail) {
 // EXPORT PAGE
 // ============================================================
 function renderExport() {
-  if (DOM.exportMonth && !DOM.exportMonth.value) DOM.exportMonth.value = DateUtil.getMonthStr();
+  if (DOM.exportMonth && !DOM.exportMonth.value) DOM.exportMonth.value = DateUtil.toStr();
 }
 
-// Excel export — with XLSX fallback
+// Excel export — uses date range from export page
 if (DOM.exportCSV) {
   DOM.exportCSV.addEventListener('click', () => {
     if (!XLSX) { showToast('مكتبة Excel غير محملة، حاول تحديث الصفحة', 'error'); return; }
-    const month = DOM.exportMonth.value;
+
+    const exportDate = DOM.exportMonth.value || DateUtil.toStr();
+    // Export range: from start of the month to selected date
+    const exportStart = exportDate.substring(0, 7) + '-01';
+    const exportEnd = exportDate;
+
     const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-    let monthAtt = Object.values(state.attendanceData).filter(a =>
-      a.date?.startsWith(month) && activeGirlIds.has(a.girlId)
+    let exportAtt = Object.values(state.attendanceData).filter(a =>
+      a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId)
     );
 
-    const monthName = DateUtil.formatMonth(month);
-    monthAtt.sort((a, b) => {
+    const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
+    exportAtt.sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return (a.activity || '').localeCompare(b.activity || '', 'ar');
     });
 
-    const totalPresent = monthAtt.filter(a => a.status === 'حاضر').length;
-    const totalAbsent = monthAtt.filter(a => a.status === 'غائب').length;
+    const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
+    const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
 
     const grouped = {};
-    monthAtt.forEach(a => {
+    exportAtt.forEach(a => {
       if (!grouped[a.girlId]) {
         const g = state.girls.find(x => x.id === a.girlId);
         grouped[a.girlId] = {
@@ -2275,13 +2317,16 @@ if (DOM.exportCSV) {
     const fmtAtt = (act) => {
       const total = act.present + act.absent;
       if (total === 0) return '—';
-      if (act.present === total) return '\u2714';
-      if (act.present === 0) return '\u2718';
+      if (act.present === total) return '✔';
+      if (act.present === 0) return '✘';
       return act.present + '/' + total;
     };
 
+    const wb = XLSX.utils.book_new();
+
+    // === Sheet 1: Summary ===
     const wsData = [];
-    wsData.push(['تقرير حضور ' + monthName]);
+    wsData.push(['تقرير حضور ' + monthName + ' (حتى ' + exportEnd + ')']);
     wsData.push([]);
     wsData.push(['عدد المخدومات', activeGirlIds.size]);
     wsData.push(['إجمالي الحضور', totalPresent]);
@@ -2295,18 +2340,35 @@ if (DOM.exportCSV) {
       wsData.push([r.name, r.grade, fmtAtt(r['دراسي']), fmtAtt(r['قبطي']), fmtAtt(r['محفوظات']), fmtAtt(r['ألحان']), r.totalPresent, r.totalAbsent, rate]);
     });
 
-    const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
     ws['!dir'] = 'rtl';
-    XLSX.utils.book_append_sheet(wb, ws, monthName);
+    XLSX.utils.book_append_sheet(wb, ws, 'ملخص');
+
+    // === Sheet 2: Detailed Daily Records ===
+    const detailData = [];
+    detailData.push(['تقرير تفصيلي — ' + monthName]);
+    detailData.push([]);
+    detailData.push(['التاريخ', 'اليوم', 'المخدومة', 'السنة', 'النشاط', 'الحالة', 'التقييم', 'ملاحظات']);
+
+    exportAtt.forEach(a => {
+      const g = state.girls.find(x => x.id === a.girlId);
+      const dayName = DAY_NAMES[new Date(a.date + 'T00:00:00').getDay()] || '';
+      const stars = a.rating ? '★'.repeat(a.rating) + '☆'.repeat(5 - a.rating) : '';
+      detailData.push([a.date, dayName, g?.name || '', g?.grade || '', a.activity || '', a.status || '', stars, a.notes || '']);
+    });
+
+    const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
+    wsDetail['!cols'] = [{ wch: 14 }, { wch: 10 }, { wch: 24 }, { wch: 14 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 24 }];
+    wsDetail['!dir'] = 'rtl';
+    XLSX.utils.book_append_sheet(wb, wsDetail, 'تفاصيل يومية');
 
     const xlsxBlob = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([xlsxBlob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `حضور_${month}.xlsx`;
+    a.download = `حضور_${exportDate}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -2314,39 +2376,43 @@ if (DOM.exportCSV) {
     showToast('تم تصدير Excel', 'success');
   });
 }
-
 if (DOM.exportJSON) {
   DOM.exportJSON.addEventListener('click', () => {
-    const month = DOM.exportMonth.value;
+    const exportDate = DOM.exportMonth.value || DateUtil.toStr();
+    const exportStart = exportDate.substring(0, 7) + '-01';
+    const exportEnd = exportDate;
     const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-    const monthAtt = Object.values(state.attendanceData).filter(a =>
-      a.date?.startsWith(month) && activeGirlIds.has(a.girlId)
+    const exportAtt = Object.values(state.attendanceData).filter(a =>
+      a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId)
     );
     const payload = {
-      month,
+      dateRange: { start: exportStart, end: exportEnd },
       girls: state.girls.filter(g => !g.isDeleted),
-      attendance: monthAtt,
+      attendance: exportAtt,
       exportedAt: new Date().toISOString()
     };
-    downloadFile(`بيانات_${month}.json`, JSON.stringify(payload, null, 2), 'application/json');
+    downloadFile(`بيانات_${exportDate}.json`, JSON.stringify(payload, null, 2), 'application/json');
     showToast('تم تصدير JSON', 'success');
   });
 }
 
 if (DOM.exportPrint) {
   DOM.exportPrint.addEventListener('click', () => {
-    const month = DOM.exportMonth.value;
+    const exportDate = DOM.exportMonth.value || DateUtil.toStr();
+    const exportStart = exportDate.substring(0, 7) + '-01';
+    const exportEnd = exportDate;
     const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-    let monthAtt = Object.values(state.attendanceData).filter(a =>
-      a.date?.startsWith(month) && activeGirlIds.has(a.girlId)
+    let exportAtt = Object.values(state.attendanceData).filter(a =>
+      a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId)
     );
 
-    const presents = monthAtt.filter(a => a.status === 'حاضر').length;
-    const absents = monthAtt.filter(a => a.status === 'غائب').length;
+    const presents = exportAtt.filter(a => a.status === 'حاضر').length;
+    const absents = exportAtt.filter(a => a.status === 'غائب').length;
     const activeGirls = state.girls.filter(g => !g.isDeleted);
+    const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
 
     const grouped = {};
-    monthAtt.forEach(a => {
+    exportAtt.forEach(a => {
       if (!grouped[a.girlId]) {
         const g = state.girls.find(x => x.id === a.girlId);
         grouped[a.girlId] = {
@@ -2368,8 +2434,8 @@ if (DOM.exportPrint) {
     const fmtAttPrint = (act) => {
       const total = act.present + act.absent;
       if (total === 0) return '—';
-      if (act.present === total) return '<span style=\'color:#2ecc71;font-weight:700\'>\u2714</span>';
-      if (act.present === 0) return '<span style=\'color:#e74c3c;font-weight:700\'>\u2718</span>';
+      if (act.present === total) return '<span style='color:#2ecc71;font-weight:700'>✔</span>';
+      if (act.present === 0) return '<span style='color:#e74c3c;font-weight:700'>✘</span>';
       return act.present + '/' + total;
     };
 
@@ -2390,11 +2456,29 @@ if (DOM.exportPrint) {
       </tr>`;
     }).join('');
 
+    // Build detailed daily records table with natural dates
+    const dailyRows = exportAtt.map(a => {
+      const g = state.girls.find(x => x.id === a.girlId);
+      const dayName = DAY_NAMES[new Date(a.date + 'T00:00:00').getDay()] || '';
+      const statusColor = a.status === 'حاضر' ? '#2ecc71' : '#e74c3c';
+      return `<tr>
+        <td>${esc(a.date)}</td>
+        <td>${esc(dayName)}</td>
+        <td>${esc(g?.name || '')}</td>
+        <td>${esc(g?.grade || '')}</td>
+        <td>${esc(a.activity || '')}</td>
+        <td style="color:${statusColor};font-weight:700">${esc(a.status)}</td>
+        <td>${a.rating ? '★'.repeat(a.rating) : ''}</td>
+        <td>${esc(a.notes || '')}</td>
+      </tr>`;
+    }).join('');
+
     const html = `<!DOCTYPE html><html lang="ar" dir="rtl">
-      <head><meta charset="UTF-8"><title>تقرير ${month}</title>
+      <head><meta charset="UTF-8"><title>تقرير ${exportDate}</title>
       <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
       <style>body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px}
       h1{color:#1a2744;border-bottom:2px solid #1a2744;padding-bottom:10px}
+      h2{color:#1a2744;margin-top:30px;border-bottom:1px solid #e2e8f0;padding-bottom:8px}
       .summary{display:flex;gap:20px;margin:15px 0;flex-wrap:wrap}
       .sum-box{background:#f0f2f8;border-radius:10px;padding:12px 20px;text-align:center}
       .sum-box b{font-size:24px;color:#1a2744}
@@ -2404,9 +2488,10 @@ if (DOM.exportPrint) {
       th{background:#1a2744;color:white}
       .present{color:green}.absent{color:red}
       .footer{margin-top:20px;font-size:12px;color:#6b7a99;border-top:1px solid #e2e8f0;padding-top:10px}
-      @media print{body{padding:10px}}
+      @media print{body{padding:10px} h2{page-break-before:auto}}
       </style></head><body>
-      <h1>تقرير متابعة المخدومات - ${DateUtil.formatMonth(month)}</h1>
+      <h1>تقرير متابعة المخدومات - ${monthName}</h1>
+      <p style="color:#6b7a99;font-size:14px">الفترة: من ${exportStart} إلى ${exportEnd}</p>
       <div class="summary">
         <div class="sum-box"><b>${activeGirls.length}</b><br><span>عدد المخدومات</span></div>
         <div class="sum-box"><b>${presents}</b><br><span>حالات الحضور</span></div>
@@ -2417,6 +2502,13 @@ if (DOM.exportPrint) {
         <tr><th>#</th><th>الاسم</th><th>السنة</th><th>دراسي</th><th>قبطي</th><th>محفوظات</th><th>ألحان</th><th>الحضور</th><th>الغياب</th><th>النسبة</th></tr>
         ${htmlRows}
       </table>
+
+      <h2>السجل اليومي التفصيلي</h2>
+      <table>
+        <tr><th>التاريخ</th><th>اليوم</th><th>المخدومة</th><th>السنة</th><th>النشاط</th><th>الحالة</th><th>التقييم</th><th>ملاحظات</th></tr>
+        ${dailyRows}
+      </table>
+
       <div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div>
       </body></html>`;
 
