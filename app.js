@@ -52,7 +52,7 @@ const DOM = {
   presentCount: $('presentCount'), absentCount: $('absentCount'), totalCount: $('totalCount'),
   selectAllPresent: $('selectAllPresent'), selectAllAbsent: $('selectAllAbsent'),
   attToggleHint: $('attToggleHint'), quickActions: $('quickActions'),
-  saveAttendanceBtn: $('saveAttendanceBtn'),
+
   girlsList: $('girlsList'), addGirlBtn: $('addGirlBtn'),
   calendarGrid: $('calendarGrid'), calMonthYear: $('calMonthYear'),
   dayDetail: $('dayDetail'), calPrev: $('calPrev'), calNext: $('calNext'),
@@ -245,8 +245,6 @@ function hasConsecutiveAbsences(girlId, monthStr) {
   return { hasConsecutive: false, count: absDates.length, dates: absDates };
 }
 
-
-
 // ============================================================
 // ARABIC TEXT NORMALIZATION
 // ============================================================
@@ -339,61 +337,6 @@ const IDB = {
     });
   }
 };
-// Calculate actual service days in a given month (Saturday, Monday, Wednesday)
-function getServiceDaysInMonth(year, month) {
-  const days = [];
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dayOfWeek = new Date(year, month, d).getDay();
-    if (SERVICE_DAY_NUMBERS.includes(dayOfWeek)) {
-      days.push(`${year}-${DateUtil.pad(month + 1)}-${DateUtil.pad(d)}`);
-    }
-  }
-  return days;
-}
-
-// Calculate total service days from a start date up to today
-function getServiceDaysUpToDate(fromYear, fromMonth, toDate) {
-  let count = 0;
-  const to = new Date(toDate + 'T00:00:00');
-  const daysInMonth = new Date(fromYear, fromMonth + 1, 0).getDate();
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${fromYear}-${DateUtil.pad(fromMonth + 1)}-${DateUtil.pad(d)}`;
-    const current = new Date(dateStr + 'T00:00:00');
-    if (current > to) break;
-    const dayOfWeek = current.getDay();
-    if (SERVICE_DAY_NUMBERS.includes(dayOfWeek)) {
-      count++;
-    }
-  }
-  return count;
-}
-
-// Check if a girl has 2+ consecutive service day absences
-function hasConsecutiveAbsences(girlId, monthStr) {
-  const absRecords = Object.values(state.attendanceData)
-    .filter(a => a.girlId === girlId && a.date?.startsWith(monthStr) && a.status === 'غائب');
-
-  if (absRecords.length < 2) return { hasConsecutive: false, count: absRecords.length, dates: [] };
-
-  // Get unique absence dates sorted
-  const absDates = [...new Set(absRecords.map(a => a.date))].sort();
-
-  // Check for consecutive service days (gap of 2-3 days = consecutive service days)
-  for (let i = 0; i < absDates.length - 1; i++) {
-    const d1 = new Date(absDates[i] + 'T00:00:00');
-    const d2 = new Date(absDates[i + 1] + 'T00:00:00');
-    const diffDays = (d2 - d1) / (1000 * 60 * 60 * 24);
-    // Service days are Sat(6), Mon(1), Wed(3)
-    // Consecutive service days: Sat->Mon (2 days), Mon->Wed (2 days), Wed->Sat (3 days)
-    if (diffDays <= 3) {
-      return { hasConsecutive: true, count: absDates.length, dates: absDates };
-    }
-  }
-  return { hasConsecutive: false, count: absDates.length, dates: absDates };
-}
-
-
 
 // ============================================================
 // DARK MODE
@@ -1369,7 +1312,7 @@ DOM.shareProfileBtn.addEventListener('click', async () => {
   const attendanceRate = girlAtt.length > 0 ? Math.round((presentCount / girlAtt.length) * 100) : 0;
 
   const shareText = `👧 ${g.name}
-📚 ${g.degree}
+📚 ${g.grade}
 ✅ حضور: ${presentCount}
 ❌ غياب: ${absentCount}
 📊 نسبة: ${attendanceRate}%
@@ -1818,7 +1761,7 @@ function renderCalendar() {
   DOM.calendarGrid.innerHTML = html;
 
   // \u2714 Auto-show today's details if today is in the current month view
-  const todayStr = DateUtil.toStr();
+
   const todayYear = new Date().getFullYear();
   const todayMonth = new Date().getMonth();
   if (year === todayYear && month === todayMonth) {
