@@ -13,6 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+<base target="_blank">
 </head>
 <body>
   <div id="app">
@@ -231,11 +232,14 @@
           </div>
           <div class="att-toggle-hint" id="attToggleHint">&#128161; اضغط على المخدومة للتبديل بين حاضر / غائب &middot; اضغط مطولاً للتفاصيل</div>
           <div id="attendanceList" class="attendance-list"></div>
-          <button class="fab-save" id="saveAttendanceBtn">&#128190; حفظ الحضور</button>
         </div>
 
         <!-- GIRLS PAGE -->
         <div id="page-girls" class="page">
+          <!-- \u2714 Search bar for finding girls to edit/delete -->
+          <div class="search-bar-wrap" style="margin-bottom:4px;">
+            <input type="text" id="girlsSearch" class="search-bar" placeholder="&#128269; ابحث عن مخدومة للتعديل أو الحذف..." autocomplete="off">
+          </div>
           <div class="girls-filter-row">
             <div class="grade-filter-btns" id="girlsGradeFilters">
               <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="girlsFilterCountAll">0</span></button>
@@ -261,14 +265,14 @@
 
         <!-- STATS PAGE -->
         <div id="page-stats" class="page">
+          <!-- \u2714 Date picker for month + day specific stats -->
           <div class="stats-month-selector">
-            <label for="statsMonth">الشهر:</label>
-            <input type="month" id="statsMonth" class="month-input">
+            <label for="statsMonth">التاريخ:</label>
+            <input type="date" id="statsMonth" class="month-input">
           </div>
           <div class="time-filter-tabs" id="timeFilterTabs">
             <button class="time-filter-tab" data-period="today">اليوم</button>
             <button class="time-filter-tab active" data-period="month">هذا الشهر</button>
-            <button class="time-filter-tab" data-period="year">هذه السنة</button>
             <button class="time-filter-tab" data-period="all">الكل</button>
           </div>
           <!-- Grade filter for stats -->
