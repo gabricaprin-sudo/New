@@ -1,5 +1,5 @@
 /* ============================================================
-   نظام متابعة المخدومات — Refactored Modular Version
+   نظام متابعة المخدومات — Enhanced Complete Version
    ============================================================ */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -27,6 +27,7 @@
   --tap-target: 44px;
 }
 
+/* Dark mode variables */
 [data-theme="dark"] {
   --primary: #c9d6f0;
   --primary-light: #a0b4d8;
@@ -95,9 +96,14 @@
 [data-theme="dark"] .menu-item.active { background: rgba(201,214,240,0.1); }
 [data-theme="dark"] .cal-wday { color: #8892a8; }
 [data-theme="dark"] .cal-day.service-day { background: rgba(201,214,240,0.08); }
+[data-theme="dark"] .activity-detail-tabs { background: #0f1525; }
 [data-theme="dark"] .offline-badge { background: rgba(243,156,18,0.15); }
 [data-theme="dark"] .splash { background: linear-gradient(160deg, #0f1525 0%, #1a2744 50%, #0f1525 100%); }
-[data-theme="dark"] .login-bg { background: #0a1a38; background: radial-gradient(ellipse at 50% 60%, #142a4e 0%, #0a1a38 70%); animation: bgPulse 8s ease-in-out infinite; }
+[data-theme="dark"] .login-bg {
+  background: #0a1a38;
+  background: radial-gradient(ellipse at 50% 60%, #142a4e 0%, #0a1a38 70%);
+  animation: bgPulse 8s ease-in-out infinite;
+}
 [data-theme="dark"] .splash-cross { filter: drop-shadow(0 0 20px rgba(232,160,32,0.7)); }
 [data-theme="dark"] .export-btn.csv { background: rgba(46,204,113,0.15); }
 [data-theme="dark"] .export-btn.json { background: rgba(52,152,219,0.15); }
@@ -174,6 +180,7 @@ body {
   flex-direction: column;
   overflow: hidden;
 }
+/* Hero Image Section */
 .login-hero {
   position: relative;
   width: 100%;
@@ -194,6 +201,7 @@ body {
 @keyframes heroReveal {
   to { opacity: 1; transform: scale(1); }
 }
+/* Gradient bridge between image and card */
 .login-gradient-bridge {
   position: absolute;
   bottom: 0;
@@ -204,23 +212,7 @@ body {
   pointer-events: none;
   z-index: 2;
 }
-.login-geometry-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 35%;
-  pointer-events: none;
-  z-index: 3;
-  opacity: 0;
-  mix-blend-mode: soft-light;
-  animation: geoFadeIn 500ms ease-out 200ms forwards;
-}
-@keyframes geoFadeIn {
-  to { opacity: 1; }
-}
-
-/* Gold particles — FIXED: nth-of-type instead of nth-child */
+/* Gold Particles */
 .gold-particle {
   position: absolute;
   width: 4px;
@@ -231,21 +223,21 @@ body {
   z-index: 2;
   opacity: 0;
 }
-.gold-particle:nth-of-type(1)  { left: 10%; animation: particleFloat 7s ease-in-out infinite 0s; }
-.gold-particle:nth-of-type(2)  { left: 20%; animation: particleFloat 9s ease-in-out infinite 0.4s; }
-.gold-particle:nth-of-type(3)  { left: 30%; animation: particleFloat 8s ease-in-out infinite 0.8s; }
-.gold-particle:nth-of-type(4)  { left: 40%; animation: particleFloat 10s ease-in-out infinite 1.2s; }
-.gold-particle:nth-of-type(5)  { left: 50%; animation: particleFloat 7s ease-in-out infinite 1.6s; }
-.gold-particle:nth-of-type(6)  { left: 60%; animation: particleFloat 9s ease-in-out infinite 2.0s; }
-.gold-particle:nth-of-type(7)  { left: 70%; animation: particleFloat 8s ease-in-out infinite 2.4s; }
-.gold-particle:nth-of-type(8)  { left: 80%; animation: particleFloat 10s ease-in-out infinite 2.8s; }
-.gold-particle:nth-of-type(9)  { left: 15%; animation: particleFloat 7s ease-in-out infinite 3.2s; }
-.gold-particle:nth-of-type(10) { left: 25%; animation: particleFloat 9s ease-in-out infinite 3.6s; }
-.gold-particle:nth-of-type(11) { left: 35%; animation: particleFloat 8s ease-in-out infinite 4.0s; }
-.gold-particle:nth-of-type(12) { left: 45%; animation: particleFloat 10s ease-in-out infinite 4.4s; }
-.gold-particle:nth-of-type(13) { left: 55%; animation: particleFloat 7s ease-in-out infinite 4.8s; }
-.gold-particle:nth-of-type(14) { left: 65%; animation: particleFloat 9s ease-in-out infinite 5.2s; }
-.gold-particle:nth-of-type(15) { left: 75%; animation: particleFloat 8s ease-in-out infinite 5.6s; }
+.gold-particle:nth-child(1)  { left: 10%; animation: particleFloat 7s ease-in-out infinite 0s; }
+.gold-particle:nth-child(2)  { left: 20%; animation: particleFloat 9s ease-in-out infinite 0.4s; }
+.gold-particle:nth-child(3)  { left: 30%; animation: particleFloat 8s ease-in-out infinite 0.8s; }
+.gold-particle:nth-child(4)  { left: 40%; animation: particleFloat 10s ease-in-out infinite 1.2s; }
+.gold-particle:nth-child(5)  { left: 50%; animation: particleFloat 7s ease-in-out infinite 1.6s; }
+.gold-particle:nth-child(6)  { left: 60%; animation: particleFloat 9s ease-in-out infinite 2.0s; }
+.gold-particle:nth-child(7)  { left: 70%; animation: particleFloat 8s ease-in-out infinite 2.4s; }
+.gold-particle:nth-child(8)  { left: 80%; animation: particleFloat 10s ease-in-out infinite 2.8s; }
+.gold-particle:nth-child(9)  { left: 15%; animation: particleFloat 7s ease-in-out infinite 3.2s; }
+.gold-particle:nth-child(10) { left: 25%; animation: particleFloat 9s ease-in-out infinite 3.6s; }
+.gold-particle:nth-child(11) { left: 35%; animation: particleFloat 8s ease-in-out infinite 4.0s; }
+.gold-particle:nth-child(12) { left: 45%; animation: particleFloat 10s ease-in-out infinite 4.4s; }
+.gold-particle:nth-child(13) { left: 55%; animation: particleFloat 7s ease-in-out infinite 4.8s; }
+.gold-particle:nth-child(14) { left: 65%; animation: particleFloat 9s ease-in-out infinite 5.2s; }
+.gold-particle:nth-child(15) { left: 75%; animation: particleFloat 8s ease-in-out infinite 5.6s; }
 
 @keyframes particleFloat {
   0%   { transform: translateY(0) translateX(0); opacity: 0; }
@@ -279,6 +271,7 @@ body {
 @keyframes cardSlideUp {
   to { opacity: 1; transform: translateY(0); }
 }
+/* Glass edge on card top */
 .login-card::before {
   content: '';
   position: absolute;
@@ -290,6 +283,7 @@ body {
   border-radius: 1px;
   z-index: 6;
 }
+/* Gold Cross Icon */
 .login-cross-icon {
   font-size: 36px;
   color: #D4AF37;
@@ -305,6 +299,7 @@ body {
 @keyframes crossBounce {
   to { opacity: 1; transform: scale(1); }
 }
+/* Church Name */
 .login-church-name {
   font-family: 'Noto Kufi Arabic', 'Tajawal', sans-serif;
   font-size: 22px;
@@ -318,6 +313,7 @@ body {
 .login-church-name.animate-in {
   animation: fadeSlideUp 400ms ease-out 580ms forwards;
 }
+/* System Title */
 .login-system-title {
   font-family: 'Noto Naskh Arabic', 'Tajawal', sans-serif;
   font-size: 16px;
@@ -331,6 +327,7 @@ body {
 .login-system-title.animate-in {
   animation: fadeSlideUp 400ms ease-out 660ms forwards;
 }
+/* Gold Divider */
 .login-divider {
   width: 80px;
   height: 1.5px;
@@ -347,6 +344,7 @@ body {
 @keyframes dividerExpand {
   to { transform: scaleX(1); }
 }
+/* Shimmer effect on divider */
 .login-divider::after {
   content: '';
   position: absolute;
@@ -361,12 +359,13 @@ body {
   0% { left: -100%; }
   100% { left: 100%; }
 }
+/* Welcome Text */
 .login-welcome {
   font-family: 'Noto Naskh Arabic', 'Tajawal', sans-serif;
   font-size: 15px;
   font-weight: 400;
   color: #3D4A5C;
-  margin-bottom: 8px;
+  margin-bottom: 24px;
   letter-spacing: 0;
   opacity: 0;
   transform: translateY(10px);
@@ -374,51 +373,9 @@ body {
 .login-welcome.animate-in {
   animation: fadeSlideUp 400ms ease-out 820ms forwards;
 }
-.login-verse {
-  font-family: 'Noto Naskh Arabic', 'Tajawal', sans-serif;
-  font-size: 14px;
-  font-weight: 400;
-  font-style: italic;
-  color: #7A8594;
-  margin-bottom: 4px;
-  letter-spacing: 0;
-  opacity: 0;
-  transform: translateY(10px);
-}
-.login-verse.animate-in {
-  animation: fadeSlideUp 400ms ease-out 900ms forwards;
-}
-.login-verse-ref {
-  font-family: 'Noto Naskh Arabic', 'Tajawal', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  color: #D4AF37;
-  margin-bottom: 32px;
-  letter-spacing: 0;
-  position: relative;
-  opacity: 0;
-  transform: translateY(10px);
-}
-.login-verse-ref.animate-in {
-  animation: fadeSlideUp 400ms ease-out 980ms forwards;
-}
-.login-verse-ref::after {
-  content: '';
-  position: absolute;
-  inset: -4px -12px;
-  background: radial-gradient(ellipse, rgba(212, 175, 55, 0.12) 0%, transparent 70%);
-  border-radius: 8px;
-  z-index: -1;
-  animation: verseGlow 4s ease-in-out infinite;
-}
-@keyframes verseGlow {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.7; }
-}
 @keyframes fadeSlideUp {
   to { opacity: 1; transform: translateY(0); }
 }
-
 /* Google Sign-In Button */
 .btn-google {
   width: 90%;
@@ -459,8 +416,7 @@ body {
   outline: 2px solid #D4AF37;
   outline-offset: 2px;
 }
-
-/* Button loading state — FIXED */
+/* Button loading state */
 .btn-google.is-loading {
   opacity: 0.7;
   pointer-events: none;
@@ -471,14 +427,11 @@ body {
 .btn-google.is-loading .btn-spinner {
   display: inline-block;
 }
-/* FIXED: use visibility:hidden instead of font-size:0 */
-.btn-google.is-loading .btn-text {
-  visibility: hidden;
-}
-/* FIXED: show loading text via ::after */
 .btn-google.is-loading .btn-text::after {
-  visibility: visible;
   content: 'جاري التسجيل...';
+}
+.btn-google.is-loading .btn-text {
+  font-size: 0;
 }
 .btn-spinner {
   display: none;
@@ -492,34 +445,17 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
-.login-watermark {
-  margin-top: auto;
-  padding-top: 24px;
-  font-size: 48px;
-  color: #0F2B5B;
-  opacity: 0;
-  line-height: 1;
-  user-select: none;
-  pointer-events: none;
-}
-.login-watermark.animate-in {
-  animation: fadeSlideUp 600ms ease-out 1400ms forwards;
-}
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .login-hero-img,
-  .login-geometry-overlay,
   .login-card,
   .login-cross-icon,
   .login-church-name,
   .login-system-title,
   .login-divider,
   .login-welcome,
-  .login-verse,
-  .login-verse-ref,
   .btn-google,
-  .login-watermark,
   .gold-particle {
     animation: none !important;
     opacity: 1 !important;
@@ -528,11 +464,9 @@ body {
   .login-card { transform: translateY(0) !important; }
   .login-divider { transform: scaleX(1) !important; }
   .login-divider::after { animation: none !important; }
-  .login-verse-ref::after { animation: none !important; opacity: 0.5; }
   .gold-particle { display: none !important; }
   .login-bg { animation: none !important; }
 }
-
 /* Desktop/tablet centering */
 @media (min-width: 481px) {
   #loginScreen {
@@ -580,6 +514,7 @@ body {
 }
 .sync-indicator.online { color: var(--green); animation: spin 2s linear 1; }
 .sync-indicator.offline { color: var(--orange); }
+@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
 .avatar {
   width: 38px; height: 38px; border-radius: 50%;
   background: var(--accent); color: var(--primary);
@@ -790,6 +725,7 @@ body {
 .stat-num { font-size: 32px; font-weight: 800; color: var(--primary); }
 .stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 
+/* Featured stat cards */
 .stat-card.gold { border-color: #d4a017; }
 .stat-card.teal { border-color: #16a085; }
 .stat-card.rose { border-color: #e91e63; }
@@ -949,9 +885,8 @@ body {
   touch-action: manipulation;
 }
 .fab-save:active { transform: scale(0.95); }
-/* Hide the fake save button */
-.fab-save.hidden { display: none !important; }
 
+/* Quick Action Buttons */
 .quick-actions {
   display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
 }
@@ -1004,6 +939,7 @@ body {
   box-shadow: 0 4px 12px rgba(26,39,68,0.3);
 }
 
+/* Activity stat cards */
 .activity-stats-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;
 }
@@ -1151,6 +1087,7 @@ body {
   border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 600;
 }
 
+/* Grade Filter Buttons */
 .grade-filter-btns {
   display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
 }
@@ -1293,6 +1230,7 @@ body {
 .rank-grade { font-size: 12px; color: var(--text-muted); }
 .rank-count { font-size: 14px; font-weight: 700; color: var(--green); }
 
+/* Stats grade filter */
 .stats-grade-filter {
   display: flex; gap: 6px; margin-bottom: 14px;
   overflow-x: auto; padding-bottom: 4px;
@@ -1469,6 +1407,7 @@ textarea.form-input { resize: none; }
 }
 .btn-danger:active { transform: scale(0.97); }
 
+/* Share button */
 .btn-share {
   flex: 1; padding: 14px; background: var(--accent); border: none;
   border-radius: 12px; font-family: 'Tajawal', sans-serif;
@@ -1482,6 +1421,7 @@ textarea.form-input { resize: none; }
 }
 .btn-share:active { transform: scale(0.97); }
 
+/* Modal girl name */
 .modal-girl-name { font-size: 18px; font-weight: 700; color: var(--primary); text-align: center; margin-bottom: 16px; }
 .attend-options { display: flex; gap: 12px; margin-bottom: 20px; }
 .attend-btn {
@@ -1529,6 +1469,7 @@ textarea.form-input { resize: none; }
 .rec-rating { color: var(--accent); }
 .rec-notes { color: var(--text-muted); font-style: italic; width: 100%; }
 
+/* Profile stats dashboard */
 .profile-dashboard {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 12px; margin-bottom: 20px;
@@ -1614,30 +1555,23 @@ textarea.form-input { resize: none; }
    ============================================================ */
 .hidden { display: none !important; }
 
+/* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
+/* iOS specific */
 input[type="date"], input[type="month"] {
   -webkit-appearance: none;
   direction: ltr;
   text-align: left;
 }
 
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-/* Print iframe styles */
-.print-iframe {
-  position: fixed;
-  top: -9999px;
-  left: -9999px;
-  width: 1px;
-  height: 1px;
-  border: none;
 }

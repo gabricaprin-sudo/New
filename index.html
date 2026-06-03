@@ -7,12 +7,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0F2B5B">
   <title>متابعة المخدومات</title>
-  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoi2YXYqtin2KjYudipINin2YTZhdiu2K/ZiNmF2KfYqiIsInNob3J0X25hbWUiOiLZhdiu2K/ZiNmF2KfYqiIsImRlc2NyaXB0aW9uIjoi2YbYuNin2YUg2YXYqtin2KjYudipINit2LbZiNixINin2YTZhdiu2K/ZiNmF2KfYqiAtINiu2K/ZhdipINin2YTZg9mG2YrYs9ipINin2YTZgtio2LfZitipINin2YTYo9ix2KvZiNiw2YPYs9mK2KkiLCJzdGFydF91cmwiOiIuLyIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwRjJCNUIiLCJ0aGVtZV9jb2xvciI6IiMwRjJCNUIiLCJvcmllbnRhdGlvbiI6InBvcnRyYWl0IiwibGFuZyI6ImFyIiwiZGlyIjoicnRsIiwiaWNvbnMiOlt7InNyYyI6Ii4vZ3JvdXBfcGhvdG8uanBnIiwic2l6ZXMiOiI2NDB4MzgxIiwidHlwZSI6ImltYWdlL2pwZWcifV19">
+  <link rel="manifest" href="manifest.json">
   <link rel="preload" as="image" href="./group_photo.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="app">
@@ -26,11 +26,20 @@
       </div>
     </div>
 
-    <!-- Login Screen — Premium Design -->
+    <!-- Login Screen -->
     <div id="loginScreen" class="screen hidden">
       <div class="login-bg"></div>
+
+      <!-- Hero Image -->
       <div class="login-hero">
-        <img src="./group_photo.jpg" alt="Photo" class="login-hero-img" fetchpriority="high" width="640" height="381">
+        <img
+          src="./group_photo.jpg"
+          alt="Photo"
+          class="login-hero-img"
+          fetchpriority="high"
+          width="640"
+          height="381"
+        >
         <div class="login-gradient-bridge"></div>
       </div>
 
@@ -55,7 +64,7 @@
       <div class="login-card" id="loginCard">
         <div class="login-cross-icon">&#10013;</div>
         <div class="login-church-name">كنيسه مارجرجس والشهداء</div>
-        <div class="login-system-title">وَلْيَكُنْ كُلُّ شَيْءٍ بِلِيَاقَةٍ وَبِحَسَبِ تَرْتِيبٍ. (1 كو 14: 40).</div>
+        <div class="login-system-title">وَلْيَكُنْ كُلُّ شَيْءٍ بِلِيَاقَةٍ وَبِحَسَبِ تَرْتِيبٍ. (1 كو 14: 40).</div>
         <div class="login-divider"></div>
         <div class="login-welcome">نظام متابعه خدمه اعدادي بنات</div>
 
@@ -107,6 +116,7 @@
           <li class="drawer-divider"></li>
           <li><a href="#" id="signOutBtn" class="menu-item sign-out"><span>&#128682;</span> تسجيل الخروج</a></li>
         </ul>
+        <!-- Dark Mode Toggle -->
         <div class="dark-mode-toggle" id="darkModeToggle">
           <span>&#127769;</span> الوضع الداكن
           <div class="dark-toggle-switch" id="darkToggleSwitch"></div>
@@ -118,6 +128,7 @@
 
       <!-- Page Content -->
       <main class="page-content" id="pageContent">
+
         <!-- HOME PAGE -->
         <div id="page-home" class="page active">
           <div class="search-bar-wrap">
@@ -204,6 +215,7 @@
             <button class="act-tab" data-activity="ألحان">&#127925; ألحان</button>
           </div>
 
+          <!-- Attendance Search Bar -->
           <div class="search-bar-wrap" style="margin-top:4px;">
             <input type="text" id="attendanceSearch" class="search-bar" placeholder="&#128269; ابحث في الحضور..." autocomplete="off">
           </div>
@@ -219,7 +231,7 @@
           </div>
           <div class="att-toggle-hint" id="attToggleHint">&#128161; اضغط على المخدومة للتبديل بين حاضر / غائب &middot; اضغط مطولاً للتفاصيل</div>
           <div id="attendanceList" class="attendance-list"></div>
-          <button class="fab-save hidden" id="saveAttendanceBtn">&#128190; حفظ الحضور</button>
+          <button class="fab-save" id="saveAttendanceBtn">&#128190; حفظ الحضور</button>
         </div>
 
         <!-- GIRLS PAGE -->
@@ -259,6 +271,7 @@
             <button class="time-filter-tab" data-period="year">هذه السنة</button>
             <button class="time-filter-tab" data-period="all">الكل</button>
           </div>
+          <!-- Grade filter for stats -->
           <div class="stats-grade-filter" id="statsGradeFilter">
             <button class="stats-grade-btn active" data-grade="">الكل</button>
             <button class="stats-grade-btn" data-grade="أولى إعدادي">أولى إعدادي</button>
@@ -321,6 +334,7 @@
             </div>
           </div>
         </div>
+
       </main>
 
       <!-- Bottom Nav -->
@@ -467,17 +481,7 @@
     <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   </div>
 
-  <!-- Consolidated App Module -->
-  <script type="module" src="./app.js"></script>
-
-  <!-- Service Worker Registration (inline Blob) -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      const swCode = `const CACHE_NAME = \'makhdomat-v6\';\nconst URLS_TO_CACHE = [\n  \'./\',\n  \'./index.html\',\n  \'./style.css\',\n  \'./app.js\',\n  \'./group_photo.jpg\'\n];\nself.addEventListener(\'install\', e => {\n  e.waitUntil(\n    caches.open(CACHE_NAME).then(cache => cache.addAll(URLS_TO_CACHE))\n  );\n  self.skipWaiting();\n});\nself.addEventListener(\'activate\', e => {\n  e.waitUntil(\n    caches.keys().then(keys =>\n      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))\n    )\n  );\n  e.waitUntil(self.clients.claim());\n});\nself.addEventListener(\'fetch\', e => {\n  e.respondWith(\n    caches.match(e.request).then(cached => {\n      if (cached) return cached;\n      return fetch(e.request).then(response => {\n        if (!response || response.status !== 200 || response.type !== \'basic\') return response;\n        const clone = response.clone();\n        caches.open(CACHE_NAME).then(c => c.put(e.request, clone));\n        return response;\n      }).catch(() => cached);\n    })\n  );\n});`;
-      const swBlob = new Blob([swCode], { type: 'application/javascript' });
-      const swUrl = URL.createObjectURL(swBlob);
-      navigator.serviceWorker.register(swUrl).catch(function() {});
-    }
-  </script>
+  <!-- Firebase -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
