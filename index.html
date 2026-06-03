@@ -7,12 +7,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0F2B5B">
   <title>متابعة المخدومات</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="preload" as="image" href="./group_photo.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+<base target="_blank">
 </head>
 <body>
   <div id="app">
@@ -39,6 +38,7 @@
           fetchpriority="high"
           width="640"
           height="381"
+          onerror="this.style.display='none'"
         >
         <div class="login-gradient-bridge"></div>
       </div>
@@ -235,7 +235,7 @@
 
         <!-- GIRLS PAGE -->
         <div id="page-girls" class="page">
-          <!-- \u2714 Search bar for finding girls to edit/delete -->
+          <!-- Search bar for finding girls to edit/delete -->
           <div class="search-bar-wrap" style="margin-bottom:4px;">
             <input type="text" id="girlsSearch" class="search-bar" placeholder="&#128269; ابحث عن مخدومة للتعديل أو الحذف..." autocomplete="off">
           </div>
@@ -264,7 +264,7 @@
 
         <!-- STATS PAGE -->
         <div id="page-stats" class="page">
-          <!-- \u2714 Date picker for month + day specific stats -->
+          <!-- Date picker for month + day specific stats -->
           <div class="stats-month-selector">
             <label for="statsMonth">التاريخ:</label>
             <input type="date" id="statsMonth" class="month-input">
@@ -484,7 +484,6 @@
     <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   </div>
 
-  <!-- Firebase -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
