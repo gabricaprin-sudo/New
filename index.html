@@ -5,39 +5,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#1a2744">
+  <meta name="theme-color" content="#0F2B5B">
   <title>متابعة المخدومات</title>
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoi2YXYqtin2KjYudipINin2YTZhdiu2K/ZiNmF2KfYqiIsInNob3J0X25hbWUiOiLZhdiu2K/ZiNmF2KfYqiIsImRlc2NyaXB0aW9uIjoi2YbYuNin2YUg2YXYqtin2KjYudipINit2LbZiNixINin2YTZhdiu2K/ZiNmF2KfYqiAtINiu2K/ZhdipINin2YTZg9mG2YrYs9ipINin2YTZgtio2LfZitipINin2YTYo9ix2KvZiNiw2YPYs9mK2KkiLCJzdGFydF91cmwiOiIuLyIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwRjJCNUIiLCJ0aGVtZV9jb2xvciI6IiMwRjJCNUIiLCJvcmllbnRhdGlvbiI6InBvcnRyYWl0IiwibGFuZyI6ImFyIiwiZGlyIjoicnRsIiwiaWNvbnMiOlt7InNyYyI6Ii4vZ3JvdXBfcGhvdG8uanBnIiwic2l6ZXMiOiI2NDB4MzgxIiwidHlwZSI6ImltYWdlL2pwZWcifV19">
+  <link rel="preload" as="image" href="./group_photo.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
   <div id="app">
     <!-- Splash Screen -->
     <div id="splash" class="splash">
       <div class="splash-content">
-        <div class="splash-cross">✝</div>
+        <div class="splash-cross">&#10013;</div>
         <h1>متابعة المخدومات</h1>
-        <p>خدمة الكنيسة القبطية</p>
+        <p>خدمة الكنيسة القبطية الأرثوذكسية</p>
         <div class="splash-loader"><div></div></div>
       </div>
     </div>
 
-    <!-- Login Screen -->
+    <!-- Login Screen — Premium Design -->
     <div id="loginScreen" class="screen hidden">
-      <div class="login-bg">
-        <div class="login-cross-bg">✝</div>
+      <div class="login-bg"></div>
+      <div class="login-hero">
+        <img src="./group_photo.jpg" alt="Photo" class="login-hero-img" fetchpriority="high" width="640" height="381">
+        <div class="login-gradient-bridge"></div>
       </div>
-      <div class="login-card">
-        <div class="login-icon">⛪</div>
-        <h2>أهلاً بك</h2>
-        <p class="login-sub">نظام متابعة المخدومات</p>
+
+      <!-- Gold Particles -->
+      <div class="gold-particle" style="bottom: 30%;"></div>
+      <div class="gold-particle" style="bottom: 25%;"></div>
+      <div class="gold-particle" style="bottom: 35%;"></div>
+      <div class="gold-particle" style="bottom: 28%;"></div>
+      <div class="gold-particle" style="bottom: 32%;"></div>
+      <div class="gold-particle" style="bottom: 22%;"></div>
+      <div class="gold-particle" style="bottom: 38%;"></div>
+      <div class="gold-particle" style="bottom: 26%;"></div>
+      <div class="gold-particle" style="bottom: 34%;"></div>
+      <div class="gold-particle" style="bottom: 24%;"></div>
+      <div class="gold-particle" style="bottom: 36%;"></div>
+      <div class="gold-particle" style="bottom: 27%;"></div>
+      <div class="gold-particle" style="bottom: 31%;"></div>
+      <div class="gold-particle" style="bottom: 23%;"></div>
+      <div class="gold-particle" style="bottom: 33%;"></div>
+
+      <!-- White Content Card -->
+      <div class="login-card" id="loginCard">
+        <div class="login-cross-icon">&#10013;</div>
+        <div class="login-church-name">كنيسه مارجرجس والشهداء</div>
+        <div class="login-system-title">وَلْيَكُنْ كُلُّ شَيْءٍ بِلِيَاقَةٍ وَبِحَسَبِ تَرْتِيبٍ. (1 كو 14: 40).</div>
+        <div class="login-divider"></div>
+        <div class="login-welcome">نظام متابعه خدمه اعدادي بنات</div>
+
         <button id="googleSignIn" class="btn-google">
-          <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-          تسجيل الدخول بـ Google
+          <svg class="google-logo" width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          <span class="btn-spinner"></span>
+          <span class="btn-text">تسجيل الدخول بـ Google</span>
         </button>
-        <p class="login-note">للخدام المعتمدين فقط</p>
       </div>
     </div>
 
@@ -46,15 +72,15 @@
       <!-- Header -->
       <header class="app-header">
         <div class="header-right">
-          <button class="menu-btn" id="menuBtn">☰</button>
+          <button class="menu-btn" id="menuBtn" aria-label="القائمة">&#9776;</button>
           <div class="header-titles">
             <h1 id="pageTitle">الرئيسية</h1>
             <span id="pageSubtitle" class="page-subtitle"></span>
           </div>
         </div>
         <div class="header-left">
-          <div class="sync-indicator" id="syncIndicator" title="المزامنة">
-            <span class="sync-icon">⟳</span>
+          <div class="sync-indicator" id="syncIndicator" title="المزامنة" role="status" aria-live="polite">
+            <span class="sync-icon">&#8635;</span>
           </div>
           <div class="avatar" id="userAvatar">خ</div>
         </div>
@@ -62,7 +88,7 @@
 
       <!-- Side Drawer -->
       <div class="drawer-overlay" id="drawerOverlay"></div>
-      <nav class="drawer" id="drawer">
+      <nav class="drawer" id="drawer" aria-label="القائمة الرئيسية">
         <div class="drawer-header">
           <div class="drawer-avatar" id="drawerAvatar">خ</div>
           <div class="drawer-user-info">
@@ -71,30 +97,33 @@
           </div>
         </div>
         <ul class="drawer-menu">
-          <li><a href="#" data-page="home" class="menu-item active"><span>🏠</span> الرئيسية</a></li>
-          <li><a href="#" data-page="attendance" class="menu-item"><span>📋</span> الحضور اليومي</a></li>
-          <li><a href="#" data-page="girls" class="menu-item"><span>👥</span> المخدومات</a></li>
-          <li><a href="#" data-page="calendar" class="menu-item"><span>📅</span> التقويم الشهري</a></li>
-          <li><a href="#" data-page="stats" class="menu-item"><span>📊</span> الإحصائيات</a></li>
-          <li><a href="#" data-page="history" class="menu-item"><span>📜</span> السجل التاريخي</a></li>
-          <li><a href="#" data-page="export" class="menu-item"><span>📤</span> التصدير</a></li>
+          <li><a href="#" data-page="home" class="menu-item active"><span>&#127968;</span> الرئيسية</a></li>
+          <li><a href="#" data-page="attendance" class="menu-item"><span>&#128203;</span> الحضور اليومي</a></li>
+          <li><a href="#" data-page="girls" class="menu-item"><span>&#128101;</span> المخدومات</a></li>
+          <li><a href="#" data-page="calendar" class="menu-item"><span>&#128197;</span> التقويم الشهري</a></li>
+          <li><a href="#" data-page="stats" class="menu-item"><span>&#128202;</span> الإحصائيات</a></li>
+          <li><a href="#" data-page="history" class="menu-item"><span>&#128220;</span> السجل التاريخي</a></li>
+          <li><a href="#" data-page="export" class="menu-item"><span>&#128228;</span> التصدير</a></li>
           <li class="drawer-divider"></li>
-          <li><a href="#" id="signOutBtn" class="menu-item sign-out"><span>🚪</span> تسجيل الخروج</a></li>
+          <li><a href="#" id="signOutBtn" class="menu-item sign-out"><span>&#128682;</span> تسجيل الخروج</a></li>
         </ul>
+        <div class="dark-mode-toggle" id="darkModeToggle">
+          <span>&#127769;</span> الوضع الداكن
+          <div class="dark-toggle-switch" id="darkToggleSwitch"></div>
+        </div>
         <div class="offline-badge" id="offlineBadge">
-          <span>📴</span> وضع عدم الاتصال
+          <span>&#128244;</span> وضع عدم الاتصال
         </div>
       </nav>
 
       <!-- Page Content -->
       <main class="page-content" id="pageContent">
-
         <!-- HOME PAGE -->
         <div id="page-home" class="page active">
           <div class="search-bar-wrap">
-            <input type="text" id="globalSearch" class="search-bar" placeholder="🔍 ابحث عن مخدومة...">
+            <input type="text" id="globalSearch" class="search-bar" placeholder="&#128269; ابحث عن مخدومة..." autocomplete="off">
           </div>
-          <div id="searchResults" class="search-results hidden"></div>
+          <div id="searchResults" class="search-results"></div>
 
           <div class="today-card">
             <div class="today-info">
@@ -103,6 +132,13 @@
               <span id="todayDate" class="today-date">---</span>
             </div>
             <div id="todayServiceBadge" class="service-badge"></div>
+          </div>
+
+          <div class="grade-filter-btns" id="homeGradeFilters">
+            <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="homeFilterCountAll">0</span></button>
+            <button class="grade-filter-btn" data-grade="أولى إعدادي">أولى <span class="count" id="homeFilterCount1">0</span></button>
+            <button class="grade-filter-btn" data-grade="تانية إعدادي">تانية <span class="count" id="homeFilterCount2">0</span></button>
+            <button class="grade-filter-btn" data-grade="تالتة إعدادي">تالتة <span class="count" id="homeFilterCount3">0</span></button>
           </div>
 
           <div class="stats-grid">
@@ -124,6 +160,25 @@
             </div>
           </div>
 
+          <div class="section-title">إحصائيات مميزة</div>
+          <div class="stats-grid">
+            <div class="stat-card gold">
+              <div class="stat-icon">&#127942;</div>
+              <div class="stat-value" id="bestGrade">-</div>
+              <div class="stat-sublabel" id="bestGradePercent">أفضل سنة دراسية</div>
+            </div>
+            <div class="stat-card teal">
+              <div class="stat-icon">&#128218;</div>
+              <div class="stat-value" id="topActivityName">-</div>
+              <div class="stat-sublabel" id="topActivityCount">أكثر نشاط حضورًا</div>
+            </div>
+            <div class="stat-card rose">
+              <div class="stat-icon">&#11088;</div>
+              <div class="stat-value" id="mostRegularGirl">-</div>
+              <div class="stat-sublabel" id="mostRegularPercent">أكثر مخدومة انتظامًا</div>
+            </div>
+          </div>
+
           <div class="section-title">الأكثر حضورًا هذا الشهر</div>
           <div id="topAttendees" class="top-list"></div>
 
@@ -132,63 +187,89 @@
         </div>
 
         <!-- ATTENDANCE PAGE -->
-        <div id="page-attendance" class="page hidden">
+        <div id="page-attendance" class="page">
           <div class="day-selector">
             <button class="day-btn" data-day="السبت">السبت</button>
             <button class="day-btn" data-day="الاثنين">الإثنين</button>
             <button class="day-btn" data-day="الاربعاء">الأربعاء</button>
           </div>
           <div class="date-input-wrap">
-            <label>التاريخ:</label>
+            <label for="attendanceDate">التاريخ:</label>
             <input type="date" id="attendanceDate" class="date-input">
           </div>
           <div class="activities-tabs">
-            <button class="act-tab active" data-activity="دراسي">دراسي</button>
-            <button class="act-tab" data-activity="محفوظات">محفوظات</button>
-            <button class="act-tab" data-activity="قبطي">قبطي</button>
-            <button class="act-tab" data-activity="ألحان">ألحان</button>
+            <button class="act-tab active" data-activity="دراسي">&#128216; دراسي</button>
+            <button class="act-tab" data-activity="محفوظات">&#128221; محفوظات</button>
+            <button class="act-tab" data-activity="قبطي">&#9961; قبطي</button>
+            <button class="act-tab" data-activity="ألحان">&#127925; ألحان</button>
           </div>
+
+          <div class="search-bar-wrap" style="margin-top:4px;">
+            <input type="text" id="attendanceSearch" class="search-bar" placeholder="&#128269; ابحث في الحضور..." autocomplete="off">
+          </div>
+
           <div class="attendance-summary" id="attendanceSummary">
-            <span class="summ-item green-text">✓ <span id="presentCount">0</span> حاضر</span>
-            <span class="summ-item red-text">✗ <span id="absentCount">0</span> غائب</span>
-            <span class="summ-item gray-text">○ <span id="pendingCount">0</span> لم يُسجَّل</span>
+            <span class="summ-item green-text">&#10003; <span id="presentCount">0</span> حاضر</span>
+            <span class="summ-item red-text">&#10007; <span id="absentCount">0</span> غائب</span>
+            <span class="summ-item gray-text"><span id="totalCount">0</span> إجمالي</span>
           </div>
+          <div class="quick-actions" id="quickActions">
+            <button class="quick-action-btn all-present" id="selectAllPresent">&#10003; تحديد الكل حاضر</button>
+            <button class="quick-action-btn all-absent" id="selectAllAbsent">&#10007; تحديد الكل غائب</button>
+          </div>
+          <div class="att-toggle-hint" id="attToggleHint">&#128161; اضغط على المخدومة للتبديل بين حاضر / غائب &middot; اضغط مطولاً للتفاصيل</div>
           <div id="attendanceList" class="attendance-list"></div>
-          <button class="fab-save" id="saveAttendanceBtn">💾 حفظ الحضور</button>
+          <button class="fab-save hidden" id="saveAttendanceBtn">&#128190; حفظ الحضور</button>
         </div>
 
         <!-- GIRLS PAGE -->
-        <div id="page-girls" class="page hidden">
-          <div class="filter-bar">
-            <select id="gradeFilter" class="filter-select">
-              <option value="">كل السنوات</option>
-              <option value="أولى إعدادي">أولى إعدادي</option>
-              <option value="تانية إعدادي">تانية إعدادي</option>
-              <option value="تالتة إعدادي">تالتة إعدادي</option>
-            </select>
-            <button class="btn-add-girl" id="addGirlBtn">+ إضافة مخدومة</button>
+        <div id="page-girls" class="page">
+          <div class="girls-filter-row">
+            <div class="grade-filter-btns" id="girlsGradeFilters">
+              <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="girlsFilterCountAll">0</span></button>
+              <button class="grade-filter-btn" data-grade="أولى إعدادي">أولى <span class="count" id="girlsFilterCount1">0</span></button>
+              <button class="grade-filter-btn" data-grade="تانية إعدادي">تانية <span class="count" id="girlsFilterCount2">0</span></button>
+              <button class="grade-filter-btn" data-grade="تالتة إعدادي">تالتة <span class="count" id="girlsFilterCount3">0</span></button>
+            </div>
+            <button class="btn-add-girl" id="addGirlBtn">+ إضافة</button>
           </div>
           <div id="girlsList" class="girls-list"></div>
         </div>
 
         <!-- CALENDAR PAGE -->
-        <div id="page-calendar" class="page hidden">
+        <div id="page-calendar" class="page">
           <div class="calendar-nav">
-            <button class="cal-nav-btn" id="calPrev">◀</button>
+            <button class="cal-nav-btn" id="calPrev" aria-label="الشهر السابق">&#9664;</button>
             <span id="calMonthYear" class="cal-month-title">---</span>
-            <button class="cal-nav-btn" id="calNext">▶</button>
+            <button class="cal-nav-btn" id="calNext" aria-label="الشهر التالي">&#9654;</button>
           </div>
           <div class="calendar-grid" id="calendarGrid"></div>
-          <div id="dayDetail" class="day-detail hidden"></div>
+          <div id="dayDetail" class="day-detail"></div>
         </div>
 
         <!-- STATS PAGE -->
-        <div id="page-stats" class="page hidden">
+        <div id="page-stats" class="page">
           <div class="stats-month-selector">
-            <label>الشهر:</label>
+            <label for="statsMonth">الشهر:</label>
             <input type="month" id="statsMonth" class="month-input">
           </div>
+          <div class="time-filter-tabs" id="timeFilterTabs">
+            <button class="time-filter-tab" data-period="today">اليوم</button>
+            <button class="time-filter-tab active" data-period="month">هذا الشهر</button>
+            <button class="time-filter-tab" data-period="year">هذه السنة</button>
+            <button class="time-filter-tab" data-period="all">الكل</button>
+          </div>
+          <div class="stats-grade-filter" id="statsGradeFilter">
+            <button class="stats-grade-btn active" data-grade="">الكل</button>
+            <button class="stats-grade-btn" data-grade="أولى إعدادي">أولى إعدادي</button>
+            <button class="stats-grade-btn" data-grade="تانية إعدادي">تانية إعدادي</button>
+            <button class="stats-grade-btn" data-grade="تالتة إعدادي">تالتة إعدادي</button>
+          </div>
           <div class="big-stats-grid" id="bigStatsGrid"></div>
+
+          <div class="section-title">الحضور حسب النشاط <span id="activityStatsPeriod" style="font-size:13px;color:var(--text-muted);font-weight:400;">(هذا الشهر)</span> <span id="activityStatsGrade" style="font-size:12px;color:var(--accent);font-weight:700;"></span></div>
+          <div class="activity-stats-grid" id="activityStatsGrid"></div>
+
           <div class="section-title">توزيع الغيابات</div>
           <div id="absenceChart" class="absence-chart"></div>
           <div class="section-title">ترتيب الحضور</div>
@@ -196,68 +277,80 @@
         </div>
 
         <!-- HISTORY PAGE -->
-        <div id="page-history" class="page hidden">
+        <div id="page-history" class="page">
+          <div class="history-controls">
+            <select id="historyFilter" class="filter-select">
+              <option value="">كل الأحداث</option>
+              <option value="إضافة">&#10133; إضافة مخدومة</option>
+              <option value="تعديل">&#9999; تعديل مخدومة</option>
+              <option value="حذف">&#10060; حذف مخدومة</option>
+              <option value="حضور">&#128203; تسجيل حضور</option>
+            </select>
+            <button id="clearHistoryBtn" class="btn-clear-history">&#10060; مسح السجل</button>
+          </div>
           <div id="historyList" class="history-list">
             <div class="empty-state">جارٍ التحميل...</div>
+          </div>
+          <div id="loadMoreHistory" class="load-more-wrap hidden">
+            <button id="loadMoreHistoryBtn" class="btn-load-more">&#9660; تحميل المزيد</button>
           </div>
         </div>
 
         <!-- EXPORT PAGE -->
-        <div id="page-export" class="page hidden">
+        <div id="page-export" class="page">
           <div class="export-card">
-            <div class="export-icon">📊</div>
+            <div class="export-icon">&#128202;</div>
             <h3>تصدير البيانات</h3>
             <div class="export-month-wrap">
-              <label>اختر الشهر:</label>
+              <label for="exportMonth">اختر الشهر:</label>
               <input type="month" id="exportMonth" class="month-input">
             </div>
             <div class="export-btns">
               <button class="export-btn csv" id="exportCSV">
-                <span>📄</span>
-                <div><b>تصدير CSV</b><small>ملف إكسل</small></div>
+                <span>&#128196;</span>
+                <div><b>تصدير Excel</b><small>ملف Excel (.xlsx)</small></div>
               </button>
               <button class="export-btn json" id="exportJSON">
-                <span>💾</span>
+                <span>&#128190;</span>
                 <div><b>تصدير JSON</b><small>بيانات كاملة</small></div>
               </button>
               <button class="export-btn print" id="exportPrint">
-                <span>🖨️</span>
+                <span>&#128424;</span>
                 <div><b>تقرير للطباعة</b><small>PDF قابل للطباعة</small></div>
               </button>
             </div>
           </div>
         </div>
-
       </main>
 
       <!-- Bottom Nav -->
-      <nav class="bottom-nav">
-        <button class="nav-btn active" data-page="home"><span>🏠</span><label>الرئيسية</label></button>
-        <button class="nav-btn" data-page="attendance"><span>📋</span><label>الحضور</label></button>
-        <button class="nav-btn" data-page="girls"><span>👥</span><label>المخدومات</label></button>
-        <button class="nav-btn" data-page="calendar"><span>📅</span><label>التقويم</label></button>
-        <button class="nav-btn" data-page="stats"><span>📊</span><label>إحصائيات</label></button>
+      <nav class="bottom-nav" aria-label="التنقل السفلي">
+        <button class="nav-btn active" data-page="home" aria-label="الرئيسية"><span>&#127968;</span><label>الرئيسية</label></button>
+        <button class="nav-btn" data-page="attendance" aria-label="الحضور"><span>&#128203;</span><label>الحضور</label></button>
+        <button class="nav-btn" data-page="girls" aria-label="المخدومات"><span>&#128101;</span><label>المخدومات</label></button>
+        <button class="nav-btn" data-page="calendar" aria-label="التقويم"><span>&#128197;</span><label>التقويم</label></button>
+        <button class="nav-btn" data-page="stats" aria-label="إحصائيات"><span>&#128202;</span><label>إحصائيات</label></button>
       </nav>
     </div>
 
     <!-- Modal: Add/Edit Girl -->
-    <div class="modal-overlay" id="girlModal">
+    <div class="modal-overlay" id="girlModal" role="dialog" aria-modal="true" aria-labelledby="girlModalTitle">
       <div class="modal">
         <div class="modal-header">
           <h3 id="girlModalTitle">إضافة مخدومة</h3>
-          <button class="modal-close" id="closeGirlModal">✕</button>
+          <button class="modal-close" id="closeGirlModal" aria-label="إغلاق">&#10005;</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label>الاسم الكامل *</label>
-            <input type="text" id="girlName" class="form-input" placeholder="اسم المخدومة">
+            <label for="girlName">الاسم الكامل *</label>
+            <input type="text" id="girlName" class="form-input" placeholder="اسم المخدومة" autocomplete="off">
           </div>
           <div class="form-group">
-            <label>رقم الهاتف</label>
-            <input type="tel" id="girlPhone" class="form-input" placeholder="رقم التليفون">
+            <label for="girlPhone">رقم الهاتف</label>
+            <input type="tel" id="girlPhone" class="form-input" placeholder="رقم التليفون" dir="ltr">
           </div>
           <div class="form-group">
-            <label>السنة الدراسية *</label>
+            <label for="girlGrade">السنة الدراسية *</label>
             <select id="girlGrade" class="form-input">
               <option value="">اختر السنة</option>
               <option value="أولى إعدادي">أولى إعدادي</option>
@@ -266,1080 +359,124 @@
             </select>
           </div>
           <div class="form-group">
-            <label>ملاحظات</label>
+            <label for="girlNotes">ملاحظات</label>
             <textarea id="girlNotes" class="form-input" rows="3" placeholder="أي ملاحظات..."></textarea>
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn-cancel" id="cancelGirlModal">إلغاء</button>
-          <button class="btn-primary" id="saveGirlBtn">حفظ</button>
+          <button class="btn-danger hidden" id="deleteGirlBtn">&#128465; حذف</button>
+          <button class="btn-cancel" id="cancelGirlModal">&#10005; إلغاء</button>
+          <button class="btn-primary" id="saveGirlBtn">&#128190; حفظ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="confirm-box">
+        <div class="confirm-icon" id="confirmIcon">&#9888;</div>
+        <div class="confirm-title" id="confirmTitle">تأكيد</div>
+        <div class="confirm-msg" id="confirmMsg"></div>
+        <div class="confirm-actions">
+          <button class="confirm-cancel" id="confirmCancel">&#10005; إلغاء</button>
+          <button class="confirm-ok" id="confirmOk">&#10003; تأكيد</button>
         </div>
       </div>
     </div>
 
     <!-- Modal: Girl Profile -->
-    <div class="modal-overlay" id="girlProfileModal">
+    <div class="modal-overlay" id="girlProfileModal" role="dialog" aria-modal="true" aria-labelledby="profileName">
       <div class="modal modal-large">
         <div class="modal-header">
           <h3 id="profileName">ملف المخدومة</h3>
-          <button class="modal-close" id="closeProfileModal">✕</button>
+          <button class="modal-close" id="closeProfileModal" aria-label="إغلاق">&#10005;</button>
         </div>
-        <div class="modal-body" id="profileBody">
+        <div class="modal-body" id="profileBody"></div>
+        <div class="modal-footer">
+          <button class="btn-share" id="shareProfileBtn">&#128239; مشاركة</button>
+          <button class="btn-primary" id="editProfileBtn">&#9999; تعديل</button>
         </div>
       </div>
     </div>
 
     <!-- Modal: Attendance Entry -->
-    <div class="modal-overlay" id="attendanceModal">
+    <div class="modal-overlay" id="attendanceModal" role="dialog" aria-modal="true" aria-labelledby="attendanceModalTitle">
       <div class="modal">
         <div class="modal-header">
           <h3 id="attendanceModalTitle">تسجيل الحضور</h3>
-          <button class="modal-close" id="closeAttendanceModal">✕</button>
+          <button class="modal-close" id="closeAttendanceModal" aria-label="إغلاق">&#10005;</button>
         </div>
         <div class="modal-body">
           <p class="modal-girl-name" id="modalGirlName"></p>
           <div class="attend-options">
-            <button class="attend-btn present" data-status="حاضر">✓ حاضر</button>
-            <button class="attend-btn absent" data-status="غائب">✗ غائب</button>
+            <button class="attend-btn present" data-status="حاضر" type="button">&#10003; حاضر</button>
+            <button class="attend-btn absent" data-status="غائب" type="button">&#10007; غائب</button>
           </div>
           <div id="ratingSection" class="rating-section">
             <label>التقييم:</label>
             <div class="stars-input" id="starsInput">
-              <span class="star" data-val="1">★</span>
-              <span class="star" data-val="2">★</span>
-              <span class="star" data-val="3">★</span>
-              <span class="star" data-val="4">★</span>
-              <span class="star" data-val="5">★</span>
+              <span class="star" data-val="1" role="button" aria-label="1 نجمة">&#9733;</span>
+              <span class="star" data-val="2" role="button" aria-label="2 نجمة">&#9733;</span>
+              <span class="star" data-val="3" role="button" aria-label="3 نجوم">&#9733;</span>
+              <span class="star" data-val="4" role="button" aria-label="4 نجوم">&#9733;</span>
+              <span class="star" data-val="5" role="button" aria-label="5 نجوم">&#9733;</span>
             </div>
           </div>
           <div class="form-group">
-            <label>ملاحظات:</label>
+            <label for="attendanceNotes">ملاحظات:</label>
             <textarea id="attendanceNotes" class="form-input" rows="3" placeholder="ملاحظات..."></textarea>
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn-cancel" id="cancelAttendanceModal">إلغاء</button>
-          <button class="btn-primary" id="saveAttendanceEntry">حفظ</button>
+          <button class="btn-cancel" id="cancelAttendanceModal">&#10005; إلغاء</button>
+          <button class="btn-primary" id="saveAttendanceEntry">&#128190; حفظ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Activity Detail -->
+    <div class="modal-overlay" id="activityDetailModal" role="dialog" aria-modal="true" aria-labelledby="activityDetailTitle">
+      <div class="modal modal-large">
+        <div class="modal-header">
+          <h3 id="activityDetailTitle">تفاصيل النشاط</h3>
+          <button class="modal-close" id="closeActivityDetailModal" aria-label="إغلاق">&#10005;</button>
+        </div>
+        <div class="modal-body">
+          <div class="detail-summary-bar" id="activityDetailSummary">
+            <span class="summary-icon" id="activityDetailIcon">&#128216;</span>
+            <div class="summary-text">
+              <div class="summary-title" id="activityDetailName">-</div>
+              <div class="summary-subtitle" id="activityDetailPeriod">-</div>
+            </div>
+            <span class="summary-total" id="activityDetailTotal">0</span>
+          </div>
+          <div class="activity-detail-tabs" id="activityDetailTabs">
+            <button class="activity-detail-tab present-tab active" data-tab="present">
+              &#10003; حاضروا <span class="tab-count" id="presentTabCount">0</span>
+            </button>
+            <button class="activity-detail-tab absent-tab" data-tab="absent">
+              &#10007; غائبوا <span class="tab-count" id="absentTabCount">0</span>
+            </button>
+          </div>
+          <div class="detail-girl-list" id="activityDetailList"></div>
         </div>
       </div>
     </div>
 
     <!-- Toast -->
-    <div id="toast" class="toast hidden"></div>
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   </div>
 
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-    import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, query, orderBy, where, onSnapshot, serverTimestamp, writeBatch } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    import { getAnalytics } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js';
-
-    // ============================================================
-    // FIREBASE CONFIG
-    // ============================================================
-    const firebaseConfig = {
-      apiKey: "AIzaSyB2cycBTKMjVg8S_fBYN8C-hwUk5FUF81Q",
-      authDomain: "kenesa-e5efd.firebaseapp.com",
-      projectId: "kenesa-e5efd",
-      storageBucket: "kenesa-e5efd.firebasestorage.app",
-      messagingSenderId: "227273753184",
-      appId: "1:227273753184:web:ecdf258142ad55ed5cf905",
-      measurementId: "G-6HS8KNW1GZ"
-    };
-
-    // Init Firebase
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const provider = new GoogleAuthProvider();
-
-    // ============================================================
-    // APP STATE
-    // ============================================================
-    let currentUser = null;
-    let girls = [];
-    let attendanceData = {};
-    let currentPage = 'home';
-    let selectedDay = 'السبت';
-    let selectedActivity = 'دراسي';
-    let currentAttendanceGirlId = null;
-    let currentAttendanceRating = 0;
-    let editingGirlId = null;
-    let calendarDate = new Date();
-    let isOnline = navigator.onLine;
-
-    const SERVICE_DAYS = ['السبت', 'الاثنين', 'الاربعاء'];
-    const ACTIVITIES = ['دراسي', 'محفوظات', 'قبطي', 'ألحان'];
-    const GRADES = ['أولى إعدادي', 'تانية إعدادي', 'تالتة إعدادي'];
-
-    // ============================================================
-    // INDEXEDDB - LOCAL STORAGE
-    // ============================================================
-    let idb;
-    function openIDB() {
-      return new Promise((resolve, reject) => {
-        const req = indexedDB.open('MakhdomatDB', 2);
-        req.onupgradeneeded = e => {
-          const d = e.target.result;
-          if (!d.objectStoreNames.contains('girls')) d.createObjectStore('girls', { keyPath: 'id' });
-          if (!d.objectStoreNames.contains('attendance')) d.createObjectStore('attendance', { keyPath: 'id' });
-          if (!d.objectStoreNames.contains('history')) d.createObjectStore('history', { keyPath: 'id' });
-          if (!d.objectStoreNames.contains('pending')) d.createObjectStore('pending', { keyPath: 'id' });
-        };
-        req.onsuccess = e => { idb = e.target.result; resolve(idb); };
-        req.onerror = () => reject(req.error);
-      });
-    }
-
-    function idbPut(store, data) {
-      return new Promise((res, rej) => {
-        const tx = idb.transaction(store, 'readwrite');
-        tx.objectStore(store).put(data);
-        tx.oncomplete = () => res();
-        tx.onerror = () => rej(tx.error);
-      });
-    }
-
-    function idbGetAll(store) {
-      return new Promise((res, rej) => {
-        const tx = idb.transaction(store, 'readonly');
-        const req = tx.objectStore(store).getAll();
-        req.onsuccess = () => res(req.result);
-        req.onerror = () => rej(req.error);
-      });
-    }
-
-    // ============================================================
-    // TOAST
-    // ============================================================
-    function showToast(msg, type = 'info') {
-      const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.className = `toast show ${type}`;
-      setTimeout(() => t.className = 'toast hidden', 3000);
-    }
-
-    // ============================================================
-    // ONLINE/OFFLINE
-    // ============================================================
-    window.addEventListener('online', () => {
-      isOnline = true;
-      updateSyncIndicator();
-      syncPendingData();
-      showToast('تم الاتصال بالإنترنت - جارٍ المزامنة', 'success');
-    });
-    window.addEventListener('offline', () => {
-      isOnline = false;
-      updateSyncIndicator();
-      showToast('أنت في وضع عدم الاتصال - سيتم الحفظ محلياً', 'warning');
-    });
-
-    function updateSyncIndicator() {
-      const ind = document.getElementById('syncIndicator');
-      const badge = document.getElementById('offlineBadge');
-      if (isOnline) {
-        ind.classList.remove('offline');
-        ind.classList.add('online');
-        if (badge) badge.classList.remove('show');
-      } else {
-        ind.classList.remove('online');
-        ind.classList.add('offline');
-        if (badge) badge.classList.add('show');
-      }
-    }
-
-    async function syncPendingData() {
-      try {
-        const pending = await idbGetAll('pending');
-        for (const item of pending) {
-          if (item.type === 'girl') {
-            await setDoc(doc(db, 'girls', item.data.id), item.data);
-          } else if (item.type === 'attendance') {
-            await setDoc(doc(db, 'attendance', item.data.id), item.data);
-          }
-          // Remove from pending
-          const tx = idb.transaction('pending', 'readwrite');
-          tx.objectStore('pending').delete(item.id);
-        }
-        if (pending.length > 0) showToast(`تمت مزامنة ${pending.length} سجل`, 'success');
-      } catch(e) { console.error('Sync error:', e); }
-    }
-
-    // ============================================================
-    // AUTH
-    // ============================================================
-    document.getElementById('googleSignIn').addEventListener('click', async () => {
-      try {
-        // Try popup first (works on web), fallback to redirect (works on mobile)
-        if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-          await signInWithRedirect(auth, provider);
-        } else {
-          await signInWithPopup(auth, provider);
-        }
-      } catch (e) {
-        console.error(e);
-        showToast('فشل تسجيل الدخول: ' + e.message, 'error');
-      }
-    });
-
-    document.getElementById('signOutBtn').addEventListener('click', async () => {
-      await signOut(auth);
-    });
-
-    onAuthStateChanged(auth, async (user) => {
-      hideSplash();
-      if (user) {
-        currentUser = user;
-        showApp(user);
-        await loadData();
-        renderCurrentPage();
-      } else {
-        currentUser = null;
-        showLogin();
-      }
-    });
-
-    // Check redirect result
-    getRedirectResult(auth).then(result => {
-      if (result?.user) {
-        currentUser = result.user;
-        showApp(result.user);
-      }
-    }).catch(e => console.error(e));
-
-    // ============================================================
-    // APP INIT
-    // ============================================================
-    function hideSplash() {
-      setTimeout(() => {
-        const splash = document.getElementById('splash');
-        if (splash) { splash.classList.add('fade-out'); setTimeout(() => splash.remove(), 500); }
-      }, 1200);
-    }
-
-    function showApp(user) {
-      document.getElementById('loginScreen').classList.add('hidden');
-      document.getElementById('mainApp').classList.remove('hidden');
-      const initial = user.displayName ? user.displayName[0] : 'خ';
-      document.getElementById('userAvatar').textContent = initial;
-      document.getElementById('drawerAvatar').textContent = initial;
-      document.getElementById('drawerUserName').textContent = user.displayName || 'الخادم';
-      document.getElementById('drawerUserEmail').textContent = user.email || '';
-    }
-
-    function showLogin() {
-      document.getElementById('loginScreen').classList.remove('hidden');
-      document.getElementById('mainApp').classList.add('hidden');
-    }
-
-    // ============================================================
-    // LOAD DATA
-    // ============================================================
-    async function loadData() {
-      try {
-        // Load from IDB first (instant)
-        const localGirls = await idbGetAll('girls');
-        if (localGirls.length > 0) { girls = localGirls; renderCurrentPage(); }
-        const localAtt = await idbGetAll('attendance');
-        if (localAtt.length > 0) {
-          localAtt.forEach(a => { attendanceData[a.id] = a; });
-        }
-
-        if (!isOnline) return;
-
-        // Live sync from Firestore
-        const girlsQ = query(collection(db, 'girls'), orderBy('name'));
-        onSnapshot(girlsQ, async snap => {
-          girls = snap.docs.map(d => ({id: d.id, ...d.data()}));
-          for (const g of girls) await idbPut('girls', g);
-          renderCurrentPage();
-        });
-
-        const attQ = query(collection(db, 'attendance'), orderBy('date', 'desc'));
-        onSnapshot(attQ, async snap => {
-          snap.docs.forEach(d => { attendanceData[d.id] = {id: d.id, ...d.data()}; });
-          for (const a of Object.values(attendanceData)) await idbPut('attendance', a);
-          renderCurrentPage();
-        });
-
-      } catch(e) { console.error('Load error:', e); }
-    }
-
-    // ============================================================
-    // NAVIGATION
-    // ============================================================
-    function navigateTo(page) {
-      document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-      const pg = document.getElementById('page-' + page);
-      if (pg) { pg.classList.remove('hidden'); pg.classList.add('active'); }
-
-      document.querySelectorAll('.nav-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.page === page);
-      });
-      document.querySelectorAll('.menu-item').forEach(b => {
-        b.classList.toggle('active', b.dataset.page === page);
-      });
-
-      const titles = {
-        home: ['الرئيسية', ''],
-        attendance: ['الحضور اليومي', 'تسجيل وإدارة الحضور'],
-        girls: ['المخدومات', 'قائمة المخدومات'],
-        calendar: ['التقويم الشهري', 'أيام الخدمة'],
-        stats: ['الإحصائيات', 'تحليلات وتقارير'],
-        history: ['السجل التاريخي', 'سجل التعديلات'],
-        export: ['التصدير', 'تصدير البيانات']
-      };
-      document.getElementById('pageTitle').textContent = titles[page]?.[0] || page;
-      document.getElementById('pageSubtitle').textContent = titles[page]?.[1] || '';
-
-      currentPage = page;
-      renderCurrentPage();
-      closeDrawer();
-    }
-
-    function renderCurrentPage() {
-      switch(currentPage) {
-        case 'home': renderHome(); break;
-        case 'attendance': renderAttendancePage(); break;
-        case 'girls': renderGirlsList(); break;
-        case 'calendar': renderCalendar(); break;
-        case 'stats': renderStats(); break;
-        case 'history': renderHistory(); break;
-        case 'export': renderExport(); break;
-      }
-    }
-
-    // Bottom nav
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-      btn.addEventListener('click', () => navigateTo(btn.dataset.page));
-    });
-    document.querySelectorAll('.menu-item[data-page]').forEach(item => {
-      item.addEventListener('click', (e) => { e.preventDefault(); navigateTo(item.dataset.page); });
-    });
-
-    // Drawer
-    document.getElementById('menuBtn').addEventListener('click', openDrawer);
-    document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);
-    function openDrawer() {
-      document.getElementById('drawer').classList.add('open');
-      document.getElementById('drawerOverlay').classList.add('show');
-    }
-    function closeDrawer() {
-      document.getElementById('drawer').classList.remove('open');
-      document.getElementById('drawerOverlay').classList.remove('show');
-    }
-
-    // ============================================================
-    // HOME PAGE
-    // ============================================================
-    function renderHome() {
-      const now = new Date();
-      const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-      const dayName = days[now.getDay()];
-      document.getElementById('todayDay').textContent = dayName;
-      document.getElementById('todayDate').textContent = now.toLocaleDateString('ar-EG', {year:'numeric', month:'long', day:'numeric'});
-
-      const serviceMap = {'السبت': 'يوم خدمة ✓', 'الاثنين': 'يوم خدمة ✓', 'الاربعاء': 'يوم خدمة ✓'};
-      const todayBadge = document.getElementById('todayServiceBadge');
-      const normalizedDay = normalizeDay(dayName);
-      if (serviceMap[normalizedDay]) {
-        todayBadge.textContent = serviceMap[normalizedDay];
-        todayBadge.classList.add('active');
-      } else {
-        todayBadge.textContent = 'لا توجد خدمة اليوم';
-        todayBadge.classList.remove('active');
-      }
-
-      document.getElementById('statTotal').textContent = girls.length;
-
-      const todayStr = now.toISOString().split('T')[0];
-      let presentToday = 0, absentToday = 0;
-      Object.values(attendanceData).forEach(a => {
-        if (a.date === todayStr) {
-          if (a.status === 'حاضر') presentToday++;
-          else if (a.status === 'غائب') absentToday++;
-        }
-      });
-      document.getElementById('statPresentToday').textContent = presentToday;
-      document.getElementById('statAbsentToday').textContent = absentToday;
-
-      // Avg rating this month
-      const monthStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-      let totalRating = 0, ratingCount = 0;
-      Object.values(attendanceData).forEach(a => {
-        if (a.date?.startsWith(monthStr) && a.rating > 0) { totalRating += a.rating; ratingCount++; }
-      });
-      document.getElementById('statAvgRating').textContent = ratingCount > 0 ? (totalRating/ratingCount).toFixed(1) : '-';
-
-      // Top attendees
-      const attendanceCounts = {};
-      girls.forEach(g => attendanceCounts[g.id] = 0);
-      Object.values(attendanceData).forEach(a => {
-        if (a.date?.startsWith(monthStr) && a.status === 'حاضر') {
-          if (attendanceCounts[a.girlId] !== undefined) attendanceCounts[a.girlId]++;
-        }
-      });
-      const sorted = Object.entries(attendanceCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
-      const topEl = document.getElementById('topAttendees');
-      if (sorted.length === 0 || sorted[0][1] === 0) {
-        topEl.innerHTML = '<div class="empty-state">لا توجد بيانات حضور هذا الشهر</div>';
-      } else {
-        topEl.innerHTML = sorted.map(([id, count], i) => {
-          const g = girls.find(x => x.id === id);
-          if (!g || count === 0) return '';
-          return `<div class="top-item">
-            <span class="top-rank">${i+1}</span>
-            <span class="top-name">${g.name}</span>
-            <span class="top-count">${count} يوم</span>
-          </div>`;
-        }).join('');
-      }
-
-      // Needs followup
-      const needsEl = document.getElementById('needsFollowup');
-      const needsList = girls.filter(g => {
-        const absences = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length;
-        return absences >= 2;
-      });
-      if (needsList.length === 0) {
-        needsEl.innerHTML = '<div class="empty-state">لا توجد حالات تحتاج متابعة</div>';
-      } else {
-        needsEl.innerHTML = needsList.map(g => {
-          const abs = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length;
-          return `<div class="followup-item" onclick="showGirlProfile('${g.id}')">
-            <span class="followup-name">${g.name}</span>
-            <span class="followup-badge">${abs} غياب</span>
-          </div>`;
-        }).join('');
-      }
-    }
-
-    // ============================================================
-    // SEARCH
-    // ============================================================
-    document.getElementById('globalSearch').addEventListener('input', function() {
-      const q = this.value.trim();
-      const resultsEl = document.getElementById('searchResults');
-      if (!q) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; return; }
-      const matches = girls.filter(g => g.name.includes(q));
-      if (matches.length === 0) {
-        resultsEl.innerHTML = '<div class="search-item">لا توجد نتائج</div>';
-      } else {
-        resultsEl.innerHTML = matches.map(g =>
-          `<div class="search-item" onclick="showGirlProfile('${g.id}')">
-            <span>${g.name}</span>
-            <span class="grade-badge">${g.grade}</span>
-          </div>`
-        ).join('');
-      }
-      resultsEl.classList.remove('hidden');
-    });
-
-    // ============================================================
-    // GIRLS PAGE
-    // ============================================================
-    function renderGirlsList() {
-      const filter = document.getElementById('gradeFilter').value;
-      const filtered = filter ? girls.filter(g => g.grade === filter) : girls;
-      const el = document.getElementById('girlsList');
-      if (filtered.length === 0) {
-        el.innerHTML = '<div class="empty-state">لا توجد مخدومات<br><small>اضغط + لإضافة مخدومة جديدة</small></div>';
-        return;
-      }
-      el.innerHTML = filtered.map(g => {
-        const monthStr = getMonthStr(new Date());
-        const presents = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'حاضر').length;
-        const absents = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length;
-        return `<div class="girl-card" onclick="showGirlProfile('${g.id}')">
-          <div class="girl-avatar">${g.name[0]}</div>
-          <div class="girl-info">
-            <span class="girl-name">${g.name}</span>
-            <span class="girl-grade">${g.grade}</span>
-            <div class="girl-stats">
-              <span class="green-text">✓${presents}</span>
-              <span class="red-text">✗${absents}</span>
-            </div>
-          </div>
-          <button class="edit-btn" onclick="event.stopPropagation(); editGirl('${g.id}')">✏️</button>
-        </div>`;
-      }).join('');
-    }
-
-    document.getElementById('gradeFilter').addEventListener('change', renderGirlsList);
-
-    document.getElementById('addGirlBtn').addEventListener('click', () => {
-      editingGirlId = null;
-      document.getElementById('girlModalTitle').textContent = 'إضافة مخدومة';
-      document.getElementById('girlName').value = '';
-      document.getElementById('girlPhone').value = '';
-      document.getElementById('girlGrade').value = '';
-      document.getElementById('girlNotes').value = '';
-      openModal('girlModal');
-    });
-
-    window.editGirl = function(id) {
-      const g = girls.find(x => x.id === id);
-      if (!g) return;
-      editingGirlId = id;
-      document.getElementById('girlModalTitle').textContent = 'تعديل بيانات المخدومة';
-      document.getElementById('girlName').value = g.name;
-      document.getElementById('girlPhone').value = g.phone || '';
-      document.getElementById('girlGrade').value = g.grade;
-      document.getElementById('girlNotes').value = g.notes || '';
-      openModal('girlModal');
-    };
-
-    document.getElementById('saveGirlBtn').addEventListener('click', async () => {
-      const name = document.getElementById('girlName').value.trim();
-      const phone = document.getElementById('girlPhone').value.trim();
-      const grade = document.getElementById('girlGrade').value;
-      const notes = document.getElementById('girlNotes').value.trim();
-
-      if (!name) { showToast('الرجاء إدخال اسم المخدومة', 'error'); return; }
-      if (!grade) { showToast('الرجاء اختيار السنة الدراسية', 'error'); return; }
-
-      // Check duplicate
-      const dup = girls.find(g => g.name === name && g.id !== editingGirlId);
-      if (dup) { showToast('هذه المخدومة موجودة بالفعل', 'error'); return; }
-
-      const id = editingGirlId || 'girl_' + Date.now();
-      const girlData = {
-        id, name, phone, grade, notes,
-        createdAt: editingGirlId ? (girls.find(g=>g.id===editingGirlId)?.createdAt || Date.now()) : Date.now(),
-        updatedAt: Date.now(),
-        updatedBy: currentUser?.displayName || 'خادم',
-        updatedByEmail: currentUser?.email || '',
-        isDeleted: false
-      };
-
-      // Save locally first
-      await idbPut('girls', girlData);
-      if (editingGirlId) {
-        girls = girls.map(g => g.id === id ? girlData : g);
-      } else {
-        girls.push(girlData);
-      }
-
-      // Log history
-      await logHistory(editingGirlId ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} - ${grade}`);
-
-      // Sync to Firebase
-      if (isOnline) {
-        try { await setDoc(doc(db, 'girls', id), girlData); }
-        catch(e) { await addToPending('girl', girlData); }
-      } else {
-        await addToPending('girl', girlData);
-      }
-
-      closeModal('girlModal');
-      showToast(editingGirlId ? 'تم تعديل البيانات' : 'تمت إضافة المخدومة', 'success');
-      renderCurrentPage();
-    });
-
-    // ============================================================
-    // GIRL PROFILE
-    // ============================================================
-    window.showGirlProfile = function(id) {
-      const g = girls.find(x => x.id === id);
-      if (!g) return;
-      document.getElementById('profileName').textContent = g.name;
-      const body = document.getElementById('profileBody');
-
-      // Get all attendance for this girl grouped by month
-      const girlAtt = Object.values(attendanceData).filter(a => a.girlId === id);
-      girlAtt.sort((a,b) => b.date?.localeCompare(a.date));
-
-      const months = {};
-      girlAtt.forEach(a => {
-        const m = a.date?.substring(0,7);
-        if (!months[m]) months[m] = [];
-        months[m].push(a);
-      });
-
-      let html = `<div class="profile-info">
-        <span class="grade-badge">${g.grade}</span>
-        ${g.phone ? `<span class="profile-phone">📞 ${g.phone}</span>` : ''}
-        ${g.notes ? `<p class="profile-notes">${g.notes}</p>` : ''}
-      </div>`;
-
-      if (Object.keys(months).length === 0) {
-        html += '<div class="empty-state">لا توجد سجلات حضور</div>';
-      } else {
-        Object.entries(months).sort((a,b) => b[0].localeCompare(a[0])).forEach(([month, records]) => {
-          const presents = records.filter(r => r.status === 'حاضر').length;
-          const absents = records.filter(r => r.status === 'غائب').length;
-          html += `<div class="profile-month">
-            <div class="profile-month-header">
-              <span>${formatMonth(month)}</span>
-              <span class="green-text">✓${presents}</span>
-              <span class="red-text">✗${absents}</span>
-            </div>
-            <div class="profile-records">
-              ${records.map(r => `<div class="profile-record">
-                <span class="rec-date">${r.date}</span>
-                <span class="rec-activity">${r.activity || ''}</span>
-                <span class="rec-status ${r.status === 'حاضر' ? 'present' : 'absent'}">${r.status}</span>
-                ${r.rating ? `<span class="rec-rating">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span>` : ''}
-                ${r.notes ? `<span class="rec-notes">${r.notes}</span>` : ''}
-              </div>`).join('')}
-            </div>
-          </div>`;
-        });
-      }
-
-      body.innerHTML = html;
-      openModal('girlProfileModal');
-    };
-
-    document.getElementById('closeProfileModal').addEventListener('click', () => closeModal('girlProfileModal'));
-
-    // ============================================================
-    // ATTENDANCE PAGE
-    // ============================================================
-    function renderAttendancePage() {
-      const dateInput = document.getElementById('attendanceDate');
-      if (!dateInput.value) dateInput.value = new Date().toISOString().split('T')[0];
-      setActiveDay(selectedDay);
-      setActiveActivity(selectedActivity);
-      renderAttendanceList();
-    }
-
-    function setActiveDay(day) {
-      selectedDay = day;
-      document.querySelectorAll('.day-btn').forEach(b => b.classList.toggle('active', b.dataset.day === day));
-    }
-
-    function setActiveActivity(act) {
-      selectedActivity = act;
-      document.querySelectorAll('.act-tab').forEach(b => b.classList.toggle('active', b.dataset.activity === act));
-    }
-
-    document.querySelectorAll('.day-btn').forEach(b => {
-      b.addEventListener('click', () => { setActiveDay(b.dataset.day); renderAttendanceList(); });
-    });
-    document.querySelectorAll('.act-tab').forEach(b => {
-      b.addEventListener('click', () => { setActiveActivity(b.dataset.activity); renderAttendanceList(); });
-    });
-    document.getElementById('attendanceDate').addEventListener('change', renderAttendanceList);
-
-    function renderAttendanceList() {
-      const date = document.getElementById('attendanceDate').value;
-      const el = document.getElementById('attendanceList');
-      if (!date) { el.innerHTML = '<div class="empty-state">الرجاء اختيار التاريخ</div>'; return; }
-
-      let present = 0, absent = 0, pending = 0;
-      el.innerHTML = girls.map(g => {
-        const key = `${g.id}_${date}_${selectedActivity}`;
-        const rec = attendanceData[key];
-        let statusClass = 'pending', statusIcon = '○', statusText = 'لم يُسجَّل';
-        if (rec?.status === 'حاضر') { statusClass = 'present'; statusIcon = '✓'; statusText = 'حاضر'; present++; }
-        else if (rec?.status === 'غائب') { statusClass = 'absent'; statusIcon = '✗'; statusText = 'غائب'; absent++; }
-        else pending++;
-
-        const stars = rec?.rating ? '★'.repeat(rec.rating) + '☆'.repeat(5-rec.rating) : '';
-        return `<div class="att-item ${statusClass}" onclick="openAttendanceEntry('${g.id}', '${g.name}', '${date}')">
-          <div class="att-icon">${statusIcon}</div>
-          <div class="att-info">
-            <span class="att-name">${g.name}</span>
-            <span class="att-grade">${g.grade}</span>
-            ${stars ? `<span class="att-stars">${stars}</span>` : ''}
-            ${rec?.notes ? `<span class="att-note">${rec.notes}</span>` : ''}
-          </div>
-          <span class="att-status-text ${statusClass}">${statusText}</span>
-        </div>`;
-      }).join('');
-
-      document.getElementById('presentCount').textContent = present;
-      document.getElementById('absentCount').textContent = absent;
-      document.getElementById('pendingCount').textContent = pending;
-    }
-
-    window.openAttendanceEntry = function(girlId, girlName, date) {
-      currentAttendanceGirlId = girlId;
-      currentAttendanceRating = 0;
-      document.getElementById('attendanceModalTitle').textContent = `${selectedActivity} - ${date}`;
-      document.getElementById('modalGirlName').textContent = girlName;
-      document.getElementById('attendanceNotes').value = '';
-
-      const key = `${girlId}_${date}_${selectedActivity}`;
-      const existing = attendanceData[key];
-      if (existing) {
-        document.querySelectorAll('.attend-btn').forEach(b => b.classList.toggle('selected', b.dataset.status === existing.status));
-        setRating(existing.rating || 0);
-        document.getElementById('attendanceNotes').value = existing.notes || '';
-        document.getElementById('ratingSection').classList.toggle('hidden', existing.status !== 'حاضر');
-      } else {
-        document.querySelectorAll('.attend-btn').forEach(b => b.classList.remove('selected'));
-        setRating(0);
-        document.getElementById('ratingSection').classList.add('hidden');
-      }
-      openModal('attendanceModal');
-    };
-
-    document.querySelectorAll('.attend-btn').forEach(b => {
-      b.addEventListener('click', () => {
-        document.querySelectorAll('.attend-btn').forEach(x => x.classList.remove('selected'));
-        b.classList.add('selected');
-        document.getElementById('ratingSection').classList.toggle('hidden', b.dataset.status !== 'حاضر');
-      });
-    });
-
-    // Stars
-    document.querySelectorAll('.star').forEach(s => {
-      s.addEventListener('click', () => setRating(parseInt(s.dataset.val)));
-    });
-    function setRating(val) {
-      currentAttendanceRating = val;
-      document.querySelectorAll('.star').forEach(s => {
-        s.classList.toggle('active', parseInt(s.dataset.val) <= val);
-      });
-    }
-
-    document.getElementById('saveAttendanceEntry').addEventListener('click', async () => {
-      const date = document.getElementById('attendanceDate').value;
-      const statusBtn = document.querySelector('.attend-btn.selected');
-      if (!statusBtn) { showToast('الرجاء تحديد الحضور أو الغياب', 'error'); return; }
-
-      const key = `${currentAttendanceGirlId}_${date}_${selectedActivity}`;
-      const rec = {
-        id: key,
-        girlId: currentAttendanceGirlId,
-        date,
-        day: selectedDay,
-        activity: selectedActivity,
-        status: statusBtn.dataset.status,
-        rating: statusBtn.dataset.status === 'حاضر' ? currentAttendanceRating : 0,
-        notes: document.getElementById('attendanceNotes').value.trim(),
-        updatedAt: Date.now(),
-        updatedBy: currentUser?.displayName || 'خادم',
-        updatedByEmail: currentUser?.email || ''
-      };
-
-      await idbPut('attendance', rec);
-      attendanceData[key] = rec;
-
-      if (isOnline) {
-        try { await setDoc(doc(db, 'attendance', key), rec); }
-        catch(e) { await addToPending('attendance', rec); }
-      } else {
-        await addToPending('attendance', rec);
-      }
-
-      await logHistory('تسجيل حضور', `${girls.find(g=>g.id===currentAttendanceGirlId)?.name} - ${selectedActivity} - ${date} - ${rec.status}`);
-
-      closeModal('attendanceModal');
-      showToast('تم الحفظ', 'success');
-      renderAttendanceList();
-    });
-
-    document.getElementById('saveAttendanceBtn').addEventListener('click', () => {
-      showToast('جميع البيانات محفوظة', 'success');
-    });
-
-    // ============================================================
-    // CALENDAR PAGE
-    // ============================================================
-    function renderCalendar() {
-      const year = calendarDate.getFullYear();
-      const month = calendarDate.getMonth();
-      document.getElementById('calMonthYear').textContent =
-        calendarDate.toLocaleDateString('ar-EG', {year:'numeric', month:'long'});
-
-      const firstDay = new Date(year, month, 1).getDay();
-      const daysInMonth = new Date(year, month+1, 0).getDate();
-
-      let html = '<div class="cal-weekdays">';
-      ['أح','إث','ثل','أر','خم','جم','سب'].forEach(d => html += `<div class="cal-wday">${d}</div>`);
-      html += '</div><div class="cal-days">';
-
-      for (let i = 0; i < firstDay; i++) html += '<div class="cal-day empty"></div>';
-
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        const dayOfWeek = new Date(year, month, d).getDay();
-        // 0=Sun, 1=Mon, 3=Wed, 6=Sat
-        const isServiceDay = [1, 3, 6].includes(dayOfWeek);
-        const hasData = Object.values(attendanceData).some(a => a.date === dateStr);
-        const isToday = dateStr === new Date().toISOString().split('T')[0];
-
-        html += `<div class="cal-day ${isServiceDay ? 'service-day' : ''} ${hasData ? 'has-data' : ''} ${isToday ? 'today' : ''}"
-          onclick="showDayDetail('${dateStr}')">
-          <span>${d}</span>
-          ${isServiceDay ? '<div class="service-dot"></div>' : ''}
-        </div>`;
-      }
-      html += '</div>';
-      document.getElementById('calendarGrid').innerHTML = html;
-    }
-
-    window.showDayDetail = function(dateStr) {
-      const records = Object.values(attendanceData).filter(a => a.date === dateStr);
-      const el = document.getElementById('dayDetail');
-      if (records.length === 0) {
-        el.innerHTML = `<div class="day-detail-header">${dateStr}</div><div class="empty-state">لا توجد سجلات لهذا اليوم</div>`;
-      } else {
-        const grouped = {};
-        records.forEach(r => {
-          if (!grouped[r.activity]) grouped[r.activity] = [];
-          grouped[r.activity].push(r);
-        });
-        let html = `<div class="day-detail-header">${dateStr}</div>`;
-        Object.entries(grouped).forEach(([act, recs]) => {
-          const presents = recs.filter(r => r.status === 'حاضر').length;
-          html += `<div class="day-activity"><b>${act}</b>: ${presents} حاضر من ${recs.length}</div>`;
-        });
-        el.innerHTML = html;
-      }
-      el.classList.remove('hidden');
-    };
-
-    document.getElementById('calPrev').addEventListener('click', () => {
-      calendarDate.setMonth(calendarDate.getMonth() - 1);
-      renderCalendar();
-    });
-    document.getElementById('calNext').addEventListener('click', () => {
-      calendarDate.setMonth(calendarDate.getMonth() + 1);
-      renderCalendar();
-    });
-
-    // ============================================================
-    // STATS PAGE
-    // ============================================================
-    function renderStats() {
-      const monthInput = document.getElementById('statsMonth');
-      if (!monthInput.value) monthInput.value = getMonthStr(new Date());
-      const month = monthInput.value;
-
-      const monthAtt = Object.values(attendanceData).filter(a => a.date?.startsWith(month));
-      const totalSessions = new Set(monthAtt.map(a => a.date + '_' + a.activity)).size;
-      const presents = monthAtt.filter(a => a.status === 'حاضر').length;
-      const absents = monthAtt.filter(a => a.status === 'غائب').length;
-      const ratings = monthAtt.filter(a => a.rating > 0).map(a => a.rating);
-      const avgRating = ratings.length > 0 ? (ratings.reduce((a,b)=>a+b,0)/ratings.length).toFixed(1) : '-';
-
-      document.getElementById('bigStatsGrid').innerHTML = `
-        <div class="big-stat-card"><div class="big-num">${girls.length}</div><div>المخدومات</div></div>
-        <div class="big-stat-card"><div class="big-num">${totalSessions}</div><div>جلسات مسجلة</div></div>
-        <div class="big-stat-card green-card"><div class="big-num">${presents}</div><div>إجمالي الحضور</div></div>
-        <div class="big-stat-card red-card"><div class="big-num">${absents}</div><div>إجمالي الغياب</div></div>
-        <div class="big-stat-card"><div class="big-num">${avgRating}</div><div>متوسط التقييم</div></div>
-        <div class="big-stat-card orange-card"><div class="big-num">${girls.filter(g=>{const abs=monthAtt.filter(a=>a.girlId===g.id&&a.status==='غائب').length;return abs>=2;}).length}</div><div>تحتاج متابعة</div></div>
-      `;
-
-      // Absence chart
-      const absenceByGirl = {};
-      girls.forEach(g => absenceByGirl[g.id] = 0);
-      monthAtt.filter(a => a.status === 'غائب').forEach(a => { if(absenceByGirl[a.girlId]!==undefined) absenceByGirl[a.girlId]++; });
-      const sortedAbs = Object.entries(absenceByGirl).sort((a,b)=>b[1]-a[1]).slice(0,10);
-      document.getElementById('absenceChart').innerHTML = sortedAbs.map(([id, count]) => {
-        const g = girls.find(x=>x.id===id);
-        if (!g || count === 0) return '';
-        const pct = Math.min(100, count * 20);
-        return `<div class="chart-row">
-          <span class="chart-name">${g.name}</span>
-          <div class="chart-bar-wrap"><div class="chart-bar" style="width:${pct}%"></div></div>
-          <span class="chart-val">${count}</span>
-        </div>`;
-      }).join('') || '<div class="empty-state">لا توجد غيابات هذا الشهر 🎉</div>';
-
-      // Ranking
-      const presentsByGirl = {};
-      girls.forEach(g => presentsByGirl[g.id] = 0);
-      monthAtt.filter(a => a.status === 'حاضر').forEach(a => { if(presentsByGirl[a.girlId]!==undefined) presentsByGirl[a.girlId]++; });
-      const ranking = Object.entries(presentsByGirl).sort((a,b)=>b[1]-a[1]);
-      document.getElementById('attendanceRanking').innerHTML = ranking.map(([id, count], i) => {
-        const g = girls.find(x=>x.id===id);
-        if (!g) return '';
-        return `<div class="rank-item">
-          <span class="rank-num">${i+1}</span>
-          <span class="rank-name">${g.name}</span>
-          <span class="rank-grade">${g.grade}</span>
-          <span class="rank-count">${count} يوم</span>
-        </div>`;
-      }).join('');
-    }
-
-    document.getElementById('statsMonth').addEventListener('change', renderStats);
-
-    // ============================================================
-    // HISTORY PAGE
-    // ============================================================
-    async function renderHistory() {
-      const el = document.getElementById('historyList');
-      const logs = await idbGetAll('history');
-      logs.sort((a,b) => b.timestamp - a.timestamp);
-
-      if (logs.length === 0) {
-        el.innerHTML = '<div class="empty-state">لا توجد سجلات تاريخية</div>';
-        return;
-      }
-      el.innerHTML = logs.slice(0, 100).map(log => `
-        <div class="history-item">
-          <div class="history-icon">${getHistoryIcon(log.action)}</div>
-          <div class="history-info">
-            <span class="history-action">${log.action}</span>
-            <span class="history-detail">${log.detail}</span>
-            <span class="history-meta">${log.by} · ${new Date(log.timestamp).toLocaleString('ar-EG')}</span>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function getHistoryIcon(action) {
-      if (action.includes('إضافة')) return '➕';
-      if (action.includes('تعديل')) return '✏️';
-      if (action.includes('حضور')) return '📋';
-      return '📝';
-    }
-
-    async function logHistory(action, detail) {
-      const log = {
-        id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2,5),
-        action, detail,
-        by: currentUser?.displayName || 'خادم',
-        byEmail: currentUser?.email || '',
-        timestamp: Date.now()
-      };
-      await idbPut('history', log);
-      if (isOnline) {
-        try { await setDoc(doc(db, 'history', log.id), log); } catch(e) {}
-      }
-    }
-
-    // ============================================================
-    // EXPORT PAGE
-    // ============================================================
-    function renderExport() {
-      const input = document.getElementById('exportMonth');
-      if (!input.value) input.value = getMonthStr(new Date());
-    }
-
-    document.getElementById('exportCSV').addEventListener('click', () => {
-      const month = document.getElementById('exportMonth').value;
-      const monthAtt = Object.values(attendanceData).filter(a => a.date?.startsWith(month));
-      let csv = 'الاسم,السنة,التاريخ,النشاط,الحضور,التقييم,ملاحظات\n';
-      monthAtt.forEach(a => {
-        const g = girls.find(x=>x.id===a.girlId);
-        if (g) csv += `${g.name},${g.grade},${a.date},${a.activity||''},${a.status},${a.rating||''},${a.notes||''}\n`;
-      });
-      downloadFile(`حضور_${month}.csv`, csv, 'text/csv;charset=utf-8;');
-      showToast('تم تصدير CSV', 'success');
-    });
-
-    document.getElementById('exportJSON').addEventListener('click', () => {
-      const month = document.getElementById('exportMonth').value;
-      const monthAtt = Object.values(attendanceData).filter(a => a.date?.startsWith(month));
-      const data = { month, girls, attendance: monthAtt, exportedAt: new Date().toISOString() };
-      downloadFile(`بيانات_${month}.json`, JSON.stringify(data, null, 2), 'application/json');
-      showToast('تم تصدير JSON', 'success');
-    });
-
-    document.getElementById('exportPrint').addEventListener('click', () => {
-      const month = document.getElementById('exportMonth').value;
-      const monthAtt = Object.values(attendanceData).filter(a => a.date?.startsWith(month));
-      let html = `<!DOCTYPE html><html lang="ar" dir="rtl">
-        <head><meta charset="UTF-8"><title>تقرير ${month}</title>
-        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
-        <style>body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px}
-        h1{color:#1a2744;border-bottom:2px solid #1a2744;padding-bottom:10px}
-        table{width:100%;border-collapse:collapse;margin-top:20px}
-        th,td{border:1px solid #ddd;padding:8px;text-align:right}
-        th{background:#1a2744;color:white}
-        .present{color:green} .absent{color:red}
-        </style></head><body>
-        <h1>تقرير متابعة المخدومات - ${formatMonth(month)}</h1>
-        <p>عدد المخدومات: ${girls.length} | تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')}</p>
-        <table><tr><th>الاسم</th><th>السنة</th><th>التاريخ</th><th>النشاط</th><th>الحضور</th><th>التقييم</th><th>ملاحظات</th></tr>
-        ${monthAtt.map(a=>{const g=girls.find(x=>x.id===a.girlId);if(!g)return'';
-          return`<tr><td>${g.name}</td><td>${g.grade}</td><td>${a.date}</td><td>${a.activity||''}</td>
-          <td class="${a.status==='حاضر'?'present':'absent'}">${a.status}</td>
-          <td>${'★'.repeat(a.rating||0)}</td><td>${a.notes||''}</td></tr>`;}).join('')}
-        </table></body></html>`;
-      const w = window.open('', '_blank');
-      w.document.write(html);
-      w.document.close();
-      w.print();
-    });
-
-    function downloadFile(filename, content, mimeType) {
-      const blob = new Blob(['\uFEFF' + content], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename; a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    // ============================================================
-    // PENDING SYNC
-    // ============================================================
-    async function addToPending(type, data) {
-      await idbPut('pending', { id: 'pending_' + Date.now(), type, data });
-    }
-
-    // ============================================================
-    // MODAL HELPERS
-    // ============================================================
-    function openModal(id) {
-      document.getElementById(id).classList.add('show');
-      document.body.style.overflow = 'hidden';
-    }
-    function closeModal(id) {
-      document.getElementById(id).classList.remove('show');
-      document.body.style.overflow = '';
-    }
-
-    document.getElementById('closeGirlModal').addEventListener('click', () => closeModal('girlModal'));
-    document.getElementById('cancelGirlModal').addEventListener('click', () => closeModal('girlModal'));
-    document.getElementById('closeAttendanceModal').addEventListener('click', () => closeModal('attendanceModal'));
-    document.getElementById('cancelAttendanceModal').addEventListener('click', () => closeModal('attendanceModal'));
-
-    document.querySelectorAll('.modal-overlay').forEach(overlay => {
-      overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) closeModal(overlay.id);
-      });
-    });
-
-    // ============================================================
-    // HELPERS
-    // ============================================================
-    function normalizeDay(d) {
-      const map = {'الأحد':'الاحد','الاثنين':'الاثنين','الثلاثاء':'الثلاثاء','الأربعاء':'الاربعاء','الخميس':'الخميس','الجمعة':'الجمعة','السبت':'السبت'};
-      return map[d] || d;
-    }
-
-    function getMonthStr(date) {
-      return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
-    }
-
-    function formatMonth(monthStr) {
-      if (!monthStr) return '';
-      const [y, m] = monthStr.split('-');
-      const d = new Date(parseInt(y), parseInt(m)-1, 1);
-      return d.toLocaleDateString('ar-EG', {year:'numeric', month:'long'});
-    }
-
-    // ============================================================
-    // INIT
-    // ============================================================
-    openIDB().then(() => {
-      updateSyncIndicator();
-      // Init page
-      const todayInput = document.getElementById('attendanceDate');
-      if (todayInput) todayInput.value = new Date().toISOString().split('T')[0];
-    });
-
-    // ============================================================
-    // SERVICE WORKER REGISTRATION
-    // ============================================================
+  <!-- Consolidated App Module -->
+  <script type="module" src="./app.js"></script>
+
+  <!-- Service Worker Registration (inline Blob) -->
+  <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('Service Worker registered:', reg.scope))
-          .catch(err => console.error('SW registration failed:', err));
-      });
+      const swCode = `const CACHE_NAME = \'makhdomat-v6\';\nconst URLS_TO_CACHE = [\n  \'./\',\n  \'./index.html\',\n  \'./style.css\',\n  \'./app.js\',\n  \'./group_photo.jpg\'\n];\nself.addEventListener(\'install\', e => {\n  e.waitUntil(\n    caches.open(CACHE_NAME).then(cache => cache.addAll(URLS_TO_CACHE))\n  );\n  self.skipWaiting();\n});\nself.addEventListener(\'activate\', e => {\n  e.waitUntil(\n    caches.keys().then(keys =>\n      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))\n    )\n  );\n  e.waitUntil(self.clients.claim());\n});\nself.addEventListener(\'fetch\', e => {\n  e.respondWith(\n    caches.match(e.request).then(cached => {\n      if (cached) return cached;\n      return fetch(e.request).then(response => {\n        if (!response || response.status !== 200 || response.type !== \'basic\') return response;\n        const clone = response.clone();\n        caches.open(CACHE_NAME).then(c => c.put(e.request, clone));\n        return response;\n      }).catch(() => cached);\n    })\n  );\n});`;
+      const swBlob = new Blob([swCode], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(swBlob);
+      navigator.serviceWorker.register(swUrl).catch(function() {});
     }
   </script>
 </body>
