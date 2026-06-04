@@ -151,7 +151,6 @@ const DOM = {
   presentTabCount: $('presentTabCount'),
   absentTabCount: $('absentTabCount'),
   menuBtn: $('menuBtn'), signOutBtn: $('signOutBtn'), googleSignIn: $('googleSignIn'),
-  guestSignIn: $('guestSignIn'),
   darkModeToggle: $('darkModeToggle'), darkToggleSwitch: $('darkToggleSwitch'),
   shareProfileBtn: $('shareProfileBtn'), editProfileBtn: $('editProfileBtn'),
   statsGradeFilter: $('statsGradeFilter'),
@@ -172,11 +171,7 @@ const state = {
   currentAttendanceRating: 0,
   editingGirlId: null,
   calendarDate: new Date(),
-  isOnline: navigator.onLine,
-  idb: null,
   appInitialized: false,
-  unsubGirls: null,
-  unsubAtt: null,
   renderTimeout: null,
   historyOffset: 0,
   historyAllLogs: [],
@@ -195,7 +190,6 @@ const state = {
   attSearchDebounceTimer: null,
   attendancePageInitialized: false,
   savingGirl: false,
-  isGuest: false
 };
 
 const HISTORY_PAGE_SIZE = 30;
@@ -350,61 +344,7 @@ function csvEscape(v) {
 // ============================================================
 // INDEXEDDB
 // ============================================================
-const IDB = {
-  async open() {
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open('MakhdomatDB', 2);
-      req.onupgradeneeded = e => {
-        const d = e.target.result;
-        ['girls', 'attendance', 'history', 'pending'].forEach(store => {
-          if (!d.objectStoreNames.contains(store)) d.createObjectStore(store, { keyPath: 'id' });
-        });
-      };
-      req.onsuccess = e => { state.idb = e.target.result; resolve(state.idb); };
-      req.onerror = () => reject(req.error);
-    });
-  },
-  async put(store, data) {
-    return new Promise((res, rej) => {
-      const tx = state.idb.transaction(store, 'readwrite');
-      tx.objectStore(store).put(data);
-      tx.oncomplete = () => res();
-      tx.onerror = () => rej(tx.error);
-    });
-  },
-  async getAll(store) {
-    return new Promise((res, rej) => {
-      const tx = state.idb.transaction(store, 'readonly');
-      const req = tx.objectStore(store).getAll();
-      req.onsuccess = () => res(req.result);
-      req.onerror = () => rej(req.error);
-    });
-  },
-  async get(store, id) {
-    return new Promise((res, rej) => {
-      const tx = state.idb.transaction(store, 'readonly');
-      const req = tx.objectStore(store).get(id);
-      req.onsuccess = () => res(req.result);
-      req.onerror = () => rej(req.error);
-    });
-  },
-  async delete(store, id) {
-    return new Promise((res, rej) => {
-      const tx = state.idb.transaction(store, 'readwrite');
-      tx.objectStore(store).delete(id);
-      tx.oncomplete = () => res();
-      tx.onerror = () => rej(tx.error);
-    });
-  },
-  async clear(store) {
-    return new Promise((res, rej) => {
-      const tx = state.idb.transaction(store, 'readwrite');
-      tx.objectStore(store).clear();
-      tx.oncomplete = () => res();
-      tx.onerror = () => rej(tx.error);
-    });
-  }
-};
+
 
 // ============================================================
 // DARK MODE
@@ -461,64 +401,14 @@ function hideSplash() {
 // ============================================================
 // ONLINE / OFFLINE
 // ============================================================
-window.addEventListener('online', () => {
-  state.isOnline = true;
-  updateSyncUI();
-  syncPending();
-  showToast('تم الاتصال بالإنترنت - جارٍ المزامنة', 'success');
-}, { passive: true });
 
-window.addEventListener('offline', () => {
-  state.isOnline = false;
-  updateSyncUI();
-  showToast('أنت في وضع عدم الاتصال - سيتم الحفظ محلياً', 'warning');
-}, { passive: true });
-
-function updateSyncUI() {
-  if (!DOM.syncIndicator || !DOM.offlineBadge) return;
-  if (state.isOnline) {
-    DOM.syncIndicator.classList.remove('offline');
-    DOM.syncIndicator.classList.add('online');
-    DOM.offlineBadge.classList.remove('show');
-  } else {
-    DOM.syncIndicator.classList.remove('online');
-    DOM.syncIndicator.classList.add('offline');
-    DOM.offlineBadge.classList.add('show');
-  }
-}
-
-async function syncPending() {
-  if (!state.idb || !state.isOnline || !firebaseReady || !window._fb) return;
-  try {
-    const pending = await IDB.getAll('pending');
-    let count = 0;
-    const { setDoc, doc, collection, query, where, getDocs, writeBatch } = window._fb;
-    for (const item of pending) {
-      try {
-        if (item.type === 'girl') await setDoc(doc(db, 'girls', item.data.id), item.data);
-        else if (item.type === 'attendance') await setDoc(doc(db, 'attendance', item.data.id), item.data);
-        else if (item.type === 'delete_girl') {
-          await setDoc(doc(db, 'girls', item.data.id), item.data.update, { merge: true });
-          const attQuery = query(collection(db, 'attendance'), where('girlId', '==', item.data.id));
-          const attSnap = await getDocs(attQuery);
-          const batch = writeBatch(db);
-          attSnap.forEach(d => batch.delete(d.ref));
-          await batch.commit();
-        }
-        await IDB.delete('pending', item.id);
-        count++;
-      } catch (e) { console.error('Sync item error:', e); }
-    }
-    if (count > 0) showToast(`تمت مزامنة ${count} سجل`, 'success');
-  } catch (e) { console.error('Sync error:', e); }
-}
 
 // ============================================================
 // AUTH — Fixed with better error handling + Guest Mode
 // ============================================================
 async function initAuth() {
   if (!firebaseReady || !window._fb) {
-    console.warn('Firebase not available, showing login in offline mode');
+    console.error('Firebase not available');
     hideSplash();
     showLogin();
     return;
@@ -532,16 +422,13 @@ async function initAuth() {
       hideSplash();
       if (!user) {
         state.currentUser = null;
-        state.isGuest = false;
         state.appInitialized = false;
         state.girls = [];
         state.attendanceData = {};
-        stopListeners();
         showLogin();
         return;
       }
       state.currentUser = user;
-      state.isGuest = false;
       showApp(user);
       if (!state.appInitialized) {
         state.appInitialized = true;
@@ -557,28 +444,7 @@ async function initAuth() {
 }
 
 // Guest Sign In
-if (DOM.guestSignIn) {
-  DOM.guestSignIn.addEventListener('click', async () => {
-    const guestUser = {
-      displayName: 'زائر',
-      email: 'guest@local.offline',
-      uid: 'guest_' + Date.now(),
-      photoURL: null
-    };
-    state.currentUser = guestUser;
-    state.isGuest = true;
-    state.isOnline = false;
-    hideSplash();
-    showApp(guestUser);
-    if (!state.appInitialized) {
-      state.appInitialized = true;
-      await loadData();
-      renderPage();
-    }
-    showToast('أهلاً بيك! البيانات هتحفظ محلياً على الجهاز.', 'success');
-    updateSyncUI();
-  });
-}
+
 
 if (DOM.googleSignIn) {
   DOM.googleSignIn.addEventListener('click', async () => {
@@ -606,14 +472,6 @@ if (DOM.googleSignIn) {
 
 if (DOM.signOutBtn) {
   DOM.signOutBtn.addEventListener('click', async () => {
-    if (state.isGuest) {
-      // Guest logout
-      state.currentUser = null;
-      state.isGuest = false;
-      state.appInitialized = false;
-      showLogin();
-      return;
-    }
     if (!firebaseReady || !window._fb) {
       state.currentUser = null;
       state.appInitialized = false;
@@ -660,42 +518,22 @@ function showLogin() {
 // ============================================================
 // FIREBASE LISTENERS
 // ============================================================
-function stopListeners() {
-  if (state.unsubGirls) { state.unsubGirls(); state.unsubGirls = null; }
-  if (state.unsubAtt) { state.unsubAtt(); state.unsubAtt = null; }
-}
-
 async function loadData() {
   try {
-    if (state.idb) {
-      const localGirls = await IDB.getAll('girls');
-      if (localGirls.length) {
-        state.girls = localGirls.filter(g => !g.isDeleted);
-        renderPage();
-      }
-      const localAtt = await IDB.getAll('attendance');
-      localAtt.forEach(a => { state.attendanceData[a.id] = a; });
-      renderPage();
-    }
-    if (!state.isOnline || !firebaseReady || !window._fb || state.isGuest) return;
+    if (!firebaseReady || !window._fb) return;
 
     const { getDocs, query, collection, orderBy, onSnapshot, doc, setDoc } = window._fb;
 
-    try {
-      const histSnap = await getDocs(query(collection(db, 'history'), orderBy('timestamp', 'desc')));
-      for (const d of histSnap.docs) await IDB.put('history', { id: d.id, ...d.data() });
-    } catch (e) { console.error('History sync error:', e); }
+    const { onSnapshot: _onSnapshot, query: _query, collection: _collection, orderBy: _orderBy } = window._fb;
 
-    state.unsubGirls = onSnapshot(query(collection(db, 'girls'), orderBy('name')), async snap => {
+    _onSnapshot(_query(_collection(db, 'girls'), _orderBy('name')), snap => {
       let changed = false;
       for (const change of snap.docChanges()) {
         const g = { id: change.doc.id, ...change.doc.data() };
         if (change.type === 'removed' || g.isDeleted) {
           state.girls = state.girls.filter(x => x.id !== g.id);
-          if (state.idb) await IDB.delete('girls', g.id);
           changed = true;
         } else {
-          if (state.idb) await IDB.put('girls', g);
           const idx = state.girls.findIndex(x => x.id === g.id);
           idx >= 0 ? (state.girls[idx] = g) : state.girls.push(g);
           changed = true;
@@ -705,17 +543,15 @@ async function loadData() {
       if (changed) scheduleRender();
     });
 
-    state.unsubAtt = onSnapshot(query(collection(db, 'attendance'), orderBy('date', 'desc')), async snap => {
+    _onSnapshot(_query(_collection(db, 'attendance'), _orderBy('date', 'desc')), snap => {
       let changed = false;
       for (const change of snap.docChanges()) {
         const a = { id: change.doc.id, ...change.doc.data() };
         if (change.type === 'removed') {
           delete state.attendanceData[a.id];
-          if (state.idb) await IDB.delete('attendance', a.id);
           changed = true;
         } else {
           state.attendanceData[a.id] = a;
-          if (state.idb) await IDB.put('attendance', a);
           changed = true;
         }
       }
@@ -1174,38 +1010,26 @@ if (DOM.deleteGirlBtn) {
           const attKeys = Object.keys(state.attendanceData).filter(k => state.attendanceData[k].girlId === id);
           attKeys.forEach(k => delete state.attendanceData[k]);
 
-          if (state.idb) {
-            await IDB.put('girls', { ...g, isDeleted: true, deletedAt: Date.now(), deletedBy: state.currentUser?.email || '' });
-            const allAtt = await IDB.getAll('attendance');
-            const toDelete = allAtt.filter(a => a.girlId === id);
-            await Promise.all(toDelete.map(a => IDB.delete('attendance', a.id)));
-          }
+          try {
+            const { setDoc, doc, collection, query, where, getDocs, writeBatch } = window._fb;
+            await setDoc(doc(db, 'girls', id), {
+              isDeleted: true, deletedAt: Date.now(),
+              deletedBy: state.currentUser?.email || '',
+              name: g.name, grade: g.grade
+            }, { merge: true });
 
-          if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
-            try {
-              const { setDoc, doc, collection, query, where, getDocs, writeBatch } = window._fb;
-              await setDoc(doc(db, 'girls', id), {
-                isDeleted: true, deletedAt: Date.now(),
-                deletedBy: state.currentUser?.email || '',
-                name: g.name, grade: g.grade
-              }, { merge: true });
-
-              const attQuery = query(collection(db, 'attendance'), where('girlId', '==', id));
-              const attSnap = await getDocs(attQuery);
-              if (!attSnap.empty) {
-                const docs = attSnap.docs;
-                for (let i = 0; i < docs.length; i += 500) {
-                  const batch = writeBatch(db);
-                  docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
-                  await batch.commit();
-                }
+            const attQuery = query(collection(db, 'attendance'), where('girlId', '==', id));
+            const attSnap = await getDocs(attQuery);
+            if (!attSnap.empty) {
+              const docs = attSnap.docs;
+              for (let i = 0; i < docs.length; i += 500) {
+                const batch = writeBatch(db);
+                docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
+                await batch.commit();
               }
-            } catch (e) {
-              console.error('Delete girl Firestore error:', e);
-              await addPending('delete_girl', { id, update: { isDeleted: true, deletedAt: Date.now(), deletedBy: state.currentUser?.email || '' } });
             }
-          } else {
-            await addPending('delete_girl', { id, update: { isDeleted: true, deletedAt: Date.now(), deletedBy: state.currentUser?.email || '' } });
+          } catch (e) {
+            console.error('Delete girl Firestore error:', e);
           }
 
           await logHistory('حذف مخدومة', `${g.name} - ${g.grade}`);
@@ -1256,7 +1080,6 @@ if (DOM.saveGirlBtn) {
         isDeleted: false
       };
 
-      if (state.idb) await IDB.put('girls', girlData);
       if (state.editingGirlId) {
         state.girls = state.girls.map(g => g.id === id ? girlData : g);
       } else {
@@ -1265,11 +1088,9 @@ if (DOM.saveGirlBtn) {
 
       await logHistory(state.editingGirlId ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} - ${grade}`);
 
-      if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
+      if (firebaseReady && window._fb) {
         try { await window._fb.setDoc(window._fb.doc(db, 'girls', id), girlData); }
-        catch (e) { await addPending('girl', girlData); }
-      } else {
-        await addPending('girl', girlData);
+        catch (e) { console.error('Save girl Firestore error:', e); }
       }
 
       closeModal('girlModal');
@@ -1488,14 +1309,11 @@ async function toggleAttendanceStatus(girlId, girlName, date) {
     updatedByEmail: state.currentUser?.email || ''
   };
 
-  if (state.idb) await IDB.put('attendance', rec);
   state.attendanceData[key] = rec;
 
-  if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
+  if (firebaseReady && window._fb) {
     try { await window._fb.setDoc(window._fb.doc(db, 'attendance', key), rec); }
-    catch (e) { await addPending('attendance', rec); }
-  } else {
-    await addPending('attendance', rec);
+    catch (e) { console.error('Save attendance Firestore error:', e); }
   }
 
   renderAttendanceList();
@@ -1535,10 +1353,9 @@ async function markAllAbsent(date) {
 
   for (const rec of batchRecords) {
     state.attendanceData[rec.id] = rec;
-    if (state.idb) await IDB.put('attendance', rec);
   }
 
-  if (state.isOnline && firebaseReady && window._fb && !state.isGuest && batchRecords.length > 0) {
+  if (firebaseReady && window._fb && batchRecords.length > 0) {
     try {
       const batch = window._fb.writeBatch(db);
       for (const rec of batchRecords) {
@@ -1546,10 +1363,8 @@ async function markAllAbsent(date) {
       }
       await batch.commit();
     } catch (e) {
-      for (const rec of batchRecords) { await addPending('attendance', rec); }
+      console.error('Batch save attendance Firestore error:', e);
     }
-  } else if (batchRecords.length > 0) {
-    for (const rec of batchRecords) { await addPending('attendance', rec); }
   }
 
   if (batchRecords.length > 0) {
@@ -1584,10 +1399,9 @@ async function selectAllStatus(status) {
     };
     batchRecords.push(rec);
     state.attendanceData[key] = rec;
-    if (state.idb) await IDB.put('attendance', rec);
   }
 
-  if (state.isOnline && firebaseReady && window._fb && !state.isGuest && batchRecords.length > 0) {
+  if (firebaseReady && window._fb && batchRecords.length > 0) {
     try {
       const batch = window._fb.writeBatch(db);
       for (const rec of batchRecords) {
@@ -1595,10 +1409,8 @@ async function selectAllStatus(status) {
       }
       await batch.commit();
     } catch (e) {
-      for (const rec of batchRecords) { await addPending('attendance', rec); }
+      console.error('Batch save attendance Firestore error:', e);
     }
-  } else if (batchRecords.length > 0) {
-    for (const rec of batchRecords) { await addPending('attendance', rec); }
   }
 
   await logHistory('تسجيل حضور', `${status === 'حاضر' ? 'تحديد الكل حاضر' : 'تحديد الكل غائب'} - ${state.selectedActivity} - ${date}`);
@@ -1689,8 +1501,7 @@ async function deleteAttendanceRecord(key) {
     onOk: async () => {
       try {
         delete state.attendanceData[key];
-        if (state.idb) await IDB.delete('attendance', key);
-        if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
+        if (firebaseReady && window._fb) {
           try { await window._fb.deleteDoc(window._fb.doc(db, 'attendance', key)); }
           catch (e) { console.error('Delete attendance Firestore error:', e); }
         }
@@ -1766,14 +1577,11 @@ if (DOM.saveAttendanceEntry) {
       updatedByEmail: state.currentUser?.email || ''
     };
 
-    if (state.idb) await IDB.put('attendance', rec);
     state.attendanceData[key] = rec;
 
-    if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
+    if (firebaseReady && window._fb) {
       try { await window._fb.setDoc(window._fb.doc(db, 'attendance', key), rec); }
-      catch (e) { await addPending('attendance', rec); }
-    } else {
-      await addPending('attendance', rec);
+      catch (e) { console.error('Save attendance Firestore error:', e); }
     }
 
     const gName = state.girls.find(g => g.id === state.currentAttendanceGirlId)?.name || '';
@@ -2293,8 +2101,7 @@ async function logHistory(action, detail) {
     byEmail: state.currentUser?.email || '',
     timestamp: Date.now()
   };
-  if (state.idb) await IDB.put('history', log);
-  if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
+  if (firebaseReady && window._fb) {
     try { await window._fb.setDoc(window._fb.doc(db, 'history', log.id), log); } catch (e) { }
   }
 }
@@ -2569,10 +2376,7 @@ function downloadFile(filename, content, mimeType) {
 // ============================================================
 // PENDING SYNC
 // ============================================================
-async function addPending(type, data) {
-  if (!state.idb) return;
-  await IDB.put('pending', { id: 'pending_' + Date.now(), type, data });
-}
+
 
 // ============================================================
 // MODAL HELPERS
@@ -2777,20 +2581,16 @@ setupDelegation();
 // ============================================================
 async function bootstrap() {
   initDarkMode();
-  try { await IDB.open(); } catch (e) { console.error('IDB open failed:', e); }
 
   // Initialize Firebase modules first
   const modulesReady = await initModules();
 
   if (modulesReady) {
-    // Firebase loaded successfully
     await initAuth();
   } else {
-    // Firebase failed — show login anyway (offline mode)
-    console.warn('Running in offline mode - Firebase not available');
+    console.error('Firebase failed to load');
     hideSplash();
     showLogin();
-    showToast('وضع عدم الاتصال - البيانات ستحفظ محلياً', 'warning');
   }
 }
 
