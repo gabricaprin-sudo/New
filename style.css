@@ -1268,6 +1268,125 @@ body {
 .export-btn.json { background: rgba(52,152,219,0.1); color: #1a5280; }
 .export-btn.print { background: rgba(26,39,68,0.08); color: var(--primary); }
 
+/* Export Mode Selector */
+.export-mode-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  text-align: right;
+}
+.export-mode-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.export-mode-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.export-mode-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
+  font-family: 'Tajawal', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.export-mode-option:active { transform: scale(0.97); }
+.export-mode-option input[type="radio"] {
+  display: none;
+}
+.mode-check {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.mode-check::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.2s;
+}
+.export-mode-option input[type="radio"]:checked + .mode-check {
+  border-color: var(--primary);
+}
+.export-mode-option input[type="radio"]:checked + .mode-check::after {
+  opacity: 1;
+  transform: scale(1);
+}
+.export-mode-option:has(input[type="radio"]:checked) {
+  border-color: var(--primary);
+  background: rgba(26,39,68,0.05);
+  color: var(--primary);
+}
+.export-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: rgba(26,39,68,0.04);
+  border-radius: 8px;
+  text-align: center;
+}
+
+/* Activity Stat Card - Absent count */
+.activity-stat-absent {
+  font-size: 12px;
+  color: var(--red);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* Dark mode for export */
+[data-theme="dark"] .export-mode-option {
+  background: #1e293b;
+  border-color: #2a3650;
+  color: var(--text);
+}
+[data-theme="dark"] .export-mode-option:has(input[type="radio"]:checked) {
+  border-color: var(--accent);
+  background: rgba(232,160,32,0.1);
+  color: var(--accent);
+}
+[data-theme="dark"] .mode-check {
+  border-color: #2a3650;
+}
+[data-theme="dark"] .export-mode-option input[type="radio"]:checked + .mode-check {
+  border-color: var(--accent);
+}
+[data-theme="dark"] .mode-check::after {
+  background: var(--accent);
+}
+[data-theme="dark"] .export-hint {
+  background: rgba(201,214,240,0.05);
+  color: var(--text-muted);
+}
+
 /* ============================================================
    MODALS
    ============================================================ */

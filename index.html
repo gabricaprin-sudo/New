@@ -313,10 +313,29 @@
               <label for="exportMonth">التاريخ:</label>
               <input type="date" id="exportMonth" class="month-input">
             </div>
+            <!-- Export Mode Selector -->
+            <div class="export-mode-wrap">
+              <label class="export-mode-label">نطاق التصدير:</label>
+              <div class="export-mode-options">
+                <label class="export-mode-option">
+                  <input type="radio" name="exportMode" value="day" checked>
+                  <span class="mode-check"></span>
+                  <span class="mode-text">يوم محدد</span>
+                </label>
+                <label class="export-mode-option">
+                  <input type="radio" name="exportMode" value="month">
+                  <span class="mode-check"></span>
+                  <span class="mode-text">الشهر كامل</span>
+                </label>
+              </div>
+            </div>
+            <div class="export-hint">
+              <span>&#128161;</span> اختر "يوم محدد" لتصدير يوم واحد، أو "الشهر كامل" لتصدير كل أيام الشهر
+            </div>
             <div class="export-btns">
               <button class="export-btn csv" id="exportCSV">
                 <span>&#128196;</span>
-                <div><b>تصدير Excel</b><small>ملف Excel (.xlsx)</small></div>
+                <div><b>تصدير Excel</b><small>حاضر = &#10003; | غائب = X</small></div>
               </button>
               <button class="export-btn json" id="exportJSON">
                 <span>&#128190;</span>

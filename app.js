@@ -724,7 +724,7 @@ function getMostRegularGirlFiltered(monthStr, gradeFilter) {
 }
 
 // ============================================================
-// HOME PAGE
+// HOME PAGE — FIXED: Auto-count absences on service days
 // ============================================================
 function renderHome() {
   const now = new Date();
@@ -768,6 +768,7 @@ function renderHome() {
   const absentGirlIds = new Set();
   const todayRecordsByGirl = {};
 
+  // Collect all attendance records for today
   Object.values(state.attendanceData).forEach(a => {
     if (a.date !== dateStr) return;
     if (!activeGirlIds.has(a.girlId)) return;
@@ -775,10 +776,18 @@ function renderHome() {
     todayRecordsByGirl[a.girlId].push(a);
   });
 
-  Object.entries(todayRecordsByGirl).forEach(([girlId, records]) => {
-    const hasAnyPresent = records.some(r => r.status === 'حاضر');
-    if (hasAnyPresent) presentGirlIds.add(girlId);
-    else absentGirlIds.add(girlId);
+  // Check each girl's status for today
+  activeGirls.forEach(g => {
+    const records = todayRecordsByGirl[g.id];
+    if (records && records.length > 0) {
+      // Girl has attendance records - check if any are present
+      const hasAnyPresent = records.some(r => r.status === 'حاضر');
+      if (hasAnyPresent) presentGirlIds.add(g.id);
+      else absentGirlIds.add(g.id);
+    } else if (isService) {
+      // Service day with NO records = auto counted as absent
+      absentGirlIds.add(g.id);
+    }
   });
 
   if (DOM.statPresentToday) DOM.statPresentToday.textContent = presentGirlIds.size;
@@ -1219,12 +1228,18 @@ if (DOM.shareProfileBtn) {
 }
 
 // ============================================================
-// ATTENDANCE PAGE
+// ATTENDANCE PAGE — FIXED: Reliable auto-absence on service days
 // ============================================================
 function getCurrentServiceDay() {
   const dayOfWeek = new Date().getDay();
   const dayMap = { 6: 'السبت', 1: 'الاثنين', 3: 'الاربعاء' };
   return dayMap[dayOfWeek] || null;
+}
+
+function isServiceDayDate(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr + 'T00:00:00');
+  return SERVICE_DAY_NUMBERS.includes(d.getDay());
 }
 
 function renderAttendancePage() {
@@ -1241,15 +1256,22 @@ function renderAttendancePage() {
 
   const date = DOM.attendanceDate.value;
   const activeGirls = state.girls.filter(g => !g.isDeleted);
-  const hasAnyRecords = activeGirls.some(g => {
-    const key = `${g.id}_${date}_${state.selectedActivity}`;
-    return state.attendanceData[key];
+
+  // Check if any records exist for this date across ALL activities
+  const hasAnyRecordsForDate = activeGirls.some(g => {
+    return ACTIVITIES.some(act => {
+      const key = `${g.id}_${date}_${act}`;
+      return state.attendanceData[key];
+    });
   });
-  if (activeGirls.length > 0 && !hasAnyRecords && !state.attendancePageInitialized) {
+
+  // Auto-mark absent on service days if no records exist yet for this date
+  if (activeGirls.length > 0 && !hasAnyRecordsForDate && isServiceDayDate(date) && !state.attendancePageInitialized) {
     state.attendancePageInitialized = true;
-    markAllAbsent(date);
+    markAllAbsentForDate(date);
     return;
   }
+
   state.attendancePageInitialized = true;
   renderAttendanceList();
 }
@@ -1322,32 +1344,37 @@ async function toggleAttendanceStatus(girlId, girlName, date) {
   if (state.currentPage === 'calendar') renderCalendar();
 }
 
-async function markAllAbsent(date) {
-  // Only auto-lock attendance on service days (Sat, Mon, Wed)
-  const dateObj = new Date(date + 'T00:00:00');
-  const dayOfWeek = dateObj.getDay();
-  if (!SERVICE_DAY_NUMBERS.includes(dayOfWeek)) return; // Skip non-service days
+// FIXED: Mark all girls as absent for ALL activities on a service day
+async function markAllAbsentForDate(date) {
+  if (!isServiceDayDate(date)) return;
 
   const activeGirls = state.girls.filter(g => !g.isDeleted);
+  if (activeGirls.length === 0) {
+    renderAttendanceList();
+    return;
+  }
+
   const batchRecords = [];
 
   for (const g of activeGirls) {
-    const key = `${g.id}_${date}_${state.selectedActivity}`;
-    if (!state.attendanceData[key]) {
-      const rec = {
-        id: key,
-        girlId: g.id,
-        date,
-        day: state.selectedDay,
-        activity: state.selectedActivity,
-        status: 'غائب',
-        rating: 0,
-        notes: '',
-        updatedAt: Date.now(),
-        updatedBy: state.currentUser?.displayName || 'خادم',
-        updatedByEmail: state.currentUser?.email || ''
-      };
-      batchRecords.push(rec);
+    for (const activity of ACTIVITIES) {
+      const key = `${g.id}_${date}_${activity}`;
+      if (!state.attendanceData[key]) {
+        const rec = {
+          id: key,
+          girlId: g.id,
+          date,
+          day: state.selectedDay,
+          activity: activity,
+          status: 'غائب',
+          rating: 0,
+          notes: '',
+          updatedAt: Date.now(),
+          updatedBy: state.currentUser?.displayName || 'خادم',
+          updatedByEmail: state.currentUser?.email || ''
+        };
+        batchRecords.push(rec);
+      }
     }
   }
 
@@ -1368,10 +1395,18 @@ async function markAllAbsent(date) {
   }
 
   if (batchRecords.length > 0) {
-    renderAttendanceList();
-    if (state.currentPage === 'home') renderHome();
-    if (state.currentPage === 'calendar') renderCalendar();
+    await logHistory('تسجيل حضور', `تعيين الغياب التلقائي ليوم ${date} (${state.selectedDay})`);
+    showToast('تم تعيين الغياب التلقائي ليوم خدمة', 'info');
   }
+
+  renderAttendanceList();
+  if (state.currentPage === 'home') renderHome();
+  if (state.currentPage === 'calendar') renderCalendar();
+}
+
+// Kept for backward compatibility - delegates to the new function
+async function markAllAbsent(date) {
+  await markAllAbsentForDate(date);
 }
 
 async function selectAllStatus(status) {
@@ -1689,7 +1724,7 @@ if (DOM.calNext) {
 }
 
 // ============================================================
-// ACTIVITY STATS
+// ACTIVITY STATS — FIXED: Show both present AND absence data
 // ============================================================
 function getPeriodBounds(period, customDate) {
   const selectedDate = customDate || DateUtil.toStr();
@@ -1701,6 +1736,7 @@ function getPeriodBounds(period, customDate) {
   }
 }
 
+// FIXED: Returns both present AND absence counts for each activity
 function getActivityStats(period, gradeFilter = '', customDate) {
   let activeGirls = state.girls.filter(g => !g.isDeleted);
   const activeGirlIds = gradeFilter
@@ -1708,16 +1744,25 @@ function getActivityStats(period, gradeFilter = '', customDate) {
     : new Set(activeGirls.map(g => g.id));
   const { start, end } = getPeriodBounds(period, customDate);
 
-  const stats = { 'دراسي': 0, 'ألحان': 0, 'قبطي': 0, 'محفوظات': 0 };
+  const stats = {
+    'دراسي': { present: 0, absent: 0 },
+    'ألحان': { present: 0, absent: 0 },
+    'قبطي': { present: 0, absent: 0 },
+    'محفوظات': { present: 0, absent: 0 }
+  };
 
   Object.values(state.attendanceData).forEach(a => {
-    if (a.status !== 'حاضر') return;
     if (!activeGirlIds.has(a.girlId)) return;
     if (a.date < start || a.date > end) return;
-    if (stats.hasOwnProperty(a.activity)) stats[a.activity]++;
+    if (stats.hasOwnProperty(a.activity)) {
+      if (a.status === 'حاضر') stats[a.activity].present++;
+      else if (a.status === 'غائب') stats[a.activity].absent++;
+    }
   });
 
-  return Object.entries(stats).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1]);
+  return Object.entries(stats)
+    .filter(([, data]) => data.present > 0 || data.absent > 0)
+    .sort((a, b) => (b[1].present + b[1].absent) - (a[1].present + a[1].absent));
 }
 
 // ============================================================
@@ -1839,7 +1884,7 @@ if (DOM.closeActivityDetailModal) {
 }
 
 // ============================================================
-// ACTIVITY STAT CARDS
+// ACTIVITY STAT CARDS — FIXED: Show both present and absent
 // ============================================================
 function renderActivityStats(period, gradeFilter = '') {
   const stats = getActivityStats(period, gradeFilter);
@@ -1854,12 +1899,13 @@ function renderActivityStats(period, gradeFilter = '') {
   const icons = { 'دراسي': '&#128216;', 'ألحان': '&#127925;', 'قبطي': '&#9961;', 'محفوظات': '&#128221;' };
   const medals = ['&#129351;', '&#129352;', '&#129353;', '4'];
 
-  el.innerHTML = stats.map(([activity, count], i) => `
+  el.innerHTML = stats.map(([activity, data], i) => `
     <div class="activity-stat-card" data-activity="${esc(activity)}" role="button" tabindex="0" aria-label="تفاصيل ${esc(activity)}">
       <div class="activity-stat-rank">${medals[i] || (i + 1)}</div>
       <div class="activity-stat-icon">${icons[activity] || '&#128202;'}</div>
-      <div class="activity-stat-num">${count}</div>
+      <div class="activity-stat-num">${data.present}</div>
       <div class="activity-stat-label">${activity}</div>
+      <div class="activity-stat-absent">غائب: ${data.absent}</div>
     </div>
   `).join('');
 
@@ -2107,118 +2153,174 @@ async function logHistory(action, detail) {
 }
 
 // ============================================================
-// EXPORT PAGE
+// EXPORT PAGE — FIXED: Day/Month selection with ✓ and X symbols
 // ============================================================
 function renderExport() {
   if (DOM.exportMonth && !DOM.exportMonth.value) DOM.exportMonth.value = DateUtil.toStr();
 }
 
-// Excel export — uses date range from export page
+// Excel export — FIXED: Supports specific day or whole month, uses ✓ for present and X for absent
 if (DOM.exportCSV) {
   DOM.exportCSV.addEventListener('click', () => {
     if (!XLSX) { showToast('مكتبة Excel غير محملة، حاول تحديث الصفحة', 'error'); return; }
 
+    // Get export options
+    const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || 'day';
     const exportDate = DOM.exportMonth.value || DateUtil.toStr();
-    // Export range: from start of the month to selected date
-    const exportStart = exportDate.substring(0, 7) + '-01';
-    const exportEnd = exportDate;
+
+    let exportStart, exportEnd, reportTitle;
+
+    if (exportMode === 'month') {
+      // Export entire month
+      const [year, month] = exportDate.substring(0, 7).split('-').map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      exportStart = exportDate.substring(0, 7) + '-01';
+      exportEnd = exportDate.substring(0, 7) + '-' + String(daysInMonth).padStart(2, '0');
+      reportTitle = 'تقرير حضور شهر ' + DateUtil.formatMonth(exportDate.substring(0, 7));
+    } else {
+      // Export specific day only
+      exportStart = exportDate;
+      exportEnd = exportDate;
+      const dayName = DAY_NAMES[new Date(exportDate + 'T00:00:00').getDay()] || '';
+      reportTitle = 'تقرير حضور يوم ' + exportDate + ' (' + dayName + ')';
+    }
 
     const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
     let exportAtt = Object.values(state.attendanceData).filter(a =>
       a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId)
     );
 
-    const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
     exportAtt.sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return (a.activity || '').localeCompare(b.activity || '', 'ar');
     });
 
-    const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
-    const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
-
-    const grouped = {};
-    exportAtt.forEach(a => {
-      if (!grouped[a.girlId]) {
-        const g = state.girls.find(x => x.id === a.girlId);
-        grouped[a.girlId] = {
-          name: g?.name || '', grade: g?.grade || '',
-          'دراسي': { present: 0, absent: 0 }, 'قبطي': { present: 0, absent: 0 },
-          'محفوظات': { present: 0, absent: 0 }, 'ألحان': { present: 0, absent: 0 },
-          totalPresent: 0, totalAbsent: 0
-        };
-      }
-      if (a.status === 'حاضر') {
-        grouped[a.girlId][a.activity].present++;
-        grouped[a.girlId].totalPresent++;
-      } else {
-        grouped[a.girlId][a.activity].absent++;
-        grouped[a.girlId].totalAbsent++;
-      }
-    });
-
-    const fmtAtt = (act) => {
-      const total = act.present + act.absent;
-      if (total === 0) return '—';
-      if (act.present === total) return '✔';
-      if (act.present === 0) return '✘';
-      return act.present + '/' + total;
-    };
-
     const wb = XLSX.utils.book_new();
 
-    // === Sheet 1: Summary ===
-    const wsData = [];
-    wsData.push(['تقرير حضور ' + monthName + ' (حتى ' + exportEnd + ')']);
-    wsData.push([]);
-    wsData.push(['عدد المخدومات', activeGirlIds.size]);
-    wsData.push(['إجمالي الحضور', totalPresent]);
-    wsData.push(['إجمالي الغياب', totalAbsent]);
-    wsData.push([]);
-    wsData.push(['الاسم', 'السنة', 'دراسي', 'قبطي', 'محفوظات', 'ألحان', 'إجمالي الحضور', 'إجمالي الغياب', 'النسبة']);
+    if (exportMode === 'month') {
+      // === Sheet 1: Monthly Summary per Girl ===
+      const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
+      const wsData = [];
+      wsData.push(['تقرير حضور شهر ' + monthName]);
+      wsData.push([]);
+      wsData.push(['عدد المخدومات', activeGirlIds.size]);
+      wsData.push([]);
+      wsData.push(['الاسم', 'السنة', 'دراسي', 'قبطي', 'محفوظات', 'ألحان', 'إجمالي الحضور', 'إجمالي الغياب', 'النسبة']);
 
-    Object.values(grouped).forEach(r => {
-      const total = r.totalPresent + r.totalAbsent;
-      const rate = total > 0 ? Math.round((r.totalPresent / total) * 100) + '%' : '0%';
-      wsData.push([r.name, r.grade, fmtAtt(r['دراسي']), fmtAtt(r['قبطي']), fmtAtt(r['محفوظات']), fmtAtt(r['ألحان']), r.totalPresent, r.totalAbsent, rate]);
-    });
+      // Group by girl
+      const grouped = {};
+      exportAtt.forEach(a => {
+        if (!grouped[a.girlId]) {
+          const g = state.girls.find(x => x.id === a.girlId);
+          grouped[a.girlId] = {
+            name: g?.name || '', grade: g?.grade || '',
+            'دراسي': { present: 0, absent: 0 }, 'قبطي': { present: 0, absent: 0 },
+            'محفوظات': { present: 0, absent: 0 }, 'ألحان': { present: 0, absent: 0 },
+            totalPresent: 0, totalAbsent: 0
+          };
+        }
+        if (a.status === 'حاضر') {
+          grouped[a.girlId][a.activity].present++;
+          grouped[a.girlId].totalPresent++;
+        } else {
+          grouped[a.girlId][a.activity].absent++;
+          grouped[a.girlId].totalAbsent++;
+        }
+      });
 
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
-    ws['!dir'] = 'rtl';
-    XLSX.utils.book_append_sheet(wb, ws, 'ملخص');
+      // Sort by name
+      const sortedGirls = Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
 
-    // === Sheet 2: Detailed Daily Records ===
-    const detailData = [];
-    detailData.push(['تقرير تفصيلي — ' + monthName]);
-    detailData.push([]);
-    detailData.push(['التاريخ', 'اليوم', 'المخدومة', 'السنة', 'النشاط', 'الحالة', 'التقييم', 'ملاحظات']);
+      sortedGirls.forEach(r => {
+        const total = r.totalPresent + r.totalAbsent;
+        const rate = total > 0 ? Math.round((r.totalPresent / total) * 100) + '%' : '0%';
+        wsData.push([r.name, r.grade,
+          r['دراسي'].present > 0 ? '✓' : (r['دراسي'].absent > 0 ? 'X' : '—'),
+          r['قبطي'].present > 0 ? '✓' : (r['قبطي'].absent > 0 ? 'X' : '—'),
+          r['محفوظات'].present > 0 ? '✓' : (r['محفوظات'].absent > 0 ? 'X' : '—'),
+          r['ألحان'].present > 0 ? '✓' : (r['ألحان'].absent > 0 ? 'X' : '—'),
+          r.totalPresent, r.totalAbsent, rate]);
+      });
 
-    exportAtt.forEach(a => {
-      const g = state.girls.find(x => x.id === a.girlId);
-      const dayName = DAY_NAMES[new Date(a.date + 'T00:00:00').getDay()] || '';
-      const stars = a.rating ? '★'.repeat(a.rating) + '☆'.repeat(5 - a.rating) : '';
-      detailData.push([a.date, dayName, g?.name || '', g?.grade || '', a.activity || '', a.status || '', stars, a.notes || '']);
-    });
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
+      ws['!dir'] = 'rtl';
+      XLSX.utils.book_append_sheet(wb, ws, 'ملخص الشهر');
 
-    const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
-    wsDetail['!cols'] = [{ wch: 14 }, { wch: 10 }, { wch: 24 }, { wch: 14 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 24 }];
-    wsDetail['!dir'] = 'rtl';
-    XLSX.utils.book_append_sheet(wb, wsDetail, 'تفاصيل يومية');
+      // === Sheet 2: Detailed Daily Records ===
+      const detailData = [];
+      detailData.push(['تقرير تفصيلي — ' + monthName]);
+      detailData.push([]);
+      detailData.push(['التاريخ', 'اليوم', 'المخدومة', 'السنة', 'النشاط', 'الحالة', 'التقييم', 'ملاحظات']);
+
+      exportAtt.forEach(a => {
+        const g = state.girls.find(x => x.id === a.girlId);
+        const dayName = DAY_NAMES[new Date(a.date + 'T00:00:00').getDay()] || '';
+        const stars = a.rating ? '★'.repeat(a.rating) + '☆'.repeat(5 - a.rating) : '';
+        detailData.push([a.date, dayName, g?.name || '', g?.grade || '', a.activity || '', a.status === 'حاضر' ? '✓' : 'X', stars, a.notes || '']);
+      });
+
+      const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
+      wsDetail['!cols'] = [{ wch: 14 }, { wch: 10 }, { wch: 24 }, { wch: 14 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 24 }];
+      wsDetail['!dir'] = 'rtl';
+      XLSX.utils.book_append_sheet(wb, wsDetail, 'تفاصيل يومية');
+
+    } else {
+      // === Specific Day Export ===
+      const wsData = [];
+      wsData.push([reportTitle]);
+      wsData.push([]);
+      wsData.push(['المخدومة', 'السنة', 'النشاط', 'الحالة', 'التقييم', 'ملاحظات']);
+
+      // Group by girl then by activity for the day
+      const dayName = DAY_NAMES[new Date(exportDate + 'T00:00:00').getDay()] || '';
+
+      exportAtt.sort((a, b) => {
+        const gA = state.girls.find(x => x.id === a.girlId);
+        const gB = state.girls.find(x => x.id === b.girlId);
+        return (gA?.name || '').localeCompare(gB?.name || '', 'ar') || (a.activity || '').localeCompare(b.activity || '', 'ar');
+      });
+
+      exportAtt.forEach(a => {
+        const g = state.girls.find(x => x.id === a.girlId);
+        const stars = a.rating ? '★'.repeat(a.rating) + '☆'.repeat(5 - a.rating) : '';
+        wsData.push([
+          g?.name || '',
+          g?.grade || '',
+          a.activity || '',
+          a.status === 'حاضر' ? '✓' : 'X',
+          stars,
+          a.notes || ''
+        ]);
+      });
+
+      // Summary row
+      const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
+      const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
+      wsData.push([]);
+      wsData.push(['الإجمالي', '', '', '', '', '']);
+      wsData.push(['حاضر', totalPresent, 'غائب', totalAbsent, '', '']);
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 24 }];
+      ws['!dir'] = 'rtl';
+      XLSX.utils.book_append_sheet(wb, ws, 'يوم ' + exportDate);
+    }
 
     const xlsxBlob = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([xlsxBlob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `حضور_${exportDate}.xlsx`;
+    a.download = `حضور_${exportDate}${exportMode === 'month' ? '_شهر' : '_يوم'}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast('تم تصدير Excel', 'success');
+    showToast(exportMode === 'month' ? 'تم تصدير ملف Excel للشهر' : 'تم تصدير ملف Excel لليوم', 'success');
   });
 }
+
 if (DOM.exportJSON) {
   DOM.exportJSON.addEventListener('click', () => {
     const exportDate = DOM.exportMonth.value || DateUtil.toStr();
@@ -2277,9 +2379,8 @@ if (DOM.exportPrint) {
     const fmtAttPrint = (act) => {
       const total = act.present + act.absent;
       if (total === 0) return '—';
-      if (act.present === total) return '<span style="color:#2ecc71;font-weight:700">✔</span>';
-      if (act.present === 0) return '<span style="color:#e74c3c;font-weight:700">✘</span>';
-      return act.present + '/' + total;
+      if (act.present > 0) return '<span style="color:#2ecc71;font-weight:700">✓</span>';
+      return '<span style="color:#e74c3c;font-weight:700">X</span>';
     };
 
     const htmlRows = Object.values(grouped).map((r, i) => {
@@ -2303,14 +2404,14 @@ if (DOM.exportPrint) {
     const dailyRows = exportAtt.map(a => {
       const g = state.girls.find(x => x.id === a.girlId);
       const dayName = DAY_NAMES[new Date(a.date + 'T00:00:00').getDay()] || '';
-      const statusColor = a.status === 'حاضر' ? '#2ecc71' : '#e74c3c';
+      const statusIcon = a.status === 'حاضر' ? '<span style="color:#2ecc71;font-weight:700">✓</span>' : '<span style="color:#e74c3c;font-weight:700">X</span>';
       return `<tr>
         <td>${esc(a.date)}</td>
         <td>${esc(dayName)}</td>
         <td>${esc(g?.name || '')}</td>
         <td>${esc(g?.grade || '')}</td>
         <td>${esc(a.activity || '')}</td>
-        <td style="color:${statusColor};font-weight:700">${esc(a.status)}</td>
+        <td>${statusIcon}</td>
         <td>${a.rating ? '★'.repeat(a.rating) : ''}</td>
         <td>${esc(a.notes || '')}</td>
       </tr>`;
