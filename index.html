@@ -5,7 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="متابعة">
   <meta name="theme-color" content="#0F2B5B">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="متابعة المخدومات">
+  <meta name="description" content="نظام متابعة خدمة الاعدادي بنات - كنيسة مارجرجس والشهداء">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
   <title>متابعة المخدومات</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -496,5 +504,95 @@
   </div>
 
   <script src="app.js"></script>
+</body>
+</html>
+
+  <!-- PWA: تسجيل الـ Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('./service-worker.js');
+          console.log('[PWA] Service Worker registered:', reg.scope);
+
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            if (!newWorker) return;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                const toast = document.getElementById('toast');
+                if (toast) {
+                  toast.textContent = '🔄 يوجد تحديث جديد - أعد تحميل الصفحة';
+                  toast.className = 'toast show info';
+                  setTimeout(() => { toast.className = 'toast hidden'; }, 6000);
+                }
+              }
+            });
+          });
+
+        } catch (err) {
+          console.warn('[PWA] Service Worker registration failed:', err);
+        }
+      });
+
+      window.addEventListener('online', () => {
+        const toast = document.getElementById('toast');
+        if (toast) {
+          toast.textContent = '✅ عاد الاتصال بالإنترنت';
+          toast.className = 'toast show success';
+          setTimeout(() => { toast.className = 'toast hidden'; }, 3000);
+        }
+      });
+
+      window.addEventListener('offline', () => {
+        const toast = document.getElementById('toast');
+        if (toast) {
+          toast.textContent = '📴 لا يوجد اتصال - التطبيق يعمل offline';
+          toast.className = 'toast show warning';
+          setTimeout(() => { toast.className = 'toast hidden'; }, 4000);
+        }
+      });
+    }
+
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      setTimeout(() => {
+        const toast = document.getElementById('toast');
+        if (toast && deferredPrompt) {
+          toast.textContent = '📲 اضغط لتثبيت التطبيق على موبايلك';
+          toast.className = 'toast show info';
+          toast.style.cursor = 'pointer';
+          toast.onclick = async () => {
+            toast.className = 'toast hidden';
+            toast.style.cursor = '';
+            toast.onclick = null;
+            deferredPrompt.prompt();
+            await deferredPrompt.userChoice;
+            deferredPrompt = null;
+          };
+          setTimeout(() => {
+            if (toast.classList.contains('show')) {
+              toast.className = 'toast hidden';
+              toast.style.cursor = '';
+              toast.onclick = null;
+            }
+          }, 6000);
+        }
+      }, 3000);
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredPrompt = null;
+      const toast = document.getElementById('toast');
+      if (toast) {
+        toast.textContent = '🎉 تم تثبيت التطبيق بنجاح!';
+        toast.className = 'toast show success';
+        setTimeout(() => { toast.className = 'toast hidden'; }, 4000);
+      }
+    });
+  </script>
+-e 
 </body>
 </html>
