@@ -995,6 +995,83 @@ async function autoMarkAbsentForNewGirl(girlId, date) {
   }
 }
 
+
+// ============================================================
+// DEMO DATA — Load sample data when Firebase is unavailable
+// ============================================================
+const DEMO_GIRLS = [
+  { id: 'demo_1', name: 'مريم جورج', grade: 'أولى إعدادي', phone: '01234567890', notes: '', createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false },
+  { id: 'demo_2', name: 'سارة ماجد', grade: 'أولى إعدادي', phone: '', notes: 'تحتاج متابعة', createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false },
+  { id: 'demo_3', name: 'فاطمة أحمد', grade: 'تانية إعدادي', phone: '01112223344', notes: '', createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false },
+  { id: 'demo_4', name: 'نورا سامي', grade: 'تانية إعدادي', phone: '', notes: '', createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false },
+  { id: 'demo_5', name: 'رنا طارق', grade: 'تالتة إعدادي', phone: '01009988776', notes: 'نشيطة', createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false },
+  { id: 'demo_6', name: 'ياسمين خالد', grade: 'تالتة إعدادي', phone: '', notes: '', createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false },
+  { id: 'demo_7', name: 'هدى محمود', grade: 'أولى إعدادي', phone: '', notes: '', createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false },
+  { id: 'demo_8', name: 'ليلى عادل', grade: 'تانية إعدادي', phone: '01555544433', notes: '', createdAt: Date.now(), updatedAt: Date.now(), isDeleted: false },
+];
+
+function generateDemoAttendance() {
+  const attendance = {};
+  const today = new Date();
+  const activities = ['دراسي', 'محفوظات', 'قبطي', 'ألحان'];
+
+  // Generate for last 30 days
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dayOfWeek = d.getDay();
+
+    // Only service days (Mon=1, Wed=3, Sat=6)
+    if (![1, 3, 6].includes(dayOfWeek)) continue;
+
+    const dateStr = d.toISOString().split('T')[0];
+    const dayName = DAY_NAMES[dayOfWeek];
+
+    DEMO_GIRLS.forEach(girl => {
+      activities.forEach(act => {
+        const key = `${girl.id}_${dateStr}_${act}`;
+        const isPresent = Math.random() > 0.3;
+        const rating = isPresent ? Math.floor(Math.random() * 3) + 3 : 0;
+
+        attendance[key] = {
+          id: key,
+          girlId: girl.id,
+          date: dateStr,
+          day: dayName,
+          activity: act,
+          status: isPresent ? 'حاضر' : 'غائب',
+          rating: rating,
+          notes: '',
+          updatedAt: Date.now(),
+          updatedBy: 'خادم',
+          updatedByEmail: ''
+        };
+      });
+    });
+  }
+
+  return attendance;
+}
+
+function loadDemoData() {
+  if (state.girls.length === 0) {
+    console.log('>>> Loading DEMO DATA...');
+    state.girls = [...DEMO_GIRLS];
+    state.girls.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    state._girlMapDirty = true;
+
+    const demoAttendance = generateDemoAttendance();
+    Object.assign(state.attendanceData, demoAttendance);
+    invalidateAttendanceCache();
+
+    console.log('>>> DEMO DATA loaded:', state.girls.length, 'girls,', Object.keys(state.attendanceData).length, 'records');
+    showToast('تم تحميل بيانات تجريبية للاختبار', 'info');
+    scheduleRender();
+    return true;
+  }
+  return false;
+}
+
 // ============================================================
 // BOOTSTRAP HELPER
 // ============================================================
@@ -3643,17 +3720,6 @@ window._timeUnsub = _timeUnsub;
 async function bootstrap() {
   console.log('========================================');
   console.log('>>> BOOTSTRAP START');
-
-  // IMMEDIATE FIX: Show app right away, don't wait for Firebase
-  setTimeout(function() {
-    hideSplash();
-    if (!state.appInitialized) {
-      state.currentUser = { displayName: 'خادم', email: '', uid: 'anonymous' };
-      showApp(state.currentUser);
-      state.appInitialized = true;
-      renderPage();
-    }
-  }, 1000);
   console.log('>>> User Agent:', navigator.userAgent);
   console.log('>>> Online:', navigator.onLine);
   console.log('>>> Timestamp:', new Date().toISOString());
@@ -3690,7 +3756,7 @@ async function bootstrap() {
   setTimeout(() => {
     const splash = document.getElementById('splash');
     if (splash && !splash.classList.contains('fade-out')) {
-      console.warn('FORCED UNBLOCK SPLASH (3s timeout)');
+      console.warn('FORCED UNBLOCK SPLASH (12s timeout)');
       hideSplash();
       if (!state.appInitialized) {
         state.currentUser = { displayName: 'خادم', email: '', uid: 'anonymous' };
@@ -3699,7 +3765,7 @@ async function bootstrap() {
         loadData().then(() => renderPage()).catch(() => renderPage());
       }
     }
-  }, 3000);
+  }, 12000);
 
   // Initialize IndexedDB
   try {
@@ -3732,19 +3798,22 @@ async function bootstrap() {
   hideSplash();
   showApp(state.currentUser);
 
-  if (modulesReady && window._fb && firebaseReady) {
-    console.log('BOOT: Firebase modules loaded successfully!');
-    if (!state.appInitialized) {
-      state.appInitialized = true;
-      await loadData();
-      renderPage();
+  if (!state.appInitialized) {
+    state.appInitialized = true;
+
+    if (modulesReady && window._fb && firebaseReady) {
+      console.log('BOOT: Firebase modules loaded successfully!');
+      try {
+        await loadData();
+      } catch(e) {
+        console.warn('BOOT: loadData failed, using demo data:', e);
+      }
+    } else {
+      console.warn('BOOT: Firebase not available — working in offline/demo mode');
     }
-  } else {
-    console.warn('BOOT: Firebase not available — working in offline mode');
-    if (!state.appInitialized) {
-      state.appInitialized = true;
-      renderPage();
-    }
+
+    loadDemoData();
+    renderPage();
   }
 
   console.log('BOOT: Bootstrap complete');
