@@ -1031,11 +1031,12 @@ function hideSplashForced() {
   }
   setTimeout(() => {
     try {
-      const loginScreen = document.getElementById('loginScreen');
       const mainApp = document.getElementById('mainApp');
-      if (loginScreen && mainApp && mainApp.classList.contains('hidden') && loginScreen.classList.contains('hidden')) {
-        loginScreen.classList.remove('hidden');
-        showLogin();
+      if (mainApp && mainApp.classList.contains('hidden') && !state.appInitialized) {
+        state.currentUser = { displayName: 'خادم', email: '', uid: 'anonymous' };
+        showApp(state.currentUser);
+        state.appInitialized = true;
+        loadData().then(() => renderPage()).catch(() => renderPage());
       }
     } catch (e) { console.error('Fallback error:', e); }
   }, 600);
@@ -2637,28 +2638,7 @@ if (DOM.darkModeToggle) {
     console.error('>>> googleSignIn button NOT FOUND in DOM!');
   }
 
-  // Bind sign-out button
-  const signOutBtn = document.getElementById('signOutBtn');
-  if (signOutBtn) {
-    signOutBtn.addEventListener('click', async () => {
-      closeDrawer();
-      if (!ensureFirebaseReady()) {
-        state.currentUser = null;
-        state.appInitialized = false;
-        showLogin();
-        return;
-      }
-      try {
-        const { signOut } = window._fb;
-        await signOut(auth);
-      } catch (e) {
-        console.error('Sign out error:', e);
-        state.currentUser = null;
-        state.appInitialized = false;
-        showLogin();
-      }
-    });
-  }
+  // Sign-out button removed — open access mode, no auth required
 })();
 
 // ============================================================
@@ -3701,7 +3681,12 @@ async function bootstrap() {
     if (splash && !splash.classList.contains('fade-out')) {
       console.warn('FORCED UNBLOCK SPLASH (12s timeout)');
       hideSplash();
-      showLogin();
+      if (!state.appInitialized) {
+        state.currentUser = { displayName: 'خادم', email: '', uid: 'anonymous' };
+        showApp(state.currentUser);
+        state.appInitialized = true;
+        loadData().then(() => renderPage()).catch(() => renderPage());
+      }
     }
   }, 12000);
 
@@ -3730,30 +3715,25 @@ async function bootstrap() {
   console.log('BOOT: window._fb =', !!window._fb);
   console.log('BOOT: firebaseReady =', firebaseReady);
 
+  // BYPASS AUTH — open access, no login required
+  console.log('BOOT: Bypassing auth — open access mode');
+  state.currentUser = { displayName: 'خادم', email: '', uid: 'anonymous' };
+  hideSplash();
+  showApp(state.currentUser);
+
   if (modulesReady && window._fb && firebaseReady) {
     console.log('BOOT: Firebase modules loaded successfully!');
-    try {
-      console.log('BOOT: Calling initAuth()...');
-      await withTimeout(initAuth(), 10000, null);
-      console.log('BOOT: Auth initialized');
-    } catch (e) {
-      console.error('BOOT: Auth init error:', e);
-      console.log('BOOT: Auth failed — showing login');
-      hideSplash();
-      showLogin();
+    if (!state.appInitialized) {
+      state.appInitialized = true;
+      await loadData();
+      renderPage();
     }
   } else {
-    console.error('BOOT: Firebase FAILED to load — entering offline mode');
-    console.error('BOOT: modulesReady:', modulesReady);
-    console.error('BOOT: window._fb:', !!window._fb);
-    console.error('BOOT: firebaseReady:', firebaseReady);
-    if (window._initError) {
-      console.error('BOOT: initModules error:', window._initError.message);
+    console.warn('BOOT: Firebase not available — working in offline mode');
+    if (!state.appInitialized) {
+      state.appInitialized = true;
+      renderPage();
     }
-
-    // Still hide splash and show login so user isn't stuck
-    hideSplash();
-    showLogin();
   }
 
   console.log('BOOT: Bootstrap complete');
