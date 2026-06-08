@@ -3643,6 +3643,17 @@ window._timeUnsub = _timeUnsub;
 async function bootstrap() {
   console.log('========================================');
   console.log('>>> BOOTSTRAP START');
+
+  // IMMEDIATE FIX: Show app right away, don't wait for Firebase
+  setTimeout(function() {
+    hideSplash();
+    if (!state.appInitialized) {
+      state.currentUser = { displayName: 'خادم', email: '', uid: 'anonymous' };
+      showApp(state.currentUser);
+      state.appInitialized = true;
+      renderPage();
+    }
+  }, 1000);
   console.log('>>> User Agent:', navigator.userAgent);
   console.log('>>> Online:', navigator.onLine);
   console.log('>>> Timestamp:', new Date().toISOString());
@@ -3679,7 +3690,7 @@ async function bootstrap() {
   setTimeout(() => {
     const splash = document.getElementById('splash');
     if (splash && !splash.classList.contains('fade-out')) {
-      console.warn('FORCED UNBLOCK SPLASH (12s timeout)');
+      console.warn('FORCED UNBLOCK SPLASH (3s timeout)');
       hideSplash();
       if (!state.appInitialized) {
         state.currentUser = { displayName: 'خادم', email: '', uid: 'anonymous' };
@@ -3688,7 +3699,7 @@ async function bootstrap() {
         loadData().then(() => renderPage()).catch(() => renderPage());
       }
     }
-  }, 12000);
+  }, 3000);
 
   // Initialize IndexedDB
   try {
