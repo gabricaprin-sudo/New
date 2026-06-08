@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+<base target="_blank">
 </head>
 <body>
   <div id="app">
@@ -64,7 +65,7 @@
     </div>
 
     <!-- Main App -->
-    <div id="mainApp" class="hidden">
+    <div id="mainApp">
       <!-- Header -->
       <header class="app-header">
         <div class="header-right">
@@ -575,5 +576,19 @@
       });
     })();
   </script>
+  <!-- IMMEDIATE FIX: Show app right away -->
+  <script>
+    (function() {
+      setTimeout(function() {
+        var splash = document.getElementById('splash');
+        if (splash) {
+          splash.classList.add('fade-out');
+          setTimeout(function() { splash.remove(); }, 500);
+        }
+        var loginScreen = document.getElementById('loginScreen');
+        if (loginScreen) loginScreen.style.display = 'none !important';
+      }, 1200);
+    })();
+  </script>
 </body>
-</html>
+  </html>
