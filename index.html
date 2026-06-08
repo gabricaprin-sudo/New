@@ -1,2311 +1,500 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#0a0e1a">
-<title>PharmaSys Pro - نظام إدارة الصيدلية</title>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap');
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  :root {
-    --bg-primary: #0a0e1a;
-    --bg-secondary: #111827;
-    --bg-card: #141b2d;
-    --bg-hover: #1a2640;
-    --border: #1e2d45;
-    --border-light: #243550;
-    --accent: #00d4aa;
-    --accent-dim: #00d4aa22;
-    --accent-glow: #00d4aa44;
-    --blue: #3b82f6;
-    --blue-dim: #3b82f622;
-    --amber: #f59e0b;
-    --amber-dim: #f59e0b22;
-    --red: #ef4444;
-    --red-dim: #ef444422;
-    --green: #22c55e;
-    --green-dim: #22c55e22;
-    --purple: #a855f7;
-    --purple-dim: #a855f722;
-    --text-primary: #e2e8f0;
-    --text-secondary: #8b9dc3;
-    --text-muted: #4a6080;
-    --sidebar-w: 260px;
-    --radius: 12px;
-    --radius-sm: 8px;
-    --shadow: 0 4px 24px rgba(0,0,0,0.4);
-  }
-  html { font-size: 14px; direction: rtl; scroll-behavior: smooth; }
-  body { font-family: 'Tajawal', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; word-wrap: break-word; overflow-wrap: break-word; }
-  * { min-width: 0; }
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: var(--bg-primary); }
-  ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-  .app { display: flex; min-height: 100vh; }
-
-  /* ===== SIDEBAR ===== */
-  .sidebar {
-    width: var(--sidebar-w);
-    background: var(--bg-secondary);
-    border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 0; right: 0; bottom: 0;
-    z-index: 100;
-    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
-    box-shadow: -4px 0 24px rgba(0,0,0,0.3);
-  }
-  .sidebar.closed { transform: translateX(var(--sidebar-w)); }
-  .sidebar-logo {
-    padding: 18px 16px;
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; gap: 12px;
-  }
-  .logo-icon {
-    width: 40px; height: 40px;
-    background: linear-gradient(135deg, var(--accent), #0099cc);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; font-weight: 900; color: #000;
-    box-shadow: 0 0 20px var(--accent-glow);
-    flex-shrink: 0;
-  }
-  .logo-text { font-size: 15px; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
-  .logo-sub { font-size: 11px; color: var(--accent); font-weight: 500; }
-  .sidebar-nav { flex: 1; overflow-y: auto; padding: 8px; -webkit-overflow-scrolling: touch; }
-  .nav-section { margin-bottom: 4px; }
-  .nav-section-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; padding: 12px 12px 6px; }
-  .nav-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 11px 12px; border-radius: var(--radius-sm);
-    cursor: pointer; color: var(--text-secondary);
-    font-size: 13px; font-weight: 500;
-    transition: all 0.15s; position: relative;
-    margin-bottom: 2px; min-height: 44px;
-  }
-  .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-  .nav-item:active { transform: scale(0.98); }
-  .nav-item.active { background: var(--accent-dim); color: var(--accent); }
-  .nav-item.active::before { content: ''; position: absolute; right: 0; top: 20%; bottom: 20%; width: 3px; background: var(--accent); border-radius: 2px 0 0 2px; }
-  .nav-badge {
-    margin-right: auto; font-size: 10px; font-weight: 700;
-    background: var(--red); color: white;
-    padding: 1px 6px; border-radius: 10px;
-  }
-
-  /* ===== MAIN ===== */
-  .main { margin-right: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-width: 0; transition: margin-right 0.35s; }
-
-  /* ===== TOPBAR ===== */
-  .topbar {
-    height: 56px;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center;
-    padding: 0 16px; gap: 10px;
-    position: sticky; top: 0; z-index: 50;
-  }
-  .menu-btn {
-    display: none;
-    background: none; border: none;
-    color: var(--text-secondary); cursor: pointer;
-    padding: 8px; border-radius: 8px;
-    min-width: 40px; min-height: 40px;
-    align-items: center; justify-content: center;
-  }
-  .menu-btn:active { background: var(--bg-hover); }
-  .page-title { font-size: 15px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .topbar-actions { margin-right: auto; display: flex; align-items: center; gap: 6px; }
-  .search-bar {
-    display: flex; align-items: center; gap: 8px;
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 6px 10px;
-    color: var(--text-secondary); font-family: 'Tajawal', sans-serif;
-    transition: all 0.2s;
-  }
-  .search-bar:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-  .search-bar input { background: none; border: none; outline: none; color: var(--text-primary); font-family: inherit; font-size: 13px; width: 160px; }
-  .search-bar input::placeholder { color: var(--text-muted); }
-  .user-info { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: var(--radius-sm); background: var(--bg-card); cursor: pointer; }
-  .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-dim); border: 2px solid var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
-  .user-name { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
-
-  /* ===== PAGE CONTENT ===== */
-  .page-content { padding: 16px; flex: 1; overflow-x: hidden; }
-
-  /* ===== CARDS ===== */
-  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; min-width: 0; overflow: hidden; }
-  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 8px; flex-wrap: wrap; min-width: 0; }
-  .card-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
-  .card-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-
-  /* ===== STAT CARDS ===== */
-  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
-  .stat-card {
-    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 18px; position: relative; overflow: hidden;
-    transition: transform 0.2s, border-color 0.2s;
-    min-width: 0; display: flex; flex-direction: column;
-  }
-  .stat-card:hover { transform: translateY(-2px); border-color: var(--border-light); }
-  .stat-card::before { content: ''; position: absolute; top: 0; right: 0; width: 100%; height: 2px; }
-  .stat-card.green::before { background: var(--green); }
-  .stat-card.blue::before { background: var(--blue); }
-  .stat-card.amber::before { background: var(--amber); }
-  .stat-card.red::before { background: var(--red); }
-  .stat-card.purple::before { background: var(--purple); }
-  .stat-card.accent::before { background: var(--accent); }
-  .stat-label { font-size: 12px; color: var(--text-secondary); font-weight: 500; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .stat-value { font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1; word-break: break-word; }
-  .stat-value.mono { font-family: 'JetBrains Mono', monospace; font-size: 18px; }
-  .stat-change { font-size: 11px; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .stat-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); opacity: 0.12; pointer-events: none; }
-  .green .stat-icon { color: var(--green); }
-  .blue .stat-icon { color: var(--blue); }
-  .amber .stat-icon { color: var(--amber); }
-  .red .stat-icon { color: var(--red); }
-  .accent .stat-icon { color: var(--accent); }
-
-  /* ===== TABLE ===== */
-  .table-wrap { overflow-x: auto; margin: 0 -4px; padding: 0 4px; -webkit-overflow-scrolling: touch; width: 100%; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 600px; }
-  thead th { background: var(--bg-hover); color: var(--text-secondary); font-weight: 600; padding: 10px 12px; text-align: right; font-size: 12px; white-space: nowrap; }
-  thead th:first-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-  thead th:last-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
-  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
-  tbody tr:hover { background: var(--bg-hover); }
-  tbody td { padding: 10px 12px; color: var(--text-primary); white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
-  .mono-cell { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
-
-  /* ===== BADGES ===== */
-  .badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
-  }
-  .badge-green { background: var(--green-dim); color: var(--green); }
-  .badge-red { background: var(--red-dim); color: var(--red); }
-  .badge-amber { background: var(--amber-dim); color: var(--amber); }
-  .badge-blue { background: var(--blue-dim); color: var(--blue); }
-  .badge-purple { background: var(--purple-dim); color: var(--purple); }
-  .badge-accent { background: var(--accent-dim); color: var(--accent); }
-  .badge-gray { background: rgba(255,255,255,0.05); color: var(--text-secondary); }
-
-  /* ===== BUTTONS ===== */
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 8px 14px; border-radius: var(--radius-sm);
-    font-family: 'Tajawal', sans-serif; font-size: 13px; font-weight: 600;
-    cursor: pointer; border: none; transition: all 0.15s;
-    white-space: nowrap; min-height: 36px;
-    touch-action: manipulation;
-  }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn:active { transform: scale(0.97); }
-  .btn-primary { background: var(--accent); color: #000; }
-  .btn-primary:hover:not(:disabled) { background: #00f0c0; box-shadow: 0 0 20px var(--accent-glow); }
-  .btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
-  .btn-secondary:hover:not(:disabled) { border-color: var(--border-light); background: var(--border); }
-  .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-dim); }
-  .btn-danger:hover:not(:disabled) { background: var(--red); color: white; }
-  .btn-icon { padding: 7px; width: 36px; height: 36px; justify-content: center; }
-  .btn-sm { padding: 5px 10px; font-size: 12px; min-height: 30px; }
-
-  /* ===== FORM ===== */
-  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-  .form-group { display: flex; flex-direction: column; gap: 5px; }
-  .form-group.full { grid-column: 1 / -1; }
-  label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
-  input, select, textarea {
-    background: var(--bg-primary); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 9px 12px;
-    color: var(--text-primary); font-family: 'Tajawal', sans-serif; font-size: 13px;
-    outline: none; transition: border-color 0.15s, box-shadow 0.15s; width: 100%;
-    direction: rtl; min-height: 40px;
-  }
-  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-  input[type="number"] { font-family: 'JetBrains Mono', monospace; }
-  select option { background: var(--bg-card); }
-
-  /* ===== MODAL ===== */
-  .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
-    z-index: 200; display: flex; align-items: center; justify-content: center; padding: 16px;
-    backdrop-filter: blur(6px);
-    animation: fadeIn 0.15s;
-  }
-  .modal {
-    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-    width: 100%; max-width: 700px; max-height: 90vh; display: flex; flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-    animation: slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .modal.modal-sm { max-width: 440px; }
-  .modal.modal-lg { max-width: 900px; }
-  .modal.modal-xl { max-width: 1100px; }
-  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); gap: 8px; }
-  .modal-title { font-size: 15px; font-weight: 700; }
-  .modal-body { padding: 16px; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
-  .modal-footer { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
-
-  /* ===== INVOICE ===== */
-  .invoice-items-header { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 40px; gap: 6px; padding: 8px 10px; background: var(--bg-hover); border-radius: var(--radius-sm); font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; }
-  .invoice-item-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 40px; gap: 6px; align-items: center; padding: 4px 0; }
-  .invoice-total-section { background: var(--bg-hover); border-radius: var(--radius-sm); padding: 14px; margin-top: 12px; }
-  .total-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; }
-  .total-row.grand { font-size: 16px; font-weight: 800; color: var(--accent); border-top: 1px solid var(--border); padding-top: 10px; margin-top: 6px; }
-
-  /* ===== ALERTS ===== */
-  .alert { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13px; word-break: break-word; }
-  .alert-warning { background: var(--amber-dim); border: 1px solid var(--amber); color: var(--amber); }
-  .alert-danger { background: var(--red-dim); border: 1px solid var(--red); color: var(--red); }
-  .alert-success { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
-
-  /* ===== TABS ===== */
-  .tabs { display: flex; gap: 4px; background: var(--bg-hover); border-radius: var(--radius-sm); padding: 4px; margin-bottom: 18px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .tab { flex: 1; text-align: center; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-secondary); transition: all 0.15s; white-space: nowrap; min-width: 100px; }
-  .tab.active { background: var(--bg-card); color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-
-  /* ===== PAGINATION ===== */
-  .pagination { display: flex; align-items: center; gap: 6px; justify-content: center; margin-top: 16px; }
-  .page-btn { width: 34px; height: 34px; border-radius: var(--radius-sm); background: var(--bg-hover); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; transition: all 0.15s; }
-  .page-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .page-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
-
-  /* ===== OVERLAYS ===== */
-  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; }
-
-  /* ===== EMPTY STATE ===== */
-  .empty-state { text-align: center; padding: 50px 20px; color: var(--text-muted); }
-  .empty-state svg { margin: 0 auto 16px; opacity: 0.3; }
-  .empty-state p { font-size: 14px; }
-
-  /* ===== GRID LAYOUTS ===== */
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .grid-2 > * { min-width: 0; overflow: hidden; }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-  .grid-3 > * { min-width: 0; overflow: hidden; }
-  .flex-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
-  .flex-between { display: flex; align-items: center; justify-content: space-between; }
-  .gap-8 { gap: 8px; }
-  .mb-16 { margin-bottom: 16px; }
-  .mb-20 { margin-bottom: 20px; }
-
-  /* ===== TOAST ===== */
-  .toast-container { position: fixed; bottom: 16px; left: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-  .toast {
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 16px; border-radius: var(--radius-sm);
-    font-size: 13px; font-weight: 600;
-    box-shadow: var(--shadow);
-    animation: slideInLeft 0.3s cubic-bezier(0.34,1.56,0.64,1);
-    min-width: 250px; max-width: 100%;
-  }
-  .toast-success { background: var(--green); color: #000; }
-  .toast-error { background: var(--red); color: white; }
-  .toast-info { background: var(--blue); color: white; }
-
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-  @keyframes slideInLeft { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-  /* ===== TABLET (max-width: 1024px) ===== */
-  @media (max-width: 1024px) {
-    .stats-grid { grid-template-columns: repeat(3, 1fr); }
-    .grid-3 { grid-template-columns: repeat(2, 1fr); }
-  }
-
-  /* ===== MOBILE (max-width: 768px) ===== */
-  @media (max-width: 768px) {
-    :root { --sidebar-w: 280px; }
-    .sidebar { transform: translateX(var(--sidebar-w)); box-shadow: -8px 0 40px rgba(0,0,0,0.6); }
-    .sidebar.open { transform: translateX(0); }
-    .main { margin-right: 0; }
-    .menu-btn { display: flex; }
-    .overlay { display: block; }
-    .page-title { font-size: 14px; max-width: 140px; }
-    .user-name { display: none; }
-    .search-bar { padding: 5px 8px; }
-    .search-bar input { width: 100px; font-size: 12px; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
-    .stat-card { padding: 14px 12px; }
-    .stat-value { font-size: 17px; }
-    .stat-value.mono { font-size: 14px; }
-    .stat-label { font-size: 11px; }
-    .stat-change { font-size: 10px; }
-    .stat-icon { display: none; }
-    .card { padding: 14px; border-radius: 10px; }
-    .grid-2, .grid-3 { grid-template-columns: 1fr; gap: 12px; }
-    .page-content { padding: 12px; }
-    .card { padding: 14px; }
-    .card-header { margin-bottom: 12px; }
-    .table-wrap { margin: 0 -2px; padding: 0 2px; }
-    table { font-size: 12px; min-width: 500px; }
-    thead th { padding: 8px 10px; font-size: 11px; }
-    tbody td { padding: 8px 10px; }
-    .btn { padding: 7px 12px; font-size: 12px; min-height: 34px; }
-    .btn-icon { width: 34px; height: 34px; }
-    .modal { max-height: 95vh; border-radius: var(--radius-sm); }
-    .modal-header { padding: 12px 14px; }
-    .modal-body { padding: 14px; }
-    .modal-footer { padding: 10px 14px; }
-    .invoice-items-header, .invoice-item-row { grid-template-columns: 2fr 1fr 1fr 40px; }
-    .invoice-items-header span:nth-child(4), .invoice-item-row span:nth-child(4),
-    .invoice-items-header span:nth-child(5), .invoice-item-row span:nth-child(5) { display: none; }
-    .form-grid { grid-template-columns: 1fr; gap: 10px; }
-    .form-group.full { grid-column: 1; }
-    .tabs { padding: 3px; }
-    .tab { padding: 7px 10px; font-size: 12px; min-width: 80px; }
-    .alert { padding: 10px 12px; font-size: 12px; }
-    .toast-container { left: 12px; right: 12px; bottom: 12px; align-items: stretch; }
-    .toast { min-width: unset; width: 100%; justify-content: center; }
-    .hide-mobile { display: none !important; }
-  }
-
-  /* ===== SMALL MOBILE (max-width: 480px) ===== */
-  @media (max-width: 480px) {
-    .stats-grid { grid-template-columns: 1fr; }
-    .stat-card { padding: 14px; }
-    .stat-value { font-size: 20px; }
-    .topbar { padding: 0 10px; height: 52px; }
-    .search-bar { display: none; }
-    .page-content { padding: 10px; }
-    .card { padding: 12px; border-radius: 10px; }
-    .card-title { font-size: 14px; }
-    .invoice-items-header, .invoice-item-row { grid-template-columns: 2fr 1fr 40px; }
-    .invoice-items-header span:nth-child(3), .invoice-item-row span:nth-child(3) { display: none; }
-    .modal-overlay { padding: 8px; }
-    .modal { border-radius: 10px; }
-    .modal-footer { justify-content: stretch; }
-    .modal-footer .btn { flex: 1; }
-    .table-wrap { margin: 0; padding: 0; }
-    table { min-width: 400px; }
-    thead th { padding: 7px 8px; }
-    tbody td { padding: 7px 8px; }
-    .badge { padding: 2px 8px; font-size: 10px; }
-    .flex-row { gap: 6px; }
-    .btn-sm { padding: 4px 8px; font-size: 11px; }
-    .nav-item { padding: 10px; font-size: 12px; }
-    .nav-section-label { padding: 10px 10px 4px; }
-    .sidebar-logo { padding: 14px 12px; }
-    .logo-icon { width: 36px; height: 36px; font-size: 18px; }
-    .logo-text { font-size: 14px; }
-    .user-avatar { width: 26px; height: 26px; font-size: 11px; }
-  }
-
-  /* ===== Print ===== */
-  @media print {
-    .sidebar, .topbar, .no-print, .menu-btn, .overlay, .toast-container { display: none !important; }
-    .main { margin-right: 0 !important; }
-    body { background: white; color: black; }
-    .card { border: 1px solid #ddd; box-shadow: none; }
-    .modal-overlay { position: static; display: block; background: none; padding: 0; }
-    .modal { max-height: none; box-shadow: none; border: 1px solid #ddd; }
-  }
-</style>
-<base target="_blank">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0F2B5B">
+  <title>متابعة المخدومات</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const { useState, useEffect, useCallback, useRef, createContext, useContext } = React;
-
-
-// ============================================================
-// FIREBASE CONFIG & MOCK (Replace with real Firebase config)
-// ============================================================
-const FIREBASE_CONFIG = {
-  note: "Replace this with your actual Firebase config",
-  apiKey: "YOUR_API_KEY",
-  projectId: "YOUR_PROJECT_ID",
-};
-
-// ============================================================
-// MOCK DATA ENGINE (Simulates Firestore with pagination)
-// ============================================================
-const generateId = () => Math.random().toString(36).substr(2, 9);
-const now = () => new Date().toISOString();
-
-const MOCK_DB = {
-  medicines: [
-    { id: "m1", name: "باراسيتامول 500mg", category: "مسكنات", barcode: "6001010001", unit: "علبة", costPrice: 8, sellPrice: 15, minStock: 20, reorderLevel: 50, active: true, createdAt: now() },
-    { id: "m2", name: "أموكسيسيلين 250mg", category: "مضادات حيوية", barcode: "6001010002", unit: "علبة", costPrice: 25, sellPrice: 45, minStock: 15, reorderLevel: 30, active: true, createdAt: now() },
-    { id: "m3", name: "أوميبرازول 20mg", category: "معدة وهضم", barcode: "6001010003", unit: "علبة", costPrice: 18, sellPrice: 35, minStock: 10, reorderLevel: 25, active: true, createdAt: now() },
-    { id: "m4", name: "ميترونيدازول 250mg", category: "مضادات حيوية", barcode: "6001010004", unit: "علبة", costPrice: 12, sellPrice: 22, minStock: 8, reorderLevel: 20, active: true, createdAt: now() },
-    { id: "m5", name: "ليفوثيروكسين 50mcg", category: "هرمونات", barcode: "6001010005", unit: "علبة", costPrice: 30, sellPrice: 55, minStock: 5, reorderLevel: 15, active: true, createdAt: now() },
-    { id: "m6", name: "ميتفورمين 500mg", category: "سكر", barcode: "6001010006", unit: "علبة", costPrice: 15, sellPrice: 28, minStock: 12, reorderLevel: 30, active: true, createdAt: now() },
-    { id: "m7", name: "أتورفاستاتين 10mg", category: "قلب وضغط", barcode: "6001010007", unit: "علبة", costPrice: 22, sellPrice: 40, minStock: 10, reorderLevel: 25, active: true, createdAt: now() },
-    { id: "m8", name: "فيتامين C 500mg", category: "فيتامينات", barcode: "6001010008", unit: "علبة", costPrice: 10, sellPrice: 20, minStock: 25, reorderLevel: 60, active: true, createdAt: now() },
-  ],
-  batches: [
-    { id: "b1", medicineId: "m1", medicineName: "باراسيتامول 500mg", batchNo: "BT001", supplierId: "s1", supplierName: "شركة الأمل", qty: 200, remaining: 45, costPrice: 8, sellPrice: 15, mfgDate: "2024-01-01", expDate: "2026-06-15", createdAt: now() },
-    { id: "b2", medicineId: "m2", medicineName: "أموكسيسيلين 250mg", batchNo: "BT002", supplierId: "s2", supplierName: "المتحدة للأدوية", qty: 100, remaining: 8, costPrice: 25, sellPrice: 45, mfgDate: "2024-03-01", expDate: "2025-08-01", createdAt: now() },
-    { id: "b3", medicineId: "m3", medicineName: "أوميبرازول 20mg", batchNo: "BT003", supplierId: "s1", supplierName: "شركة الأمل", qty: 150, remaining: 90, costPrice: 18, sellPrice: 35, mfgDate: "2024-02-01", expDate: "2026-02-01", createdAt: now() },
-    { id: "b4", medicineId: "m4", medicineName: "ميترونيدازول 250mg", batchNo: "BT004", supplierId: "s3", supplierName: "نايل فارما", qty: 80, remaining: 5, costPrice: 12, sellPrice: 22, mfgDate: "2023-12-01", expDate: "2026-07-20", createdAt: now() },
-    { id: "b5", medicineId: "m5", medicineName: "ليفوثيروكسين 50mcg", batchNo: "BT005", supplierId: "s2", supplierName: "المتحدة للأدوية", qty: 60, remaining: 3, costPrice: 30, sellPrice: 55, mfgDate: "2024-04-01", expDate: "2026-10-01", createdAt: now() },
-    { id: "b6", medicineId: "m6", medicineName: "ميتفورمين 500mg", batchNo: "BT006", supplierId: "s1", supplierName: "شركة الأمل", qty: 120, remaining: 60, costPrice: 15, sellPrice: 28, mfgDate: "2024-01-15", expDate: "2026-09-01", createdAt: now() },
-    { id: "b7", medicineId: "m7", medicineName: "أتورفاستاتين 10mg", batchNo: "BT007", supplierId: "s3", supplierName: "نايل فارما", qty: 90, remaining: 40, costPrice: 22, sellPrice: 40, mfgDate: "2024-02-20", expDate: "2026-11-01", createdAt: now() },
-    { id: "b8", medicineId: "m8", medicineName: "فيتامين C 500mg", batchNo: "BT008", supplierId: "s2", supplierName: "المتحدة للأدوية", qty: 300, remaining: 180, costPrice: 10, sellPrice: 20, mfgDate: "2024-03-10", expDate: "2027-03-10", createdAt: now() },
-  ],
-  suppliers: [
-    { id: "s1", name: "شركة الأمل للأدوية", phone: "0100000001", email: "amal@pharma.com", address: "القاهرة، مصر", balance: -5000, active: true, createdAt: now() },
-    { id: "s2", name: "المتحدة للأدوية", phone: "0100000002", email: "united@pharma.com", address: "الجيزة، مصر", balance: 2000, active: true, createdAt: now() },
-    { id: "s3", name: "نايل فارما", phone: "0100000003", email: "nile@pharma.com", address: "الإسكندرية، مصر", balance: -1500, active: true, createdAt: now() },
-  ],
-  customers: [
-    { id: "c1", name: "أحمد محمد", phone: "0111111111", address: "المعادي", balance: 150, createdAt: now() },
-    { id: "c2", name: "فاطمة علي", phone: "0122222222", address: "مدينة نصر", balance: 0, createdAt: now() },
-    { id: "c3", name: "محمود حسن", phone: "0133333333", address: "الزيتون", balance: -200, createdAt: now() },
-  ],
-  sales: [
-    { id: "inv001", invoiceNo: "INV-2024-001", customerId: "c1", customerName: "أحمد محمد", items: [{ medicineId: "m1", medicineName: "باراسيتامول 500mg", batchId: "b1", qty: 3, price: 15, cost: 8, discount: 0 }], subtotal: 45, discount: 0, total: 45, paid: 45, remaining: 0, paymentMethod: "نقدي", status: "مكتملة", createdAt: "2026-06-01T10:00:00.000Z", createdBy: "admin" },
-    { id: "inv002", invoiceNo: "INV-2024-002", customerId: null, customerName: "عميل نقدي", items: [{ medicineId: "m3", medicineName: "أوميبرازول 20mg", batchId: "b3", qty: 2, price: 35, cost: 18, discount: 0 }, { medicineId: "m8", medicineName: "فيتامين C 500mg", batchId: "b8", qty: 4, price: 20, cost: 10, discount: 0 }], subtotal: 150, discount: 10, total: 140, paid: 140, remaining: 0, paymentMethod: "نقدي", status: "مكتملة", createdAt: "2026-06-02T11:30:00.000Z", createdBy: "admin" },
-    { id: "inv003", invoiceNo: "INV-2024-003", customerId: "c2", customerName: "فاطمة علي", items: [{ medicineId: "m6", medicineName: "ميتفورمين 500mg", batchId: "b6", qty: 2, price: 28, cost: 15, discount: 0 }, { medicineId: "m7", medicineName: "أتورفاستاتين 10mg", batchId: "b7", qty: 1, price: 40, cost: 22, discount: 0 }], subtotal: 96, discount: 0, total: 96, paid: 96, remaining: 0, paymentMethod: "تحويل", status: "مكتملة", createdAt: "2026-06-03T09:00:00.000Z", createdBy: "admin" },
-    { id: "inv004", invoiceNo: "INV-2024-004", customerId: "c3", customerName: "محمود حسن", items: [{ medicineId: "m2", medicineName: "أموكسيسيلين 250mg", batchId: "b2", qty: 1, price: 45, cost: 25, discount: 0 }], subtotal: 45, discount: 0, total: 45, paid: 0, remaining: 45, paymentMethod: "آجل", status: "آجلة", createdAt: "2026-06-04T14:00:00.000Z", createdBy: "admin" },
-    { id: "inv005", invoiceNo: "INV-2024-005", customerId: "c1", customerName: "أحمد محمد", items: [{ medicineId: "m5", medicineName: "ليفوثيروكسين 50mcg", batchId: "b5", qty: 2, price: 55, cost: 30, discount: 5 }], subtotal: 110, discount: 5, total: 105, paid: 105, remaining: 0, paymentMethod: "نقدي", status: "مكتملة", createdAt: "2026-06-05T16:00:00.000Z", createdBy: "admin" },
-  ],
-  purchases: [
-    { id: "pur001", purchaseNo: "PUR-2024-001", supplierId: "s1", supplierName: "شركة الأمل للأدوية", items: [{ medicineId: "m1", medicineName: "باراسيتامول 500mg", batchNo: "BT001", qty: 200, costPrice: 8, total: 1600, expDate: "2026-06-15" }], subtotal: 1600, discount: 0, total: 1600, paid: 1600, remaining: 0, status: "مستلمة", createdAt: "2026-05-15T10:00:00.000Z", createdBy: "admin" },
-    { id: "pur002", purchaseNo: "PUR-2024-002", supplierId: "s2", supplierName: "المتحدة للأدوية", items: [{ medicineId: "m2", medicineName: "أموكسيسيلين 250mg", batchNo: "BT002", qty: 100, costPrice: 25, total: 2500 }, { medicineId: "m8", medicineName: "فيتامين C 500mg", batchNo: "BT008", qty: 300, costPrice: 10, total: 3000, expDate: "2027-03-10" }], subtotal: 5500, discount: 500, total: 5000, paid: 3000, remaining: 2000, status: "مستلمة جزئياً", createdAt: "2026-05-20T11:00:00.000Z", createdBy: "admin" },
-  ],
-  expenses: [
-    { id: "exp001", category: "إيجار", description: "إيجار الصيدلية - مايو", amount: 3000, date: "2026-05-01", paymentMethod: "نقدي", createdAt: now() },
-    { id: "exp002", category: "مرتبات", description: "مرتب موظفين - مايو", amount: 5000, date: "2026-05-31", paymentMethod: "تحويل", createdAt: now() },
-    { id: "exp003", category: "مصاريف تشغيل", description: "فواتير كهرباء ومياه", amount: 800, date: "2026-05-15", paymentMethod: "نقدي", createdAt: now() },
-  ],
-  users: [
-    { id: "u1", name: "مدير النظام", email: "admin@pharmacy.com", role: "admin", active: true, lastLogin: now() },
-    { id: "u2", name: "الصيدلاني أحمد", email: "ahmed@pharmacy.com", role: "pharmacist", active: true, lastLogin: now() },
-    { id: "u3", name: "الكاشير محمد", email: "cashier@pharmacy.com", role: "cashier", active: false, lastLogin: null },
-  ],
-  auditLog: [
-    { id: "log1", action: "بيع", description: "إنشاء فاتورة مبيعات INV-2024-001", userId: "u1", userName: "مدير النظام", createdAt: "2026-06-01T10:01:00.000Z" },
-    { id: "log2", action: "شراء", description: "استلام مشتريات PUR-2024-001", userId: "u1", userName: "مدير النظام", createdAt: "2026-05-15T10:05:00.000Z" },
-  ],
-  cashTransactions: [
-    { id: "ct1", type: "وارد", description: "مبيعات نقدية", amount: 431, balance: 431, refType: "مبيعات", refId: "inv001", createdAt: "2026-06-01T10:00:00.000Z" },
-    { id: "ct2", type: "صادر", description: "إيجار الصيدلية", amount: 3000, balance: -2569, refType: "مصروفات", refId: "exp001", createdAt: "2026-05-01T09:00:00.000Z" },
-  ]
-};
-
-// Mock Firestore service
-const db = {
-  collection: (name) => ({
-    _name: name,
-    _filters: [],
-    _sort: null,
-    _limit: 20,
-    where: function(field, op, val) { return { ...this, _filters: [...this._filters, {field, op, val}] }; },
-    orderBy: function(field, dir="asc") { return { ...this, _sort: {field, dir} }; },
-    limit: function(n) { return { ...this, _limit: n }; },
-    get: async function() {
-      let data = [...(MOCK_DB[name] || [])];
-      this._filters.forEach(f => {
-        data = data.filter(d => {
-          if(f.op === "==") return d[f.field] === f.val;
-          if(f.op === ">=") return d[f.field] >= f.val;
-          if(f.op === "<=") return d[f.field] <= f.val;
-          if(f.op === "array-contains") return Array.isArray(d[f.field]) && d[f.field].includes(f.val);
-          return true;
-        });
-      });
-      if(this._sort) {
-        data.sort((a, b) => {
-          const av = a[this._sort.field], bv = b[this._sort.field];
-          return this._sort.dir === "asc" ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
-        });
-      }
-      const limited = data.slice(0, this._limit);
-      return { docs: limited.map(d => ({ id: d.id, data: () => d, exists: true })), size: limited.length };
-    },
-    add: async function(docData) {
-      const id = generateId();
-      const newDoc = { id, ...docData, createdAt: now() };
-      if(!MOCK_DB[name]) MOCK_DB[name] = [];
-      MOCK_DB[name].unshift(newDoc);
-      return { id };
-    },
-    doc: function(id) {
-      return {
-        get: async () => {
-          const d = (MOCK_DB[name] || []).find(x => x.id === id);
-          return { id, data: () => d, exists: !!d };
-        },
-        update: async (updates) => {
-          const idx = (MOCK_DB[name] || []).findIndex(x => x.id === id);
-          if(idx !== -1) MOCK_DB[name][idx] = { ...MOCK_DB[name][idx], ...updates, updatedAt: now() };
-        },
-        delete: async () => {
-          if(MOCK_DB[name]) MOCK_DB[name] = MOCK_DB[name].filter(x => x.id !== id);
-        },
-        set: async (data) => {
-          const idx = (MOCK_DB[name] || []).findIndex(x => x.id === id);
-          if(idx !== -1) MOCK_DB[name][idx] = { ...data, id, updatedAt: now() };
-          else { if(!MOCK_DB[name]) MOCK_DB[name] = []; MOCK_DB[name].push({ ...data, id }); }
-        }
-      };
-    }
-  }),
-  runTransaction: async (fn) => {
-    const t = { get: async (ref) => ref.get(), update: (ref, data) => ref.update(data), set: (ref, data) => ref.set(data) };
-    return fn(t);
-  },
-  batch: () => ({
-    _ops: [],
-    set: function(ref, data) { this._ops.push({type:"set", ref, data}); return this; },
-    update: function(ref, data) { this._ops.push({type:"update", ref, data}); return this; },
-    delete: function(ref) { this._ops.push({type:"delete", ref}); return this; },
-    commit: async function() { for(const op of this._ops) { if(op.type==="set") await op.ref.set(op.data); else if(op.type==="update") await op.ref.update(op.data); else if(op.type==="delete") await op.ref.delete(); } }
-  })
-};
-
-// ============================================================
-// APP CONTEXT
-// ============================================================
-const AppContext = createContext(null);
-
-const useApp = () => useContext(AppContext);
-
-// ============================================================
-// ICONS (SVG)
-// ============================================================
-const Icon = ({ name, size=20, className="" }) => {
-  const icons = {
-    dashboard: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />,
-    medicine: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />,
-    cart: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />,
-    purchase: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />,
-    stock: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />,
-    supplier: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />,
-    customer: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />,
-    cash: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />,
-    report: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />,
-    users: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />,
-    log: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />,
-    plus: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />,
-    edit: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />,
-    trash: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />,
-    search: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />,
-    close: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />,
-    menu: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />,
-    chevronDown: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />,
-    warning: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />,
-    check: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />,
-    print: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />,
-    excel: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />,
-    return: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />,
-    batch: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />,
-  };
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} fill="none" viewBox="0 0 24 24" stroke="currentColor" className={className}>
-      {icons[name]}
-    </svg>
-  );
-};
-
-// ============================================================
-// UTILITY FUNCTIONS
-// ============================================================
-const formatCurrency = (n) => (n || 0).toLocaleString("ar-EG", { minimumFractionDigits: 2 }) + " ج.م";
-const formatDate = (d) => d ? new Date(d).toLocaleDateString("ar-EG") : "-";
-const daysUntilExpiry = (dateStr) => {
-  if (!dateStr) return 9999;
-  return Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
-};
-
-// ============================================================
-// STYLES
-// ============================================================
-const globalStyles = `
-  @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap');
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  
-  :root {
-    --bg-primary: #0a0e1a;
-    --bg-secondary: #111827;
-    --bg-card: #141b2d;
-    --bg-hover: #1a2640;
-    --border: #1e2d45;
-    --border-light: #243550;
-    --accent: #00d4aa;
-    --accent-dim: #00d4aa22;
-    --accent-glow: #00d4aa44;
-    --blue: #3b82f6;
-    --blue-dim: #3b82f622;
-    --amber: #f59e0b;
-    --amber-dim: #f59e0b22;
-    --red: #ef4444;
-    --red-dim: #ef444422;
-    --green: #22c55e;
-    --green-dim: #22c55e22;
-    --purple: #a855f7;
-    --purple-dim: #a855f722;
-    --text-primary: #e2e8f0;
-    --text-secondary: #8b9dc3;
-    --text-muted: #4a6080;
-    --sidebar-w: 260px;
-    --radius: 12px;
-    --radius-sm: 8px;
-    --shadow: 0 4px 24px rgba(0,0,0,0.4);
-  }
-
-  html { font-size: 14px; direction: rtl; }
-  body { font-family: 'Tajawal', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
-
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: var(--bg-primary); }
-  ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-
-  .app { display: flex; min-height: 100vh; }
-
-  /* SIDEBAR */
-  .sidebar {
-    width: var(--sidebar-w);
-    background: var(--bg-secondary);
-    border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 0; right: 0; bottom: 0;
-    z-index: 100;
-    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
-  }
-  .sidebar.closed { transform: translateX(var(--sidebar-w)); }
-  .sidebar-logo {
-    padding: 20px 16px;
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; gap: 12px;
-  }
-  .logo-icon {
-    width: 40px; height: 40px;
-    background: linear-gradient(135deg, var(--accent), #0099cc);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; font-weight: 900; color: #000;
-    box-shadow: 0 0 20px var(--accent-glow);
-  }
-  .logo-text { font-size: 15px; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
-  .logo-sub { font-size: 11px; color: var(--accent); font-weight: 500; }
-  .sidebar-nav { flex: 1; overflow-y: auto; padding: 8px; }
-  .nav-section { margin-bottom: 4px; }
-  .nav-section-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; padding: 12px 12px 6px; }
-  .nav-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px; border-radius: var(--radius-sm);
-    cursor: pointer; color: var(--text-secondary);
-    font-size: 13px; font-weight: 500;
-    transition: all 0.15s; position: relative;
-    margin-bottom: 2px;
-  }
-  .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-  .nav-item.active { background: var(--accent-dim); color: var(--accent); }
-  .nav-item.active::before { content: ''; position: absolute; right: 0; top: 20%; bottom: 20%; width: 3px; background: var(--accent); border-radius: 2px 0 0 2px; }
-  .nav-badge {
-    margin-right: auto; font-size: 10px; font-weight: 700;
-    background: var(--red); color: white;
-    padding: 1px 6px; border-radius: 10px;
-  }
-
-  /* MAIN */
-  .main { margin-right: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  
-  /* TOPBAR */
-  .topbar {
-    height: 60px;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center;
-    padding: 0 20px; gap: 12px;
-    position: sticky; top: 0; z-index: 50;
-  }
-  .menu-btn { display: none; background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 6px; border-radius: 6px; }
-  .page-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
-  .topbar-actions { margin-right: auto; display: flex; align-items: center; gap: 8px; }
-  .search-bar {
-    display: flex; align-items: center; gap: 8px;
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 6px 12px;
-    color: var(--text-secondary); font-family: 'Tajawal', sans-serif;
-  }
-  .search-bar input { background: none; border: none; outline: none; color: var(--text-primary); font-family: inherit; font-size: 13px; width: 180px; }
-  .user-info { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--radius-sm); background: var(--bg-card); cursor: pointer; }
-  .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-dim); border: 2px solid var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--accent); }
-
-  /* PAGE CONTENT */
-  .page-content { padding: 20px; flex: 1; overflow-x: hidden; }
-
-  /* CARDS */
-  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
-  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-  .card-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
-  .card-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-
-  /* STAT CARDS */
-  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
-  .stat-card {
-    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 20px; position: relative; overflow: hidden;
-    transition: transform 0.2s, border-color 0.2s;
-  }
-  .stat-card:hover { transform: translateY(-2px); border-color: var(--border-light); }
-  .stat-card::before { content: ''; position: absolute; top: 0; right: 0; width: 100%; height: 2px; }
-  .stat-card.green::before { background: var(--green); }
-  .stat-card.blue::before { background: var(--blue); }
-  .stat-card.amber::before { background: var(--amber); }
-  .stat-card.red::before { background: var(--red); }
-  .stat-card.purple::before { background: var(--purple); }
-  .stat-card.accent::before { background: var(--accent); }
-  .stat-label { font-size: 12px; color: var(--text-secondary); font-weight: 500; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .stat-value { font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1; word-break: break-word; }
-  .stat-value.mono { font-family: 'JetBrains Mono', monospace; font-size: 18px; }
-  .stat-change { font-size: 11px; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .stat-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); opacity: 0.15; }
-  .green .stat-icon { color: var(--green); }
-  .blue .stat-icon { color: var(--blue); }
-  .amber .stat-icon { color: var(--amber); }
-  .red .stat-icon { color: var(--red); }
-  .accent .stat-icon { color: var(--accent); }
-
-  /* TABLE */
-  .table-wrap { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  thead th { background: var(--bg-hover); color: var(--text-secondary); font-weight: 600; padding: 10px 14px; text-align: right; font-size: 12px; white-space: nowrap; }
-  thead th:first-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-  thead th:last-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
-  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
-  tbody tr:hover { background: var(--bg-hover); }
-  tbody td { padding: 10px 14px; color: var(--text-primary); white-space: nowrap; }
-  .mono-cell { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
-
-  /* BADGES */
-  .badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
-  }
-  .badge-green { background: var(--green-dim); color: var(--green); }
-  .badge-red { background: var(--red-dim); color: var(--red); }
-  .badge-amber { background: var(--amber-dim); color: var(--amber); }
-  .badge-blue { background: var(--blue-dim); color: var(--blue); }
-  .badge-purple { background: var(--purple-dim); color: var(--purple); }
-  .badge-accent { background: var(--accent-dim); color: var(--accent); }
-  .badge-gray { background: rgba(255,255,255,0.05); color: var(--text-secondary); }
-
-  /* BUTTONS */
-  .btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 8px 16px; border-radius: var(--radius-sm);
-    font-family: 'Tajawal', sans-serif; font-size: 13px; font-weight: 600;
-    cursor: pointer; border: none; transition: all 0.15s;
-    white-space: nowrap;
-  }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-primary { background: var(--accent); color: #000; }
-  .btn-primary:hover:not(:disabled) { background: #00f0c0; box-shadow: 0 0 20px var(--accent-glow); }
-  .btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
-  .btn-secondary:hover:not(:disabled) { border-color: var(--border-light); background: var(--border); }
-  .btn-danger { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-dim); }
-  .btn-danger:hover:not(:disabled) { background: var(--red); color: white; }
-  .btn-icon { padding: 7px; width: 34px; height: 34px; justify-content: center; }
-  .btn-sm { padding: 5px 10px; font-size: 12px; }
-
-  /* FORM */
-  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
-  .form-group { display: flex; flex-direction: column; gap: 6px; }
-  .form-group.full { grid-column: 1 / -1; }
-  label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
-  input, select, textarea {
-    background: var(--bg-primary); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 9px 12px;
-    color: var(--text-primary); font-family: 'Tajawal', sans-serif; font-size: 13px;
-    outline: none; transition: border-color 0.15s, box-shadow 0.15s; width: 100%;
-    direction: rtl;
-  }
-  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-  input[type="number"] { font-family: 'JetBrains Mono', monospace; }
-  select option { background: var(--bg-card); }
-
-  /* MODAL */
-  .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-    z-index: 200; display: flex; align-items: center; justify-content: center; padding: 16px;
-    backdrop-filter: blur(4px);
-    animation: fadeIn 0.15s;
-  }
-  .modal {
-    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-    width: 100%; max-width: 700px; max-height: 90vh; display: flex; flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-    animation: slideUp 0.2s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .modal.modal-sm { max-width: 440px; }
-  .modal.modal-lg { max-width: 900px; }
-  .modal.modal-xl { max-width: 1100px; }
-  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-  .modal-title { font-size: 16px; font-weight: 700; }
-  .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
-  .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
-
-  /* INVOICE */
-  .invoice-items-header { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 40px; gap: 8px; padding: 8px 12px; background: var(--bg-hover); border-radius: var(--radius-sm); font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; }
-  .invoice-item-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 40px; gap: 8px; align-items: center; padding: 4px 0; }
-  .invoice-total-section { background: var(--bg-hover); border-radius: var(--radius-sm); padding: 14px; margin-top: 12px; }
-  .total-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; }
-  .total-row.grand { font-size: 16px; font-weight: 800; color: var(--accent); border-top: 1px solid var(--border); padding-top: 10px; margin-top: 6px; }
-
-  /* ALERTS */
-  .alert { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-radius: var(--radius-sm); font-size: 13px; }
-  .alert-warning { background: var(--amber-dim); border: 1px solid var(--amber); color: var(--amber); }
-  .alert-danger { background: var(--red-dim); border: 1px solid var(--red); color: var(--red); }
-  .alert-success { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
-
-  /* TABS */
-  .tabs { display: flex; gap: 4px; background: var(--bg-hover); border-radius: var(--radius-sm); padding: 4px; margin-bottom: 20px; }
-  .tab { flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-secondary); transition: all 0.15s; }
-  .tab.active { background: var(--bg-card); color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-
-  /* PAGINATION */
-  .pagination { display: flex; align-items: center; gap: 6px; justify-content: center; margin-top: 16px; }
-  .page-btn { width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--bg-hover); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; transition: all 0.15s; }
-  .page-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .page-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
-
-  /* OVERLAYS */
-  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; }
-  
-  /* EMPTY STATE */
-  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
-  .empty-state svg { margin: 0 auto 16px; opacity: 0.3; }
-  .empty-state p { font-size: 14px; }
-
-  /* GRID LAYOUTS */
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-  .flex-row { display: flex; align-items: center; gap: 10px; }
-  .flex-between { display: flex; align-items: center; justify-content: space-between; }
-  .gap-8 { gap: 8px; }
-  .mb-16 { margin-bottom: 16px; }
-  .mb-20 { margin-bottom: 20px; }
-
-  /* TOAST */
-  .toast-container { position: fixed; bottom: 20px; left: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
-  .toast {
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 16px; border-radius: var(--radius-sm);
-    font-size: 13px; font-weight: 600;
-    box-shadow: var(--shadow);
-    animation: slideInLeft 0.3s cubic-bezier(0.34,1.56,0.64,1);
-    min-width: 250px;
-  }
-  .toast-success { background: var(--green); color: #000; }
-  .toast-error { background: var(--red); color: white; }
-  .toast-info { background: var(--blue); color: white; }
-
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-  @keyframes slideInLeft { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-  @media (max-width: 768px) {
-    :root { --sidebar-w: 260px; }
-    .sidebar { transform: translateX(var(--sidebar-w)); }
-    .sidebar.open { transform: translateX(0); }
-    .main { margin-right: 0; }
-    .menu-btn { display: block; }
-    .overlay { display: block; }
-    .search-bar input { width: 120px; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    .grid-2, .grid-3 { grid-template-columns: 1fr; }
-    .invoice-items-header, .invoice-item-row { grid-template-columns: 2fr 1fr 1fr 40px; }
-    .hide-mobile { display: none; }
-  }
-
-  /* Print */
-  @media print {
-    .sidebar, .topbar, .no-print { display: none !important; }
-    .main { margin-right: 0; }
-    body { background: white; color: black; }
-    .card { border: 1px solid #ddd; }
-  }
-`;
-
-// ============================================================
-// TOAST COMPONENT
-// ============================================================
-const ToastContainer = ({ toasts, removeToast }) => (
-  <div className="toast-container">
-    {toasts.map(t => (
-      <div key={t.id} className={`toast toast-${t.type}`} onClick={() => removeToast(t.id)}>
-        <Icon name={t.type === "success" ? "check" : t.type === "error" ? "close" : "log"} size={16} />
-        {t.message}
-      </div>
-    ))}
-  </div>
-);
-
-// ============================================================
-// DASHBOARD
-// ============================================================
-const Dashboard = () => {
-  const totalSales = MOCK_DB.sales.reduce((s, i) => s + i.total, 0);
-  const totalPurchases = MOCK_DB.purchases.reduce((s, i) => s + i.total, 0);
-  const totalExpenses = MOCK_DB.expenses.reduce((s, i) => s + i.amount, 0);
-  const totalCostOfSales = MOCK_DB.sales.reduce((s, inv) => s + inv.items.reduce((a, it) => a + it.cost * it.qty, 0), 0);
-  const grossProfit = totalSales - totalCostOfSales;
-  const netProfit = grossProfit - totalExpenses;
-  const lowStock = MOCK_DB.batches.filter(b => b.remaining <= MOCK_DB.medicines.find(m => m.id === b.medicineId)?.minStock);
-  const expiringSoon = MOCK_DB.batches.filter(b => b.remaining > 0 && daysUntilExpiry(b.expDate) <= 90 && daysUntilExpiry(b.expDate) > 0);
-  const expiredBatches = MOCK_DB.batches.filter(b => b.remaining > 0 && daysUntilExpiry(b.expDate) <= 0);
-
-  const recentSales = MOCK_DB.sales.slice(0, 5);
-
-  return (
-    <div>
-      {/* Stats */}
-      <div className="stats-grid">
-        <div className="stat-card green">
-          <div className="stat-label">إجمالي المبيعات</div>
-          <div className="stat-value mono">{formatCurrency(totalSales)}</div>
-          <div className="stat-change" style={{color:"var(--green)"}}>▲ هذا الشهر</div>
-          <div className="stat-icon"><Icon name="cart" size={48} /></div>
-        </div>
-        <div className="stat-card blue">
-          <div className="stat-label">إجمالي المشتريات</div>
-          <div className="stat-value mono">{formatCurrency(totalPurchases)}</div>
-          <div className="stat-change" style={{color:"var(--blue)"}}>▲ هذا الشهر</div>
-          <div className="stat-icon"><Icon name="purchase" size={48} /></div>
-        </div>
-        <div className={`stat-card ${netProfit >= 0 ? "accent" : "red"}`}>
-          <div className="stat-label">صافي الربح</div>
-          <div className="stat-value mono">{formatCurrency(netProfit)}</div>
-          <div className="stat-change" style={{color: netProfit>=0?"var(--accent)":"var(--red)"}}>{netProfit>=0?"▲ ربح":"▼ خسارة"}</div>
-          <div className="stat-icon"><Icon name="report" size={48} /></div>
-        </div>
-        <div className="stat-card amber">
-          <div className="stat-label">أصناف ناقصة المخزون</div>
-          <div className="stat-value">{lowStock.length}</div>
-          <div className="stat-change" style={{color:"var(--amber)"}}>صنف يحتاج إعادة طلب</div>
-          <div className="stat-icon"><Icon name="warning" size={48} /></div>
-        </div>
-        <div className="stat-card red">
-          <div className="stat-label">قريبة من الانتهاء</div>
-          <div className="stat-value">{expiringSoon.length}</div>
-          <div className="stat-change" style={{color:"var(--red)"}}>تشغيلة خلال 90 يوم</div>
-          <div className="stat-icon"><Icon name="batch" size={48} /></div>
-        </div>
-        <div className="stat-card purple">
-          <div className="stat-label">الهامش التجاري</div>
-          <div className="stat-value mono">{totalSales > 0 ? ((grossProfit / totalSales) * 100).toFixed(1) : 0}%</div>
-          <div className="stat-change" style={{color:"var(--purple)"}}>نسبة المبيعات</div>
-          <div className="stat-icon"><Icon name="cash" size={48} /></div>
-        </div>
-      </div>
-
-      <div className="grid-2">
-        {/* Recent Sales */}
-        <div className="card">
-          <div className="card-header">
-            <div><div className="card-title">آخر المبيعات</div></div>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>الفاتورة</th><th>العميل</th><th>الإجمالي</th><th>الحالة</th></tr></thead>
-              <tbody>
-                {recentSales.map(s => (
-                  <tr key={s.id}>
-                    <td className="mono-cell">{s.invoiceNo}</td>
-                    <td>{s.customerName}</td>
-                    <td className="mono-cell">{formatCurrency(s.total)}</td>
-                    <td><span className={`badge badge-${s.status === "مكتملة" ? "green" : "amber"}`}>{s.status}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Alerts */}
-        <div className="card">
-          <div className="card-header"><div className="card-title">تنبيهات المخزون</div></div>
-          <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
-            {expiredBatches.length > 0 && (
-              <div className="alert alert-danger">
-                <Icon name="warning" size={16} />
-                <div><strong>{expiredBatches.length} تشغيلة منتهية الصلاحية</strong> — يجب الفحص الفوري</div>
-              </div>
-            )}
-            {expiringSoon.slice(0, 3).map(b => (
-              <div key={b.id} className="alert alert-warning">
-                <Icon name="warning" size={16} />
-                <div>
-                  <strong>{b.medicineName}</strong> — {b.batchNo}<br/>
-                  <span style={{fontSize:"11px"}}>تنتهي في {daysUntilExpiry(b.expDate)} يوم ({formatDate(b.expDate)}) — متبقي {b.remaining} وحدة</span>
-                </div>
-              </div>
-            ))}
-            {lowStock.slice(0, 3).map(b => (
-              <div key={b.id} className="alert alert-warning">
-                <Icon name="stock" size={16} />
-                <div>
-                  <strong>{b.medicineName}</strong> — {b.batchNo}<br/>
-                  <span style={{fontSize:"11px"}}>المتبقي: {b.remaining} وحدة (الحد الأدنى: {MOCK_DB.medicines.find(m=>m.id===b.medicineId)?.minStock})</span>
-                </div>
-              </div>
-            ))}
-            {(expiringSoon.length + lowStock.length + expiredBatches.length === 0) && (
-              <div className="alert alert-success"><Icon name="check" size={16} />جميع الأصناف بحالة جيدة</div>
-            )}
-          </div>
-        </div>
+  <div id="app">
+    <!-- Splash Screen -->
+    <div id="splash" class="splash">
+      <div class="splash-content">
+        <div class="splash-cross">&#10013;</div>
+        <h1>متابعة المخدومات</h1>
+        <p>خدمة الكنيسة القبطية الأرثوذكسية</p>
+        <div class="splash-loader"><div></div></div>
       </div>
     </div>
-  );
-};
 
-// ============================================================
-// MEDICINES PAGE
-// ============================================================
-const MedicinesPage = ({ showToast }) => {
-  const [data, setData] = useState(MOCK_DB.medicines);
-  const [search, setSearch] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ name:"", category:"", barcode:"", unit:"علبة", costPrice:"", sellPrice:"", minStock:"", reorderLevel:"", active:true });
-  const categories = ["مسكنات","مضادات حيوية","معدة وهضم","هرمونات","سكر","قلب وضغط","فيتامينات","جلدية","عيون","أنف وأذن","أمراض نفسية","أخرى"];
+    <!-- Login Screen -->
+    <div id="loginScreen" class="screen hidden">
+      <div class="login-bg"></div>
 
-  const filtered = data.filter(m => m.name.includes(search) || m.category.includes(search) || m.barcode.includes(search));
-
-  const handleSave = () => {
-    if (!form.name.trim()) { showToast("أدخل اسم الدواء", "error"); return; }
-    if (editItem) {
-      const idx = MOCK_DB.medicines.findIndex(m => m.id === editItem.id);
-      if (idx !== -1) MOCK_DB.medicines[idx] = { ...MOCK_DB.medicines[idx], ...form };
-      setData([...MOCK_DB.medicines]);
-      showToast("تم تعديل الصنف بنجاح", "success");
-    } else {
-      const newItem = { id: generateId(), ...form, costPrice: +form.costPrice, sellPrice: +form.sellPrice, minStock: +form.minStock, reorderLevel: +form.reorderLevel, createdAt: now() };
-      MOCK_DB.medicines.unshift(newItem);
-      setData([...MOCK_DB.medicines]);
-      showToast("تم إضافة الصنف بنجاح", "success");
-    }
-    setShowModal(false);
-  };
-
-  const handleEdit = (item) => { setEditItem(item); setForm({...item}); setShowModal(true); };
-  const handleNew = () => { setEditItem(null); setForm({ name:"", category:"مسكنات", barcode:"", unit:"علبة", costPrice:"", sellPrice:"", minStock:"10", reorderLevel:"25", active:true }); setShowModal(true); };
-  const handleDelete = (id) => { if(!window.confirm("هل أنت متأكد من الحذف؟")) return; MOCK_DB.medicines = MOCK_DB.medicines.filter(m => m.id !== id); setData([...MOCK_DB.medicines]); showToast("تم حذف الصنف", "success"); };
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-header">
-          <div><div className="card-title">إدارة الأدوية والأصناف</div><div className="card-subtitle">{data.length} صنف مسجل</div></div>
-          <div className="flex-row">
-            <div className="search-bar"><Icon name="search" size={14} /><input placeholder="بحث..." value={search} onChange={e=>setSearch(e.target.value)} /></div>
-            <button className="btn btn-primary" onClick={handleNew}><Icon name="plus" size={16} />إضافة صنف</button>
-          </div>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>#</th><th>اسم الدواء</th><th>الفئة</th><th>الباركود</th><th>الوحدة</th><th>سعر التكلفة</th><th>سعر البيع</th><th>الحد الأدنى</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-            <tbody>
-              {filtered.map((m, i) => (
-                <tr key={m.id}>
-                  <td className="mono-cell" style={{color:"var(--text-muted)"}}>{i+1}</td>
-                  <td style={{fontWeight:600}}>{m.name}</td>
-                  <td><span className="badge badge-blue">{m.category}</span></td>
-                  <td className="mono-cell">{m.barcode}</td>
-                  <td>{m.unit}</td>
-                  <td className="mono-cell">{formatCurrency(m.costPrice)}</td>
-                  <td className="mono-cell" style={{color:"var(--green)"}}>{formatCurrency(m.sellPrice)}</td>
-                  <td className="mono-cell">{m.minStock}</td>
-                  <td><span className={`badge badge-${m.active?"green":"gray"}`}>{m.active?"نشط":"موقوف"}</span></td>
-                  <td>
-                    <div className="flex-row gap-8">
-                      <button className="btn btn-icon btn-secondary" onClick={()=>handleEdit(m)}><Icon name="edit" size={14} /></button>
-                      <button className="btn btn-icon btn-danger" onClick={()=>handleDelete(m.id)}><Icon name="trash" size={14} /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && <div className="empty-state"><Icon name="medicine" size={48} /><p>لا يوجد أصناف مطابقة للبحث</p></div>}
-        </div>
+      <!-- Hero Image -->
+      <div class="login-hero">
+        <img
+          src="https://i.ibb.co/Hf86pKxc/d041aaef2c786ed113ab887ce89a3b0060f9df0b8895f4103b871fc88b5e9e4b.png"
+          alt="Photo"
+          class="login-hero-img"
+          fetchpriority="high"
+          width="640"
+          height="381"
+         
+        >
+        <div class="login-gradient-bridge"></div>
       </div>
 
-      {showModal && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
-          <div className="modal">
-            <div className="modal-header"><div className="modal-title">{editItem?"تعديل صنف":"إضافة صنف جديد"}</div><button className="btn btn-icon btn-secondary" onClick={()=>setShowModal(false)}><Icon name="close" size={16} /></button></div>
-            <div className="modal-body">
-              <div className="form-grid">
-                <div className="form-group full"><label>اسم الدواء *</label><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="مثال: باراسيتامول 500mg" /></div>
-                <div className="form-group"><label>الفئة</label><select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{categories.map(c=><option key={c}>{c}</option>)}</select></div>
-                <div className="form-group"><label>الباركود</label><input value={form.barcode} onChange={e=>setForm({...form,barcode:e.target.value})} placeholder="600..." /></div>
-                <div className="form-group"><label>الوحدة</label><select value={form.unit} onChange={e=>setForm({...form,unit:e.target.value})}><option>علبة</option><option>شريط</option><option>زجاجة</option><option>أمبول</option><option>كبسولة</option><option>قرص</option></select></div>
-                <div className="form-group"><label>سعر التكلفة (ج.م)</label><input type="number" value={form.costPrice} onChange={e=>setForm({...form,costPrice:e.target.value})} min="0" step="0.01" /></div>
-                <div className="form-group"><label>سعر البيع (ج.م)</label><input type="number" value={form.sellPrice} onChange={e=>setForm({...form,sellPrice:e.target.value})} min="0" step="0.01" /></div>
-                <div className="form-group"><label>الحد الأدنى للمخزون</label><input type="number" value={form.minStock} onChange={e=>setForm({...form,minStock:e.target.value})} min="0" /></div>
-                <div className="form-group"><label>نقطة إعادة الطلب</label><input type="number" value={form.reorderLevel} onChange={e=>setForm({...form,reorderLevel:e.target.value})} min="0" /></div>
-                <div className="form-group">
-                  <label>الحالة</label>
-                  <select value={form.active ? "true" : "false"} onChange={e=>setForm({...form,active:e.target.value==="true"})}><option value="true">نشط</option><option value="false">موقوف</option></select>
-                </div>
+      <!-- Gold Particles -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- White Content Card -->
+      <div class="login-card" id="loginCard">
+        <div class="login-cross-icon">&#10013;</div>
+        <div class="login-church-name">كنيسه مارجرجس والشهداء</div>
+        <div class="login-system-title">وَلْيَكُنْ كُلُّ شَيْءٍ بِلِيَاقَةٍ وَبِحَسَبِ تَرْتِيبٍ. (1 كو 14: 40).</div>
+        <div class="login-divider"></div>
+        <div class="login-welcome">نظام متابعه خدمه اعدادي بنات</div>
+
+        <button id="googleSignIn" class="btn-google">
+          <svg class="google-logo" width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          <span class="btn-spinner"></span>
+          <span class="btn-text">تسجيل الدخول بـ Google</span>
+        </button>
+</div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="hidden">
+      <!-- Header -->
+      <header class="app-header">
+        <div class="header-right">
+          <button class="menu-btn" id="menuBtn" aria-label="القائمة">&#9776;</button>
+          <div class="header-titles">
+            <h1 id="pageTitle">الرئيسية</h1>
+            <span id="pageSubtitle" class="page-subtitle"></span>
+          </div>
+        </div>
+        <div class="header-left">
+<div class="avatar" id="userAvatar">خ</div>
+        </div>
+      </header>
+
+      <!-- Side Drawer -->
+      <div class="drawer-overlay" id="drawerOverlay"></div>
+      <nav class="drawer" id="drawer" aria-label="القائمة الرئيسية">
+        <div class="drawer-header">
+          <div class="drawer-avatar" id="drawerAvatar">خ</div>
+          <div class="drawer-user-info">
+            <span id="drawerUserName">الخادم</span>
+            <span id="drawerUserEmail" class="drawer-email">user@gmail.com</span>
+          </div>
+        </div>
+        <ul class="drawer-menu">
+          <li><a href="#" data-page="home" class="menu-item active"><span>&#127968;</span> الرئيسية</a></li>
+          <li><a href="#" data-page="attendance" class="menu-item"><span>&#128203;</span> الحضور اليومي</a></li>
+          <li><a href="#" data-page="girls" class="menu-item"><span>&#128101;</span> المخدومات</a></li>
+          <li><a href="#" data-page="calendar" class="menu-item"><span>&#128197;</span> التقويم الشهري</a></li>
+          <li><a href="#" data-page="stats" class="menu-item"><span>&#128202;</span> الإحصائيات</a></li>
+          <li><a href="#" data-page="history" class="menu-item"><span>&#128220;</span> السجل التاريخي</a></li>
+          <li><a href="#" data-page="export" class="menu-item"><span>&#128228;</span> التصدير</a></li>
+          <li class="drawer-divider"></li>
+          <li><a href="#" id="signOutBtn" class="menu-item sign-out"><span>&#128682;</span> تسجيل الخروج</a></li>
+        </ul>
+        <!-- Dark Mode Toggle -->
+        <div class="dark-mode-toggle" id="darkModeToggle">
+          <span>&#127769;</span> الوضع الداكن
+          <div class="dark-toggle-switch" id="darkToggleSwitch"></div>
+        </div>
+</nav>
+
+      <!-- Page Content -->
+      <main class="page-content" id="pageContent">
+
+        <!-- HOME PAGE -->
+        <div id="page-home" class="page active">
+          <div class="search-bar-wrap">
+            <input type="text" id="globalSearch" class="search-bar" placeholder="&#128269; ابحث عن مخدومة..." autocomplete="off">
+          </div>
+          <div id="searchResults" class="search-results"></div>
+
+          <div class="today-card">
+            <div class="today-info">
+              <span class="today-label">اليوم</span>
+              <span id="todayDay" class="today-day">---</span>
+              <span id="todayDate" class="today-date">---</span>
+            </div>
+            <div id="todayServiceBadge" class="service-badge"></div>
+          </div>
+
+          <div class="grade-filter-btns" id="homeGradeFilters">
+            <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="homeFilterCountAll">0</span></button>
+            <button class="grade-filter-btn" data-grade="أولى إعدادي">أولى <span class="count" id="homeFilterCount1">0</span></button>
+            <button class="grade-filter-btn" data-grade="تانية إعدادي">تانية <span class="count" id="homeFilterCount2">0</span></button>
+            <button class="grade-filter-btn" data-grade="تالتة إعدادي">تالتة <span class="count" id="homeFilterCount3">0</span></button>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card blue">
+              <div class="stat-num" id="statTotal">0</div>
+              <div class="stat-label">إجمالي المخدومات</div>
+            </div>
+            <div class="stat-card green">
+              <div class="stat-num" id="statPresentToday">0</div>
+              <div class="stat-label">حاضرات اليوم</div>
+            </div>
+            <div class="stat-card orange">
+              <div class="stat-num" id="statAbsentToday">0</div>
+              <div class="stat-label">غائبات اليوم</div>
+            </div>
+            <div class="stat-card purple">
+              <div class="stat-num" id="statAvgRating">-</div>
+              <div class="stat-label">متوسط التقييم</div>
+            </div>
+          </div>
+
+          <div class="section-title">إحصائيات مميزة</div>
+          <div class="stats-grid">
+            <div class="stat-card gold">
+              <div class="stat-icon">&#127942;</div>
+              <div class="stat-value" id="bestGrade">-</div>
+              <div class="stat-sublabel" id="bestGradePercent">أفضل سنة دراسية</div>
+            </div>
+            <div class="stat-card teal">
+              <div class="stat-icon">&#128218;</div>
+              <div class="stat-value" id="topActivityName">-</div>
+              <div class="stat-sublabel" id="topActivityCount">أكثر نشاط حضورًا</div>
+            </div>
+            <div class="stat-card rose">
+              <div class="stat-icon">&#11088;</div>
+              <div class="stat-value" id="mostRegularGirl">-</div>
+              <div class="stat-sublabel" id="mostRegularPercent">أكثر مخدومة انتظامًا</div>
+            </div>
+          </div>
+
+          <div class="section-title">الأكثر حضورًا هذا الشهر</div>
+          <div id="topAttendees" class="top-list"></div>
+
+          <div class="section-title">تحتاج متابعة</div>
+          <div id="needsFollowup" class="followup-list"></div>
+        </div>
+
+        <!-- ATTENDANCE PAGE -->
+        <div id="page-attendance" class="page">
+          <div class="day-selector">
+            <button class="day-btn" data-day="السبت">السبت</button>
+            <button class="day-btn" data-day="الاثنين">الإثنين</button>
+            <button class="day-btn" data-day="الاربعاء">الأربعاء</button>
+          </div>
+          <div class="date-input-wrap">
+            <label for="attendanceDate">التاريخ:</label>
+            <input type="date" id="attendanceDate" class="date-input">
+          </div>
+          <div class="activities-tabs">
+            <button class="act-tab active" data-activity="دراسي">&#128216; دراسي</button>
+            <button class="act-tab" data-activity="محفوظات">&#128221; محفوظات</button>
+            <button class="act-tab" data-activity="قبطي">&#9961; قبطي</button>
+            <button class="act-tab" data-activity="ألحان">&#127925; ألحان</button>
+          </div>
+
+          <!-- Attendance Search Bar -->
+          <div class="search-bar-wrap" style="margin-top:4px;">
+            <input type="text" id="attendanceSearch" class="search-bar" placeholder="&#128269; ابحث في الحضور..." autocomplete="off">
+          </div>
+
+          <div class="attendance-summary" id="attendanceSummary">
+            <span class="summ-item green-text">&#10003; <span id="presentCount">0</span> حاضر</span>
+            <span class="summ-item red-text">&#10007; <span id="absentCount">0</span> غائب</span>
+            <span class="summ-item gray-text"><span id="totalCount">0</span> إجمالي</span>
+          </div>
+          <div class="quick-actions" id="quickActions">
+            <button class="quick-action-btn all-present" id="selectAllPresent">&#10003; تحديد الكل حاضر</button>
+            <button class="quick-action-btn all-absent" id="selectAllAbsent">&#10007; تحديد الكل غائب</button>
+          </div>
+          <div class="att-toggle-hint" id="attToggleHint">&#128161; اضغط للتبديل بين حاضر/غائب &middot; اضغط مطولاً للتفاصيل &middot; اضغط نجمة للتقييم</div>
+          <div id="attendanceList" class="attendance-list"></div>
+        </div>
+
+        <!-- GIRLS PAGE -->
+        <div id="page-girls" class="page">
+          <!-- Search bar for finding girls to edit/delete -->
+          <div class="search-bar-wrap" style="margin-bottom:4px;">
+            <input type="text" id="girlsSearch" class="search-bar" placeholder="&#128269; ابحث عن مخدومة للتعديل أو الحذف..." autocomplete="off">
+          </div>
+          <div class="girls-filter-row">
+            <div class="grade-filter-btns" id="girlsGradeFilters">
+              <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="girlsFilterCountAll">0</span></button>
+              <button class="grade-filter-btn" data-grade="أولى إعدادي">أولى <span class="count" id="girlsFilterCount1">0</span></button>
+              <button class="grade-filter-btn" data-grade="تانية إعدادي">تانية <span class="count" id="girlsFilterCount2">0</span></button>
+              <button class="grade-filter-btn" data-grade="تالتة إعدادي">تالتة <span class="count" id="girlsFilterCount3">0</span></button>
+            </div>
+            <button class="btn-add-girl" id="addGirlBtn">+ إضافة</button>
+          </div>
+          <div id="girlsList" class="girls-list"></div>
+        </div>
+
+        <!-- CALENDAR PAGE -->
+        <div id="page-calendar" class="page">
+          <div class="calendar-nav">
+            <button class="cal-nav-btn" id="calPrev" aria-label="الشهر السابق">&#9664;</button>
+            <span id="calMonthYear" class="cal-month-title">---</span>
+            <button class="cal-nav-btn" id="calNext" aria-label="الشهر التالي">&#9654;</button>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+          <div id="dayDetail" class="day-detail"></div>
+        </div>
+
+        <!-- STATS PAGE -->
+        <div id="page-stats" class="page">
+          <!-- Date picker for month + day specific stats -->
+          <div class="stats-month-selector">
+            <label for="statsMonth">التاريخ:</label>
+            <input type="date" id="statsMonth" class="month-input">
+          </div>
+          <div class="time-filter-tabs" id="timeFilterTabs">
+            <button class="time-filter-tab" data-period="today">اليوم</button>
+            <button class="time-filter-tab active" data-period="month">هذا الشهر</button>
+            <button class="time-filter-tab" data-period="year">هذه السنة</button>
+            <button class="time-filter-tab" data-period="all">الكل</button>
+          </div>
+          <!-- Grade filter for stats -->
+          <div class="stats-grade-filter" id="statsGradeFilter">
+            <button class="stats-grade-btn active" data-grade="">الكل</button>
+            <button class="stats-grade-btn" data-grade="أولى إعدادي">أولى إعدادي</button>
+            <button class="stats-grade-btn" data-grade="تانية إعدادي">تانية إعدادي</button>
+            <button class="stats-grade-btn" data-grade="تالتة إعدادي">تالتة إعدادي</button>
+          </div>
+          <div class="big-stats-grid" id="bigStatsGrid"></div>
+
+          <div class="section-title">الحضور حسب النشاط <span id="activityStatsPeriod" style="font-size:13px;color:var(--text-muted);font-weight:400;">(هذا الشهر)</span> <span id="activityStatsGrade" style="font-size:12px;color:var(--accent);font-weight:700;"></span></div>
+          <div class="activity-stats-grid" id="activityStatsGrid"></div>
+
+          <div class="section-title">توزيع الغيابات</div>
+          <div id="absenceChart" class="absence-chart"></div>
+          <div class="section-title">ترتيب الحضور</div>
+          <div id="attendanceRanking" class="ranking-list"></div>
+        </div>
+
+        <!-- HISTORY PAGE -->
+        <div id="page-history" class="page">
+          <div class="history-controls">
+            <select id="historyFilter" class="filter-select">
+              <option value="">كل الأحداث</option>
+              <option value="إضافة">&#10133; إضافة مخدومة</option>
+              <option value="تعديل">&#9999; تعديل مخدومة</option>
+              <option value="حذف">&#10060; حذف مخدومة</option>
+              <option value="حضور">&#128203; تسجيل حضور</option>
+            </select>
+            <button id="clearHistoryBtn" class="btn-clear-history">&#10060; مسح السجل</button>
+          </div>
+          <div id="historyList" class="history-list">
+            <div class="empty-state">جارٍ التحميل...</div>
+          </div>
+          <div id="loadMoreHistory" class="load-more-wrap hidden">
+            <button id="loadMoreHistoryBtn" class="btn-load-more">&#9660; تحميل المزيد</button>
+          </div>
+        </div>
+
+        <!-- EXPORT PAGE -->
+        <div id="page-export" class="page">
+          <div class="export-card">
+            <div class="export-icon">&#128202;</div>
+            <h3>تصدير البيانات</h3>
+            <div class="export-month-wrap">
+              <label for="exportMonth">التاريخ:</label>
+              <input type="date" id="exportMonth" class="month-input">
+            </div>
+            <!-- Export Mode Selector -->
+            <div class="export-mode-wrap">
+              <label class="export-mode-label">نطاق التصدير:</label>
+              <div class="export-mode-options">
+                <label class="export-mode-option">
+                  <input type="radio" name="exportMode" value="day" checked>
+                  <span class="mode-check"></span>
+                  <span class="mode-text">يوم محدد</span>
+                </label>
+                <label class="export-mode-option">
+                  <input type="radio" name="exportMode" value="month">
+                  <span class="mode-check"></span>
+                  <span class="mode-text">الشهر كامل</span>
+                </label>
               </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={()=>setShowModal(false)}>إلغاء</button>
-              <button className="btn btn-primary" onClick={handleSave}><Icon name="check" size={16} />حفظ</button>
+            <div class="export-hint">
+              <span>&#128161;</span> "يوم محدد" = تقرير يومي (✓ حاضر / ✗ غايب) &nbsp;|&nbsp; "الشهر كامل" = تقرير أرقام (إحصائيات)
+            </div>
+            <div class="export-btns">
+              <button class="export-btn csv" id="exportCSV">
+                <span>&#128196;</span>
+                <div><b>تصدير Excel</b><small>حاضر = &#10003; | غائب = X</small></div>
+              </button>
+              <button class="export-btn json" id="exportJSON">
+                <span>&#128190;</span>
+                <div><b>تصدير JSON</b><small>بيانات كاملة</small></div>
+              </button>
+              <button class="export-btn print" id="exportPrint">
+                <span>&#128424;</span>
+                <div><b>تقرير للطباعة</b><small>PDF قابل للطباعة</small></div>
+              </button>
             </div>
           </div>
         </div>
-      )}
+
+      </main>
+
+      <!-- Bottom Nav -->
+      <nav class="bottom-nav" aria-label="التنقل السفلي">
+        <button class="nav-btn active" data-page="home" aria-label="الرئيسية"><span>&#127968;</span><label>الرئيسية</label></button>
+        <button class="nav-btn" data-page="attendance" aria-label="الحضور"><span>&#128203;</span><label>الحضور</label></button>
+        <button class="nav-btn" data-page="girls" aria-label="المخدومات"><span>&#128101;</span><label>المخدومات</label></button>
+        <button class="nav-btn" data-page="calendar" aria-label="التقويم"><span>&#128197;</span><label>التقويم</label></button>
+        <button class="nav-btn" data-page="stats" aria-label="إحصائيات"><span>&#128202;</span><label>إحصائيات</label></button>
+      </nav>
     </div>
-  );
-};
 
-// ============================================================
-// BATCHES PAGE
-// ============================================================
-const BatchesPage = ({ showToast }) => {
-  const [data, setData] = useState(MOCK_DB.batches);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
-  const today = new Date();
-
-  const filtered = data.filter(b => {
-    const matchSearch = b.medicineName.includes(search) || b.batchNo.includes(search);
-    if (filter === "expiring") return matchSearch && daysUntilExpiry(b.expDate) <= 90 && daysUntilExpiry(b.expDate) > 0;
-    if (filter === "expired") return matchSearch && daysUntilExpiry(b.expDate) <= 0;
-    if (filter === "low") return matchSearch && b.remaining <= (MOCK_DB.medicines.find(m=>m.id===b.medicineId)?.minStock || 0);
-    return matchSearch;
-  });
-
-  const getExpiryBadge = (expDate, remaining) => {
-    if (remaining === 0) return <span className="badge badge-gray">نفذ</span>;
-    const d = daysUntilExpiry(expDate);
-    if (d <= 0) return <span className="badge badge-red">منتهي</span>;
-    if (d <= 30) return <span className="badge badge-red">{d} يوم</span>;
-    if (d <= 90) return <span className="badge badge-amber">{d} يوم</span>;
-    return <span className="badge badge-green">سليم</span>;
-  };
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-header">
-          <div><div className="card-title">إدارة التشغيلات وتواريخ الصلاحية</div><div className="card-subtitle">{data.length} تشغيلة مسجلة</div></div>
-          <div className="flex-row">
-            <div className="search-bar"><Icon name="search" size={14} /><input placeholder="بحث..." value={search} onChange={e=>setSearch(e.target.value)} /></div>
+    <!-- Modal: Add/Edit Girl -->
+    <div class="modal-overlay" id="girlModal" role="dialog" aria-modal="true" aria-labelledby="girlModalTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="girlModalTitle">إضافة مخدومة</h3>
+          <button class="modal-close" id="closeGirlModal" aria-label="إغلاق">&#10005;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="girlName">الاسم الكامل *</label>
+            <input type="text" id="girlName" class="form-input" placeholder="اسم المخدومة" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="girlPhone">رقم الهاتف</label>
+            <input type="tel" id="girlPhone" class="form-input" placeholder="رقم التليفون" dir="ltr">
+          </div>
+          <div class="form-group">
+            <label for="girlGrade">السنة الدراسية *</label>
+            <select id="girlGrade" class="form-input">
+              <option value="">اختر السنة</option>
+              <option value="أولى إعدادي">أولى إعدادي</option>
+              <option value="تانية إعدادي">تانية إعدادي</option>
+              <option value="تالتة إعدادي">تالتة إعدادي</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="girlNotes">ملاحظات</label>
+            <textarea id="girlNotes" class="form-input" rows="3" placeholder="أي ملاحظات..."></textarea>
           </div>
         </div>
-        <div className="flex-row mb-16">
-          {[["all","الكل"],["expiring","قريبة الانتهاء"],["expired","منتهية"],["low","ناقصة"]].map(([v,l])=>
-            <button key={v} className={`btn ${filter===v?"btn-primary":"btn-secondary"} btn-sm`} onClick={()=>setFilter(v)}>{l}</button>
-          )}
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>#</th><th>الدواء</th><th>رقم التشغيلة</th><th>المورد</th><th>الكمية الأصلية</th><th>المتبقي</th><th>سعر التكلفة</th><th>سعر البيع</th><th>تاريخ الإنتاج</th><th>تاريخ الانتهاء</th><th>الحالة</th></tr></thead>
-            <tbody>
-              {filtered.map((b, i) => (
-                <tr key={b.id}>
-                  <td className="mono-cell" style={{color:"var(--text-muted)"}}>{i+1}</td>
-                  <td style={{fontWeight:600}}>{b.medicineName}</td>
-                  <td className="mono-cell">{b.batchNo}</td>
-                  <td>{b.supplierName}</td>
-                  <td className="mono-cell">{b.qty}</td>
-                  <td className="mono-cell" style={{color: b.remaining<=5?"var(--red)": b.remaining<=20?"var(--amber)":"var(--green)", fontWeight:700}}>{b.remaining}</td>
-                  <td className="mono-cell">{formatCurrency(b.costPrice)}</td>
-                  <td className="mono-cell">{formatCurrency(b.sellPrice)}</td>
-                  <td>{formatDate(b.mfgDate)}</td>
-                  <td>{formatDate(b.expDate)}</td>
-                  <td>{getExpiryBadge(b.expDate, b.remaining)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && <div className="empty-state"><Icon name="batch" size={48} /><p>لا يوجد تشغيلات مطابقة</p></div>}
+        <div class="modal-footer">
+          <button class="btn-danger hidden" id="deleteGirlBtn">&#128465; حذف</button>
+          <button class="btn-cancel" id="cancelGirlModal">&#10005; إلغاء</button>
+          <button class="btn-primary" id="saveGirlBtn">&#128190; حفظ</button>
         </div>
       </div>
     </div>
-  );
-};
 
-// ============================================================
-// SALES PAGE
-// ============================================================
-const SalesPage = ({ showToast }) => {
-  const [data, setData] = useState(MOCK_DB.sales);
-  const [showModal, setShowModal] = useState(false);
-  const [viewInv, setViewInv] = useState(null);
-  const [form, setForm] = useState({ customerId:"", customerName:"عميل نقدي", items:[], discount:0, paymentMethod:"نقدي", paid:0, notes:"" });
-  const [itemForm, setItemForm] = useState({ medicineId:"", medicineName:"", batchId:"", qty:1, price:0, cost:0, discount:0 });
-  const [search, setSearch] = useState("");
-
-  const filtered = data.filter(s => s.invoiceNo.includes(search) || s.customerName.includes(search));
-
-  const getNextInvoiceNo = () => `INV-2026-${String(MOCK_DB.sales.length + 1).padStart(3,"0")}`;
-
-  const addItem = () => {
-    if (!itemForm.medicineId || itemForm.qty <= 0) { showToast("اختر دواء وأدخل كمية", "error"); return; }
-    const batch = MOCK_DB.batches.find(b => b.id === itemForm.batchId);
-    if (batch && itemForm.qty > batch.remaining) { showToast(`الكمية المتاحة: ${batch.remaining}`, "error"); return; }
-    setForm(prev => ({ ...prev, items: [...prev.items, {...itemForm, id: generateId()}] }));
-    setItemForm({ medicineId:"", medicineName:"", batchId:"", qty:1, price:0, cost:0, discount:0 });
-  };
-
-  const removeItem = (id) => setForm(prev => ({ ...prev, items: prev.items.filter(i => i.id !== id) }));
-
-  const subtotal = form.items.reduce((s, i) => s + (i.price * i.qty) - (i.discount || 0), 0);
-  const total = subtotal - (+form.discount || 0);
-
-  const handleSave = () => {
-    if (form.items.length === 0) { showToast("أضف أصناف للفاتورة", "error"); return; }
-    const inv = { id: generateId(), invoiceNo: getNextInvoiceNo(), ...form, discount: +form.discount, paid: +form.paid, subtotal, total, remaining: total - (+form.paid||0), status: total - (+form.paid||0) <= 0 ? "مكتملة" : "آجلة", createdAt: now(), createdBy: "admin" };
-    MOCK_DB.sales.unshift(inv);
-    MOCK_DB.auditLog.unshift({ id: generateId(), action: "بيع", description: `إنشاء فاتورة ${inv.invoiceNo}`, userId: "u1", userName: "مدير النظام", createdAt: now() });
-    // update batch quantities
-    form.items.forEach(item => {
-      const bIdx = MOCK_DB.batches.findIndex(b => b.id === item.batchId);
-      if (bIdx !== -1) MOCK_DB.batches[bIdx].remaining -= item.qty;
-    });
-    setData([...MOCK_DB.sales]);
-    setShowModal(false);
-    setForm({ customerId:"", customerName:"عميل نقدي", items:[], discount:0, paymentMethod:"نقدي", paid:0, notes:"" });
-    showToast(`تم حفظ الفاتورة ${inv.invoiceNo}`, "success");
-  };
-
-  const handleMedicineSelect = (e) => {
-    const med = MOCK_DB.medicines.find(m => m.id === e.target.value);
-    if (!med) return;
-    const batch = MOCK_DB.batches.find(b => b.medicineId === med.id && b.remaining > 0);
-    setItemForm(prev => ({ ...prev, medicineId: med.id, medicineName: med.name, batchId: batch?.id || "", price: med.sellPrice, cost: med.costPrice }));
-  };
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-header">
-          <div><div className="card-title">فواتير المبيعات</div><div className="card-subtitle">{data.length} فاتورة</div></div>
-          <div className="flex-row">
-            <div className="search-bar"><Icon name="search" size={14} /><input placeholder="بحث..." value={search} onChange={e=>setSearch(e.target.value)} /></div>
-            <button className="btn btn-primary" onClick={()=>setShowModal(true)}><Icon name="plus" size={16} />فاتورة جديدة</button>
-          </div>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>رقم الفاتورة</th><th>العميل</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>طريقة الدفع</th><th>التاريخ</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-            <tbody>
-              {filtered.map(s => (
-                <tr key={s.id}>
-                  <td className="mono-cell" style={{color:"var(--accent)",fontWeight:700}}>{s.invoiceNo}</td>
-                  <td>{s.customerName}</td>
-                  <td className="mono-cell" style={{color:"var(--green)",fontWeight:600}}>{formatCurrency(s.total)}</td>
-                  <td className="mono-cell">{formatCurrency(s.paid)}</td>
-                  <td className="mono-cell" style={{color: s.remaining > 0 ? "var(--amber)" : "var(--text-muted)"}}>{formatCurrency(s.remaining)}</td>
-                  <td><span className="badge badge-blue">{s.paymentMethod}</span></td>
-                  <td style={{color:"var(--text-secondary)",fontSize:"12px"}}>{formatDate(s.createdAt)}</td>
-                  <td><span className={`badge badge-${s.status==="مكتملة"?"green":"amber"}`}>{s.status}</span></td>
-                  <td><button className="btn btn-icon btn-secondary" onClick={()=>setViewInv(s)}><Icon name="print" size={14} /></button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length===0&&<div className="empty-state"><Icon name="cart" size={48} /><p>لا يوجد فواتير</p></div>}
+    <!-- Confirm Modal -->
+    <div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="confirm-box">
+        <div class="confirm-icon" id="confirmIcon">&#9888;</div>
+        <div class="confirm-title" id="confirmTitle">تأكيد</div>
+        <div class="confirm-msg" id="confirmMsg"></div>
+        <div class="confirm-actions">
+          <button class="confirm-cancel" id="confirmCancel">&#10005; إلغاء</button>
+          <button class="confirm-ok" id="confirmOk">&#10003; تأكيد</button>
         </div>
       </div>
+    </div>
 
-      {/* New Sale Modal */}
-      {showModal && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
-          <div className="modal modal-xl">
-            <div className="modal-header"><div className="modal-title">فاتورة مبيعات جديدة</div><button className="btn btn-icon btn-secondary" onClick={()=>setShowModal(false)}><Icon name="close" size={16} /></button></div>
-            <div className="modal-body">
-              <div className="form-grid mb-16">
-                <div className="form-group">
-                  <label>العميل</label>
-                  <select value={form.customerId} onChange={e=>{ const c=MOCK_DB.customers.find(x=>x.id===e.target.value); setForm({...form,customerId:e.target.value,customerName:c?c.name:"عميل نقدي"}); }}>
-                    <option value="">عميل نقدي</option>
-                    {MOCK_DB.customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>طريقة الدفع</label>
-                  <select value={form.paymentMethod} onChange={e=>setForm({...form,paymentMethod:e.target.value})}>
-                    <option>نقدي</option><option>تحويل</option><option>آجل</option><option>بطاقة</option>
-                  </select>
-                </div>
-              </div>
+    <!-- Modal: Girl Profile -->
+    <div class="modal-overlay" id="girlProfileModal" role="dialog" aria-modal="true" aria-labelledby="profileName">
+      <div class="modal modal-large">
+        <div class="modal-header">
+          <h3 id="profileName">ملف المخدومة</h3>
+          <button class="modal-close" id="closeProfileModal" aria-label="إغلاق">&#10005;</button>
+        </div>
+        <div class="modal-body" id="profileBody"></div>
+        <div class="modal-footer">
+          <button class="btn-share" id="shareProfileBtn">&#128239; مشاركة</button>
+          <button class="btn-primary" id="editProfileBtn">&#9999; تعديل</button>
+        </div>
+      </div>
+    </div>
 
-              {/* Add Item Row */}
-              <div className="card" style={{marginBottom:12,background:"var(--bg-hover)",border:"1px solid var(--border-light)"}}>
-                <div style={{fontWeight:700,marginBottom:10,fontSize:13}}>إضافة صنف</div>
-                <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr auto",gap:8,alignItems:"end"}}>
-                  <div className="form-group" style={{marginBottom:0}}>
-                    <label>الدواء</label>
-                    <select value={itemForm.medicineId} onChange={handleMedicineSelect}>
-                      <option value="">اختر دواء...</option>
-                      {MOCK_DB.medicines.filter(m=>m.active).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="form-group" style={{marginBottom:0}}>
-                    <label>التشغيلة</label>
-                    <select value={itemForm.batchId} onChange={e=>setItemForm({...itemForm,batchId:e.target.value})}>
-                      <option value="">اختر...</option>
-                      {MOCK_DB.batches.filter(b=>b.medicineId===itemForm.medicineId&&b.remaining>0).map(b=><option key={b.id} value={b.id}>{b.batchNo} (م:{b.remaining})</option>)}
-                    </select>
-                  </div>
-                  <div className="form-group" style={{marginBottom:0}}>
-                    <label>الكمية</label>
-                    <input type="number" value={itemForm.qty} onChange={e=>setItemForm({...itemForm,qty:+e.target.value})} min="1" />
-                  </div>
-                  <div className="form-group" style={{marginBottom:0}}>
-                    <label>السعر</label>
-                    <input type="number" value={itemForm.price} onChange={e=>setItemForm({...itemForm,price:+e.target.value})} min="0" step="0.01" />
-                  </div>
-                  <button className="btn btn-primary" onClick={addItem}><Icon name="plus" size={16} />إضافة</button>
-                </div>
-              </div>
-
-              {/* Items List */}
-              {form.items.length > 0 && (
-                <div style={{marginBottom:12}}>
-                  <div className="invoice-items-header"><span>الدواء</span><span>الكمية</span><span>السعر</span><span>الخصم</span><span>الإجمالي</span><span></span></div>
-                  {form.items.map(item => (
-                    <div key={item.id} className="invoice-item-row">
-                      <span style={{fontWeight:600,fontSize:13}}>{item.medicineName}</span>
-                      <span className="mono-cell">{item.qty}</span>
-                      <span className="mono-cell">{formatCurrency(item.price)}</span>
-                      <span className="mono-cell">{formatCurrency(item.discount||0)}</span>
-                      <span className="mono-cell" style={{color:"var(--green)"}}>{formatCurrency(item.price * item.qty - (item.discount||0))}</span>
-                      <button className="btn btn-icon btn-danger" style={{padding:4}} onClick={()=>removeItem(item.id)}><Icon name="close" size={12} /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Totals */}
-              <div className="invoice-total-section">
-                <div className="grid-2">
-                  <div>
-                    <div className="form-group"><label>خصم إجمالي (ج.م)</label><input type="number" value={form.discount} onChange={e=>setForm({...form,discount:e.target.value})} min="0" /></div>
-                    <div className="form-group"><label>المبلغ المدفوع (ج.م)</label><input type="number" value={form.paid} onChange={e=>setForm({...form,paid:e.target.value})} min="0" /></div>
-                  </div>
-                  <div>
-                    <div className="total-row"><span>المجموع الفرعي</span><span className="mono-cell">{formatCurrency(subtotal)}</span></div>
-                    <div className="total-row"><span>الخصم</span><span className="mono-cell" style={{color:"var(--red)"}}>- {formatCurrency(+form.discount||0)}</span></div>
-                    <div className="total-row grand"><span>الإجمالي</span><span className="mono-cell">{formatCurrency(total)}</span></div>
-                    <div className="total-row"><span>المدفوع</span><span className="mono-cell" style={{color:"var(--green)"}}>{formatCurrency(+form.paid||0)}</span></div>
-                    <div className="total-row"><span>المتبقي</span><span className="mono-cell" style={{color: total-(+form.paid||0) > 0 ? "var(--amber)" : "var(--text-muted)"}}>{formatCurrency(total-(+form.paid||0))}</span></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={()=>setShowModal(false)}>إلغاء</button>
-              <button className="btn btn-primary" onClick={handleSave}><Icon name="check" size={16} />حفظ الفاتورة</button>
+    <!-- Modal: Attendance Entry -->
+    <div class="modal-overlay" id="attendanceModal" role="dialog" aria-modal="true" aria-labelledby="attendanceModalTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="attendanceModalTitle">تسجيل الحضور</h3>
+          <button class="modal-close" id="closeAttendanceModal" aria-label="إغلاق">&#10005;</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-girl-name" id="modalGirlName"></p>
+          <div class="attend-options">
+            <button class="attend-btn present" data-status="حاضر" type="button">&#10003; حاضر</button>
+            <button class="attend-btn absent" data-status="غائب" type="button">&#10007; غائب</button>
+          </div>
+          <div id="ratingSection" class="rating-section">
+            <label>التقييم:</label>
+            <div class="stars-input" id="starsInput">
+              <span class="star" data-val="1" role="button" aria-label="1 نجمة">&#9733;</span>
+              <span class="star" data-val="2" role="button" aria-label="2 نجمة">&#9733;</span>
+              <span class="star" data-val="3" role="button" aria-label="3 نجوم">&#9733;</span>
+              <span class="star" data-val="4" role="button" aria-label="4 نجوم">&#9733;</span>
+              <span class="star" data-val="5" role="button" aria-label="5 نجوم">&#9733;</span>
             </div>
           </div>
+          <div class="form-group">
+            <label for="attendanceNotes">ملاحظات:</label>
+            <textarea id="attendanceNotes" class="form-input" rows="3" placeholder="ملاحظات..."></textarea>
+          </div>
         </div>
-      )}
+        <div class="modal-footer">
+          <button class="btn-cancel" id="cancelAttendanceModal">&#10005; إلغاء</button>
+          <button class="btn-primary" id="saveAttendanceEntry">&#128190; حفظ</button>
+        </div>
+      </div>
+    </div>
 
-      {/* View Invoice */}
-      {viewInv && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setViewInv(null)}>
-          <div className="modal modal-lg">
-            <div className="modal-header">
-              <div className="modal-title">فاتورة: {viewInv.invoiceNo}</div>
-              <div className="flex-row">
-                <button className="btn btn-secondary btn-sm" onClick={()=>window.print()}><Icon name="print" size={14}/>طباعة</button>
-                <button className="btn btn-icon btn-secondary" onClick={()=>setViewInv(null)}><Icon name="close" size={16} /></button>
-              </div>
+    <!-- Modal: Activity Detail -->
+    <div class="modal-overlay" id="activityDetailModal" role="dialog" aria-modal="true" aria-labelledby="activityDetailTitle">
+      <div class="modal modal-large">
+        <div class="modal-header">
+          <h3 id="activityDetailTitle">تفاصيل النشاط</h3>
+          <button class="modal-close" id="closeActivityDetailModal" aria-label="إغلاق">&#10005;</button>
+        </div>
+        <div class="modal-body">
+          <div class="detail-summary-bar" id="activityDetailSummary">
+            <span class="summary-icon" id="activityDetailIcon">&#128216;</span>
+            <div class="summary-text">
+              <div class="summary-title" id="activityDetailName">-</div>
+              <div class="summary-subtitle" id="activityDetailPeriod">-</div>
             </div>
-            <div className="modal-body">
-              <div className="grid-2 mb-16">
-                <div>
-                  <div style={{color:"var(--text-muted)",fontSize:12,marginBottom:4}}>العميل</div>
-                  <div style={{fontWeight:700,fontSize:15}}>{viewInv.customerName}</div>
-                </div>
-                <div>
-                  <div style={{color:"var(--text-muted)",fontSize:12,marginBottom:4}}>التاريخ</div>
-                  <div style={{fontWeight:600}}>{formatDate(viewInv.createdAt)}</div>
-                </div>
-              </div>
-              <div className="invoice-items-header"><span>الدواء</span><span>الكمية</span><span>السعر</span><span>الخصم</span><span>الإجمالي</span><span></span></div>
-              {viewInv.items.map((item, i) => (
-                <div key={i} className="invoice-item-row" style={{padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
-                  <span style={{fontWeight:600}}>{item.medicineName}</span>
-                  <span className="mono-cell">{item.qty}</span>
-                  <span className="mono-cell">{formatCurrency(item.price)}</span>
-                  <span className="mono-cell">{formatCurrency(item.discount||0)}</span>
-                  <span className="mono-cell" style={{color:"var(--green)"}}>{formatCurrency(item.price * item.qty - (item.discount||0))}</span>
-                  <span></span>
-                </div>
-              ))}
-              <div className="invoice-total-section" style={{marginTop:16}}>
-                <div className="total-row"><span>المجموع</span><span className="mono-cell">{formatCurrency(viewInv.subtotal)}</span></div>
-                <div className="total-row"><span>الخصم</span><span className="mono-cell" style={{color:"var(--red)"}}>- {formatCurrency(viewInv.discount)}</span></div>
-                <div className="total-row grand"><span>الإجمالي</span><span className="mono-cell">{formatCurrency(viewInv.total)}</span></div>
-                <div className="total-row"><span>المدفوع</span><span className="mono-cell" style={{color:"var(--green)"}}>{formatCurrency(viewInv.paid)}</span></div>
-                {viewInv.remaining > 0 && <div className="total-row"><span>المتبقي</span><span className="mono-cell" style={{color:"var(--amber)"}}>{formatCurrency(viewInv.remaining)}</span></div>}
-              </div>
-              <div style={{marginTop:12,display:"flex",gap:8}}>
-                <span className="badge badge-blue">{viewInv.paymentMethod}</span>
-                <span className={`badge badge-${viewInv.status==="مكتملة"?"green":"amber"}`}>{viewInv.status}</span>
-              </div>
-            </div>
+            <span class="summary-total" id="activityDetailTotal">0</span>
           </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ============================================================
-// PURCHASES PAGE
-// ============================================================
-const PurchasesPage = ({ showToast }) => {
-  const [data, setData] = useState(MOCK_DB.purchases);
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ supplierId:"", supplierName:"", items:[], discount:0, paid:0, notes:"" });
-  const [itemForm, setItemForm] = useState({ medicineId:"", medicineName:"", batchNo:"", qty:1, costPrice:0, expDate:"", mfgDate:"" });
-  const [search, setSearch] = useState("");
-
-  const filtered = data.filter(p => p.purchaseNo.includes(search) || p.supplierName.includes(search));
-
-  const addItem = () => {
-    if (!itemForm.medicineId || itemForm.qty <= 0) { showToast("اختر دواء وأدخل كمية", "error"); return; }
-    setForm(prev => ({ ...prev, items: [...prev.items, {...itemForm, id: generateId(), total: itemForm.qty * itemForm.costPrice}] }));
-    setItemForm({ medicineId:"", medicineName:"", batchNo:"", qty:1, costPrice:0, expDate:"", mfgDate:"" });
-  };
-
-  const subtotal = form.items.reduce((s, i) => s + i.total, 0);
-  const total = subtotal - (+form.discount || 0);
-
-  const handleSave = () => {
-    if (!form.supplierId) { showToast("اختر المورد", "error"); return; }
-    if (form.items.length === 0) { showToast("أضف أصناف للفاتورة", "error"); return; }
-    const pur = { id: generateId(), purchaseNo: `PUR-2026-${String(MOCK_DB.purchases.length+1).padStart(3,"0")}`, ...form, subtotal, total, remaining: total - (+form.paid||0), status: "مستلمة", createdAt: now(), createdBy: "admin" };
-    MOCK_DB.purchases.unshift(pur);
-    // Add batches
-    form.items.forEach(item => {
-      MOCK_DB.batches.unshift({ id: generateId(), medicineId: item.medicineId, medicineName: item.medicineName, batchNo: item.batchNo || `BT${generateId().toUpperCase()}`, supplierId: form.supplierId, supplierName: form.supplierName, qty: item.qty, remaining: item.qty, costPrice: item.costPrice, sellPrice: MOCK_DB.medicines.find(m=>m.id===item.medicineId)?.sellPrice || 0, mfgDate: item.mfgDate, expDate: item.expDate, createdAt: now() });
-    });
-    setData([...MOCK_DB.purchases]);
-    setShowModal(false);
-    setForm({ supplierId:"", supplierName:"", items:[], discount:0, paid:0, notes:"" });
-    showToast(`تم حفظ فاتورة الشراء ${pur.purchaseNo}`, "success");
-  };
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-header">
-          <div><div className="card-title">فواتير المشتريات</div><div className="card-subtitle">{data.length} فاتورة</div></div>
-          <div className="flex-row">
-            <div className="search-bar"><Icon name="search" size={14} /><input placeholder="بحث..." value={search} onChange={e=>setSearch(e.target.value)} /></div>
-            <button className="btn btn-primary" onClick={()=>setShowModal(true)}><Icon name="plus" size={16} />فاتورة شراء جديدة</button>
-          </div>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>رقم الفاتورة</th><th>المورد</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>التاريخ</th><th>الحالة</th></tr></thead>
-            <tbody>
-              {filtered.map(p => (
-                <tr key={p.id}>
-                  <td className="mono-cell" style={{color:"var(--blue)",fontWeight:700}}>{p.purchaseNo}</td>
-                  <td>{p.supplierName}</td>
-                  <td className="mono-cell" style={{color:"var(--red)",fontWeight:600}}>{formatCurrency(p.total)}</td>
-                  <td className="mono-cell">{formatCurrency(p.paid)}</td>
-                  <td className="mono-cell" style={{color: p.remaining > 0 ? "var(--amber)" : "var(--text-muted)"}}>{formatCurrency(p.remaining)}</td>
-                  <td style={{color:"var(--text-secondary)",fontSize:12}}>{formatDate(p.createdAt)}</td>
-                  <td><span className={`badge badge-${p.status==="مستلمة"?"green":p.status==="مستلمة جزئياً"?"amber":"gray"}`}>{p.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
-          <div className="modal modal-xl">
-            <div className="modal-header"><div className="modal-title">فاتورة شراء جديدة</div><button className="btn btn-icon btn-secondary" onClick={()=>setShowModal(false)}><Icon name="close" size={16} /></button></div>
-            <div className="modal-body">
-              <div className="form-grid mb-16">
-                <div className="form-group">
-                  <label>المورد *</label>
-                  <select value={form.supplierId} onChange={e=>{ const s=MOCK_DB.suppliers.find(x=>x.id===e.target.value); setForm({...form,supplierId:e.target.value,supplierName:s?.name||""}); }}>
-                    <option value="">اختر مورد...</option>
-                    {MOCK_DB.suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div className="form-group"><label>المبلغ المدفوع</label><input type="number" value={form.paid} onChange={e=>setForm({...form,paid:e.target.value})} min="0" /></div>
-              </div>
-              <div className="card" style={{marginBottom:12,background:"var(--bg-hover)",border:"1px solid var(--border-light)"}}>
-                <div style={{fontWeight:700,marginBottom:10,fontSize:13}}>إضافة صنف</div>
-                <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr 1fr auto",gap:8,alignItems:"end"}}>
-                  <div className="form-group" style={{marginBottom:0}}>
-                    <label>الدواء</label>
-                    <select value={itemForm.medicineId} onChange={e=>{ const m=MOCK_DB.medicines.find(x=>x.id===e.target.value); setItemForm({...itemForm,medicineId:e.target.value,medicineName:m?.name||"",costPrice:m?.costPrice||0}); }}>
-                      <option value="">اختر...</option>
-                      {MOCK_DB.medicines.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="form-group" style={{marginBottom:0}}><label>رقم التشغيلة</label><input value={itemForm.batchNo} onChange={e=>setItemForm({...itemForm,batchNo:e.target.value})} placeholder="BT001" /></div>
-                  <div className="form-group" style={{marginBottom:0}}><label>الكمية</label><input type="number" value={itemForm.qty} onChange={e=>setItemForm({...itemForm,qty:+e.target.value})} min="1" /></div>
-                  <div className="form-group" style={{marginBottom:0}}><label>سعر التكلفة</label><input type="number" value={itemForm.costPrice} onChange={e=>setItemForm({...itemForm,costPrice:+e.target.value})} min="0" step="0.01" /></div>
-                  <div className="form-group" style={{marginBottom:0}}><label>تاريخ الإنتاج</label><input type="date" value={itemForm.mfgDate} onChange={e=>setItemForm({...itemForm,mfgDate:e.target.value})} /></div>
-                  <div className="form-group" style={{marginBottom:0}}><label>تاريخ الانتهاء</label><input type="date" value={itemForm.expDate} onChange={e=>setItemForm({...itemForm,expDate:e.target.value})} /></div>
-                  <button className="btn btn-primary" onClick={addItem}><Icon name="plus" size={16} />إضافة</button>
-                </div>
-              </div>
-              {form.items.length > 0 && (
-                <div>
-                  {form.items.map((item, i) => (
-                    <div key={item.id} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 40px",gap:8,alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
-                      <span style={{fontWeight:600,fontSize:13}}>{item.medicineName}</span>
-                      <span className="mono-cell">{item.qty}</span>
-                      <span className="mono-cell">{formatCurrency(item.costPrice)}</span>
-                      <span className="mono-cell" style={{color:"var(--accent)",fontWeight:700}}>{formatCurrency(item.total)}</span>
-                      <button className="btn btn-icon btn-danger" style={{padding:4}} onClick={()=>setForm(prev=>({...prev,items:prev.items.filter(x=>x.id!==item.id)}))}><Icon name="close" size={12} /></button>
-                    </div>
-                  ))}
-                  <div className="invoice-total-section" style={{marginTop:12}}>
-                    <div className="total-row"><span>المجموع</span><span className="mono-cell">{formatCurrency(subtotal)}</span></div>
-                    <div className="form-group" style={{marginTop:8,maxWidth:200}}>
-                      <label>خصم (ج.م)</label>
-                      <input type="number" value={form.discount} onChange={e=>setForm({...form,discount:e.target.value})} min="0" />
-                    </div>
-                    <div className="total-row grand"><span>الإجمالي</span><span>{formatCurrency(total)}</span></div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={()=>setShowModal(false)}>إلغاء</button>
-              <button className="btn btn-primary" onClick={handleSave}><Icon name="check" size={16} />حفظ الفاتورة</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ============================================================
-// INVENTORY PAGE
-// ============================================================
-const InventoryPage = () => {
-  const [search, setSearch] = useState("");
-  const inventory = MOCK_DB.medicines.map(m => {
-    const batches = MOCK_DB.batches.filter(b => b.medicineId === m.id);
-    const totalQty = batches.reduce((s, b) => s + b.remaining, 0);
-    const totalValue = batches.reduce((s, b) => s + b.remaining * b.costPrice, 0);
-    const nearExpiry = batches.filter(b => b.remaining > 0 && daysUntilExpiry(b.expDate) <= 90 && daysUntilExpiry(b.expDate) > 0);
-    return { ...m, totalQty, totalValue, batchCount: batches.length, nearExpiry: nearExpiry.length };
-  }).filter(m => m.name.includes(search) || m.category.includes(search));
-
-  const totalValue = inventory.reduce((s, m) => s + m.totalValue, 0);
-
-  return (
-    <div>
-      <div className="stats-grid" style={{marginBottom:20}}>
-        <div className="stat-card accent"><div className="stat-label">إجمالي الأصناف</div><div className="stat-value">{inventory.length}</div><div className="stat-icon"><Icon name="medicine" size={48}/></div></div>
-        <div className="stat-card green"><div className="stat-label">قيمة المخزون الكلية</div><div className="stat-value mono">{formatCurrency(totalValue)}</div><div className="stat-icon"><Icon name="cash" size={48}/></div></div>
-        <div className="stat-card red"><div className="stat-label">أصناف ناقصة</div><div className="stat-value">{inventory.filter(m=>m.totalQty<=m.minStock).length}</div><div className="stat-icon"><Icon name="warning" size={48}/></div></div>
-        <div className="stat-card amber"><div className="stat-label">تشغيلات قريبة الانتهاء</div><div className="stat-value">{inventory.reduce((s,m)=>s+m.nearExpiry,0)}</div><div className="stat-icon"><Icon name="batch" size={48}/></div></div>
-      </div>
-      <div className="card">
-        <div className="card-header">
-          <div className="card-title">تقرير المخزون الحالي</div>
-          <div className="flex-row">
-            <div className="search-bar"><Icon name="search" size={14} /><input placeholder="بحث..." value={search} onChange={e=>setSearch(e.target.value)} /></div>
-            <button className="btn btn-secondary" onClick={()=>{ const csv="الدواء,الفئة,الكمية,القيمة\n"+inventory.map(m=>`${m.name},${m.category},${m.totalQty},${m.totalValue.toFixed(2)}`).join("\n"); const a=document.createElement("a"); a.href="data:text/csv;charset=utf-8,\uFEFF"+encodeURIComponent(csv); a.download="inventory.csv"; a.click(); }}><Icon name="excel" size={16} />تصدير Excel</button>
-          </div>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>الدواء</th><th>الفئة</th><th>الكمية المتاحة</th><th>قيمة المخزون</th><th>عدد التشغيلات</th><th>تشغيلات قريبة الانتهاء</th><th>الحالة</th></tr></thead>
-            <tbody>
-              {inventory.map(m => (
-                <tr key={m.id}>
-                  <td style={{fontWeight:600}}>{m.name}</td>
-                  <td><span className="badge badge-blue">{m.category}</span></td>
-                  <td className="mono-cell" style={{color: m.totalQty<=m.minStock?"var(--red)":m.totalQty<=m.reorderLevel?"var(--amber)":"var(--green)", fontWeight:700}}>{m.totalQty}</td>
-                  <td className="mono-cell">{formatCurrency(m.totalValue)}</td>
-                  <td className="mono-cell">{m.batchCount}</td>
-                  <td>{m.nearExpiry > 0 ? <span className="badge badge-amber">{m.nearExpiry} تشغيلة</span> : <span className="badge badge-gray">-</span>}</td>
-                  <td>
-                    {m.totalQty === 0 ? <span className="badge badge-red">نفذ</span> : m.totalQty <= m.minStock ? <span className="badge badge-red">حرج</span> : m.totalQty <= m.reorderLevel ? <span className="badge badge-amber">منخفض</span> : <span className="badge badge-green">جيد</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============================================================
-// SUPPLIERS PAGE
-// ============================================================
-const SuppliersPage = ({ showToast }) => {
-  const [data, setData] = useState(MOCK_DB.suppliers);
-  const [showModal, setShowModal] = useState(false);
-  const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ name:"", phone:"", email:"", address:"", active:true });
-
-  const handleSave = () => {
-    if (!form.name.trim()) { showToast("أدخل اسم المورد", "error"); return; }
-    if (editItem) {
-      const idx = MOCK_DB.suppliers.findIndex(s => s.id === editItem.id);
-      if(idx!==-1) MOCK_DB.suppliers[idx] = {...MOCK_DB.suppliers[idx],...form};
-      setData([...MOCK_DB.suppliers]);
-      showToast("تم التعديل بنجاح","success");
-    } else {
-      const n={id:generateId(),...form,balance:0,createdAt:now()};
-      MOCK_DB.suppliers.unshift(n);
-      setData([...MOCK_DB.suppliers]);
-      showToast("تم إضافة المورد","success");
-    }
-    setShowModal(false);
-  };
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-header">
-          <div><div className="card-title">إدارة الموردين</div></div>
-          <button className="btn btn-primary" onClick={()=>{setEditItem(null);setForm({name:"",phone:"",email:"",address:"",active:true});setShowModal(true)}}><Icon name="plus" size={16}/>مورد جديد</button>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>اسم المورد</th><th>الهاتف</th><th>البريد</th><th>العنوان</th><th>الرصيد</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-            <tbody>
-              {data.map(s => (
-                <tr key={s.id}>
-                  <td style={{fontWeight:600}}>{s.name}</td>
-                  <td className="mono-cell">{s.phone}</td>
-                  <td>{s.email}</td>
-                  <td>{s.address}</td>
-                  <td className="mono-cell" style={{color:s.balance<0?"var(--red)":s.balance>0?"var(--green)":"var(--text-muted)",fontWeight:600}}>{formatCurrency(s.balance)}</td>
-                  <td><span className={`badge badge-${s.active?"green":"gray"}`}>{s.active?"نشط":"موقوف"}</span></td>
-                  <td><button className="btn btn-icon btn-secondary" onClick={()=>{setEditItem(s);setForm({...s});setShowModal(true)}}><Icon name="edit" size={14}/></button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {showModal && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
-          <div className="modal modal-sm">
-            <div className="modal-header"><div className="modal-title">{editItem?"تعديل مورد":"مورد جديد"}</div><button className="btn btn-icon btn-secondary" onClick={()=>setShowModal(false)}><Icon name="close" size={16}/></button></div>
-            <div className="modal-body">
-              <div className="form-grid">
-                <div className="form-group full"><label>اسم المورد *</label><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></div>
-                <div className="form-group"><label>الهاتف</label><input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} /></div>
-                <div className="form-group"><label>البريد الإلكتروني</label><input value={form.email} onChange={e=>setForm({...form,email:e.target.value})} /></div>
-                <div className="form-group full"><label>العنوان</label><input value={form.address} onChange={e=>setForm({...form,address:e.target.value})} /></div>
-                <div className="form-group"><label>الحالة</label><select value={form.active?"true":"false"} onChange={e=>setForm({...form,active:e.target.value==="true"})}><option value="true">نشط</option><option value="false">موقوف</option></select></div>
-              </div>
-            </div>
-            <div className="modal-footer"><button className="btn btn-secondary" onClick={()=>setShowModal(false)}>إلغاء</button><button className="btn btn-primary" onClick={handleSave}><Icon name="check" size={16}/>حفظ</button></div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ============================================================
-// CUSTOMERS PAGE
-// ============================================================
-const CustomersPage = ({ showToast }) => {
-  const [data, setData] = useState(MOCK_DB.customers);
-  const [showModal, setShowModal] = useState(false);
-  const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState({ name:"", phone:"", address:"" });
-
-  const handleSave = () => {
-    if (!form.name.trim()) { showToast("أدخل اسم العميل","error"); return; }
-    if (editItem) {
-      const idx=MOCK_DB.customers.findIndex(c=>c.id===editItem.id);
-      if(idx!==-1) MOCK_DB.customers[idx]={...MOCK_DB.customers[idx],...form};
-      setData([...MOCK_DB.customers]);
-      showToast("تم التعديل","success");
-    } else {
-      const n={id:generateId(),...form,balance:0,createdAt:now()};
-      MOCK_DB.customers.unshift(n);
-      setData([...MOCK_DB.customers]);
-      showToast("تم إضافة العميل","success");
-    }
-    setShowModal(false);
-  };
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-header">
-          <div><div className="card-title">إدارة العملاء</div></div>
-          <button className="btn btn-primary" onClick={()=>{setEditItem(null);setForm({name:"",phone:"",address:""});setShowModal(true)}}><Icon name="plus" size={16}/>عميل جديد</button>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>اسم العميل</th><th>الهاتف</th><th>العنوان</th><th>الرصيد</th><th>إجراءات</th></tr></thead>
-            <tbody>
-              {data.map(c=>(
-                <tr key={c.id}>
-                  <td style={{fontWeight:600}}>{c.name}</td>
-                  <td className="mono-cell">{c.phone}</td>
-                  <td>{c.address}</td>
-                  <td className="mono-cell" style={{color:c.balance>0?"var(--green)":c.balance<0?"var(--red)":"var(--text-muted)",fontWeight:600}}>{formatCurrency(c.balance)}</td>
-                  <td><button className="btn btn-icon btn-secondary" onClick={()=>{setEditItem(c);setForm({...c});setShowModal(true)}}><Icon name="edit" size={14}/></button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {showModal && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
-          <div className="modal modal-sm">
-            <div className="modal-header"><div className="modal-title">{editItem?"تعديل عميل":"عميل جديد"}</div><button className="btn btn-icon btn-secondary" onClick={()=>setShowModal(false)}><Icon name="close" size={16}/></button></div>
-            <div className="modal-body">
-              <div className="form-grid">
-                <div className="form-group full"><label>اسم العميل *</label><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></div>
-                <div className="form-group"><label>الهاتف</label><input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} /></div>
-                <div className="form-group full"><label>العنوان</label><input value={form.address} onChange={e=>setForm({...form,address:e.target.value})} /></div>
-              </div>
-            </div>
-            <div className="modal-footer"><button className="btn btn-secondary" onClick={()=>setShowModal(false)}>إلغاء</button><button className="btn btn-primary" onClick={handleSave}><Icon name="check" size={16}/>حفظ</button></div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ============================================================
-// CASH & EXPENSES PAGE
-// ============================================================
-const CashPage = ({ showToast }) => {
-  const [tab, setTab] = useState("expenses");
-  const [expenses, setExpenses] = useState(MOCK_DB.expenses);
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ category:"إيجار", description:"", amount:"", date: new Date().toISOString().split("T")[0], paymentMethod:"نقدي" });
-  const categories = ["إيجار","مرتبات","مصاريف تشغيل","صيانة","مواصلات","دعاية وإعلان","أخرى"];
-  
-  const totalExpenses = expenses.reduce((s,e)=>s+e.amount,0);
-  const totalSales = MOCK_DB.sales.reduce((s,i)=>s+i.paid,0);
-  const cashBalance = totalSales - totalExpenses;
-
-  const handleSave = () => {
-    if (!form.description || !form.amount) { showToast("أكمل البيانات المطلوبة","error"); return; }
-    const n={id:generateId(),...form,amount:+form.amount,createdAt:now()};
-    MOCK_DB.expenses.unshift(n);
-    setExpenses([...MOCK_DB.expenses]);
-    setShowModal(false);
-    showToast("تم تسجيل المصروف","success");
-  };
-
-  return (
-    <div>
-      <div className="stats-grid mb-20">
-        <div className="stat-card green"><div className="stat-label">إجمالي الإيرادات</div><div className="stat-value mono">{formatCurrency(totalSales)}</div><div className="stat-icon"><Icon name="cash" size={48}/></div></div>
-        <div className="stat-card red"><div className="stat-label">إجمالي المصروفات</div><div className="stat-value mono">{formatCurrency(totalExpenses)}</div><div className="stat-icon"><Icon name="purchase" size={48}/></div></div>
-        <div className={`stat-card ${cashBalance>=0?"accent":"red"}`}><div className="stat-label">رصيد الخزينة</div><div className="stat-value mono">{formatCurrency(cashBalance)}</div><div className="stat-icon"><Icon name="report" size={48}/></div></div>
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <div className="card-title">المصروفات</div>
-          <button className="btn btn-primary" onClick={()=>{setForm({category:"إيجار",description:"",amount:"",date:new Date().toISOString().split("T")[0],paymentMethod:"نقدي"});setShowModal(true)}}><Icon name="plus" size={16}/>مصروف جديد</button>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>الفئة</th><th>الوصف</th><th>المبلغ</th><th>التاريخ</th><th>طريقة الدفع</th></tr></thead>
-            <tbody>
-              {expenses.map(e=>(
-                <tr key={e.id}>
-                  <td><span className="badge badge-purple">{e.category}</span></td>
-                  <td>{e.description}</td>
-                  <td className="mono-cell" style={{color:"var(--red)",fontWeight:600}}>{formatCurrency(e.amount)}</td>
-                  <td style={{color:"var(--text-secondary)",fontSize:12}}>{formatDate(e.date)}</td>
-                  <td><span className="badge badge-gray">{e.paymentMethod}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
-          <div className="modal modal-sm">
-            <div className="modal-header"><div className="modal-title">مصروف جديد</div><button className="btn btn-icon btn-secondary" onClick={()=>setShowModal(false)}><Icon name="close" size={16}/></button></div>
-            <div className="modal-body">
-              <div className="form-grid">
-                <div className="form-group"><label>الفئة</label><select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{categories.map(c=><option key={c}>{c}</option>)}</select></div>
-                <div className="form-group"><label>طريقة الدفع</label><select value={form.paymentMethod} onChange={e=>setForm({...form,paymentMethod:e.target.value})}><option>نقدي</option><option>تحويل</option><option>شيك</option></select></div>
-                <div className="form-group full"><label>الوصف *</label><input value={form.description} onChange={e=>setForm({...form,description:e.target.value})} /></div>
-                <div className="form-group"><label>المبلغ (ج.م) *</label><input type="number" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})} min="0" step="0.01" /></div>
-                <div className="form-group"><label>التاريخ</label><input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})} /></div>
-              </div>
-            </div>
-            <div className="modal-footer"><button className="btn btn-secondary" onClick={()=>setShowModal(false)}>إلغاء</button><button className="btn btn-primary" onClick={handleSave}><Icon name="check" size={16}/>حفظ</button></div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ============================================================
-// PROFIT & LOSS
-// ============================================================
-const ProfitLossPage = () => {
-  const totalSales = MOCK_DB.sales.reduce((s,i)=>s+i.total,0);
-  const totalCOGS = MOCK_DB.sales.reduce((s,inv)=>s+inv.items.reduce((a,it)=>a+it.cost*it.qty,0),0);
-  const grossProfit = totalSales - totalCOGS;
-  const totalExpenses = MOCK_DB.expenses.reduce((s,e)=>s+e.amount,0);
-  const netProfit = grossProfit - totalExpenses;
-  const totalPurchases = MOCK_DB.purchases.reduce((s,p)=>s+p.total,0);
-  const totalPurchasesPaid = MOCK_DB.purchases.reduce((s,p)=>s+p.paid,0);
-  const expByCategory = MOCK_DB.expenses.reduce((acc,e)=>{ acc[e.category]=(acc[e.category]||0)+e.amount; return acc; },{});
-
-  return (
-    <div>
-      <div className="stats-grid mb-20">
-        <div className="stat-card green"><div className="stat-label">إجمالي المبيعات</div><div className="stat-value mono">{formatCurrency(totalSales)}</div></div>
-        <div className="stat-card blue"><div className="stat-label">تكلفة البضاعة المباعة</div><div className="stat-value mono">{formatCurrency(totalCOGS)}</div></div>
-        <div className="stat-card accent"><div className="stat-label">مجمل الربح</div><div className="stat-value mono">{formatCurrency(grossProfit)}</div></div>
-        <div className="stat-card red"><div className="stat-label">المصروفات التشغيلية</div><div className="stat-value mono">{formatCurrency(totalExpenses)}</div></div>
-        <div className={`stat-card ${netProfit>=0?"accent":"red"}`}><div className="stat-label">صافي الربح/الخسارة</div><div className="stat-value mono">{formatCurrency(netProfit)}</div></div>
-        <div className="stat-card amber"><div className="stat-label">هامش الربح الصافي</div><div className="stat-value">{totalSales>0?((netProfit/totalSales)*100).toFixed(1):0}%</div></div>
-      </div>
-
-      <div className="grid-2">
-        <div className="card">
-          <div className="card-title" style={{marginBottom:16}}>قائمة الدخل التفصيلية</div>
-          <div style={{display:"flex",flexDirection:"column",gap:4}}>
-            {[
-              {label:"إجمالي الإيرادات",value:totalSales,color:"var(--green)",bold:true},
-              {label:"تكلفة البضاعة المباعة",value:-totalCOGS,color:"var(--red)"},
-              {label:"مجمل الربح",value:grossProfit,color:"var(--accent)",bold:true,border:true},
-              {label:"إجمالي المصروفات",value:-totalExpenses,color:"var(--red)"},
-              {label:"صافي الربح",value:netProfit,color:netProfit>=0?"var(--accent)":"var(--red)",bold:true,border:true,size:"big"},
-            ].map((row,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:`${row.border?"10px":"5px"} 0`,borderTop:row.border?"1px solid var(--border)":"none"}}>
-                <span style={{fontSize:row.bold?14:13,fontWeight:row.bold?700:400,color:row.bold?"var(--text-primary)":"var(--text-secondary)"}}>{row.label}</span>
-                <span style={{fontFamily:"JetBrains Mono,monospace",fontSize:row.size==="big"?17:14,fontWeight:row.bold?800:600,color:row.color}}>{row.value>=0?formatCurrency(row.value):`(${formatCurrency(Math.abs(row.value))})`}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-title" style={{marginBottom:16}}>توزيع المصروفات</div>
-          {Object.entries(expByCategory).map(([cat,amount])=>{
-            const pct = totalExpenses>0?((amount/totalExpenses)*100):0;
-            return (
-              <div key={cat} style={{marginBottom:12}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,fontSize:12}}>
-                  <span style={{color:"var(--text-secondary)"}}>{cat}</span>
-                  <span className="mono-cell" style={{color:"var(--text-primary)"}}>{formatCurrency(amount)} ({pct.toFixed(1)}%)</span>
-                </div>
-                <div style={{height:6,background:"var(--bg-hover)",borderRadius:3,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:`${pct}%`,background:"var(--purple)",borderRadius:3,transition:"width 0.5s"}}/>
-                </div>
-              </div>
-            );
-          })}
-          <div style={{marginTop:16,paddingTop:12,borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between"}}>
-            <span style={{fontWeight:700}}>الإجمالي</span>
-            <span className="mono-cell" style={{color:"var(--red)",fontWeight:700}}>{formatCurrency(totalExpenses)}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============================================================
-// REPORTS PAGE
-// ============================================================
-const ReportsPage = () => {
-  const [activeReport, setActiveReport] = useState("sales");
-
-  const exportCSV = (data, filename) => {
-    const headers = Object.keys(data[0] || {}).join(",");
-    const rows = data.map(d=>Object.values(d).map(v=>`"${v}"`).join(",")).join("\n");
-    const csv = "\uFEFF" + headers + "\n" + rows;
-    const a = document.createElement("a"); a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv); a.download=filename+".csv"; a.click();
-  };
-
-  const salesReport = MOCK_DB.sales.map(s=>({ "رقم الفاتورة":s.invoiceNo,"العميل":s.customerName,"الإجمالي":s.total,"المدفوع":s.paid,"التاريخ":formatDate(s.createdAt),"الحالة":s.status }));
-  const purchasesReport = MOCK_DB.purchases.map(p=>({ "رقم الفاتورة":p.purchaseNo,"المورد":p.supplierName,"الإجمالي":p.total,"المدفوع":p.paid,"التاريخ":formatDate(p.createdAt),"الحالة":p.status }));
-  const inventoryReport = MOCK_DB.medicines.map(m=>{ const batches=MOCK_DB.batches.filter(b=>b.medicineId===m.id); const qty=batches.reduce((s,b)=>s+b.remaining,0); return {"الدواء":m.name,"الفئة":m.category,"الكمية":qty,"الحد الأدنى":m.minStock}; });
-
-  const reports = { sales: salesReport, purchases: purchasesReport, inventory: inventoryReport };
-  const reportNames = { sales:"تقرير المبيعات", purchases:"تقرير المشتريات", inventory:"تقرير المخزون" };
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-header">
-          <div className="card-title">التقارير</div>
-          <div className="flex-row">
-            <button className="btn btn-secondary" onClick={()=>exportCSV(reports[activeReport], reportNames[activeReport])}><Icon name="excel" size={16}/>تصدير Excel</button>
-            <button className="btn btn-secondary" onClick={()=>window.print()}><Icon name="print" size={16}/>طباعة</button>
-          </div>
-        </div>
-        <div className="tabs">
-          {Object.entries(reportNames).map(([k,v])=><div key={k} className={`tab ${activeReport===k?"active":""}`} onClick={()=>setActiveReport(k)}>{v}</div>)}
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr>{Object.keys(reports[activeReport][0]||{}).map(h=><th key={h}>{h}</th>)}</tr></thead>
-            <tbody>
-              {reports[activeReport].map((row,i)=>(
-                <tr key={i}>{Object.values(row).map((v,j)=><td key={j} className={typeof v==="number"?"mono-cell":""}>{typeof v==="number"?formatCurrency(v):v}</td>)}</tr>
-              ))}
-            </tbody>
-          </table>
-          {reports[activeReport].length===0&&<div className="empty-state"><Icon name="report" size={48}/><p>لا يوجد بيانات</p></div>}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============================================================
-// USERS PAGE
-// ============================================================
-const UsersPage = ({ showToast }) => {
-  const [data, setData] = useState(MOCK_DB.users);
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ name:"", email:"", role:"cashier", active:true });
-  const roles = { admin:"مدير النظام", pharmacist:"صيدلاني", cashier:"كاشير" };
-
-  const handleSave = () => {
-    if (!form.name || !form.email) { showToast("أكمل البيانات","error"); return; }
-    const n={id:generateId(),...form,lastLogin:null,createdAt:now()};
-    MOCK_DB.users.push(n);
-    setData([...MOCK_DB.users]);
-    setShowModal(false);
-    showToast("تم إضافة المستخدم","success");
-  };
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-header">
-          <div><div className="card-title">إدارة المستخدمين والصلاحيات</div></div>
-          <button className="btn btn-primary" onClick={()=>{setForm({name:"",email:"",role:"cashier",active:true});setShowModal(true)}}><Icon name="plus" size={16}/>مستخدم جديد</button>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>الاسم</th><th>البريد الإلكتروني</th><th>الدور</th><th>آخر دخول</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-            <tbody>
-              {data.map(u=>(
-                <tr key={u.id}>
-                  <td style={{fontWeight:600}}>{u.name}</td>
-                  <td className="mono-cell">{u.email}</td>
-                  <td><span className={`badge badge-${u.role==="admin"?"red":u.role==="pharmacist"?"blue":"gray"}`}>{roles[u.role]}</span></td>
-                  <td style={{color:"var(--text-muted)",fontSize:12}}>{u.lastLogin?formatDate(u.lastLogin):"لم يسجل دخول"}</td>
-                  <td><span className={`badge badge-${u.active?"green":"gray"}`}>{u.active?"نشط":"معطل"}</span></td>
-                  <td>
-                    <button className="btn btn-icon btn-secondary" onClick={()=>{ const idx=MOCK_DB.users.findIndex(x=>x.id===u.id); if(idx!==-1){MOCK_DB.users[idx].active=!MOCK_DB.users[idx].active;} setData([...MOCK_DB.users]); showToast("تم تغيير الحالة","success"); }}><Icon name="check" size={14}/></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {showModal && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
-          <div className="modal modal-sm">
-            <div className="modal-header"><div className="modal-title">مستخدم جديد</div><button className="btn btn-icon btn-secondary" onClick={()=>setShowModal(false)}><Icon name="close" size={16}/></button></div>
-            <div className="modal-body">
-              <div className="form-grid">
-                <div className="form-group full"><label>الاسم الكامل *</label><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></div>
-                <div className="form-group full"><label>البريد الإلكتروني *</label><input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} /></div>
-                <div className="form-group"><label>الدور</label><select value={form.role} onChange={e=>setForm({...form,role:e.target.value})}><option value="admin">مدير النظام</option><option value="pharmacist">صيدلاني</option><option value="cashier">كاشير</option></select></div>
-                <div className="form-group"><label>الحالة</label><select value={form.active?"true":"false"} onChange={e=>setForm({...form,active:e.target.value==="true"})}><option value="true">نشط</option><option value="false">معطل</option></select></div>
-              </div>
-            </div>
-            <div className="modal-footer"><button className="btn btn-secondary" onClick={()=>setShowModal(false)}>إلغاء</button><button className="btn btn-primary" onClick={handleSave}><Icon name="check" size={16}/>حفظ</button></div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ============================================================
-// AUDIT LOG PAGE
-// ============================================================
-const AuditLogPage = () => (
-  <div className="card">
-    <div className="card-header"><div className="card-title">سجل العمليات والتعديلات</div></div>
-    <div className="table-wrap">
-      <table>
-        <thead><tr><th>العملية</th><th>الوصف</th><th>المستخدم</th><th>التاريخ والوقت</th></tr></thead>
-        <tbody>
-          {MOCK_DB.auditLog.map(l=>(
-            <tr key={l.id}>
-              <td><span className={`badge badge-${l.action==="بيع"?"green":l.action==="شراء"?"blue":"amber"}`}>{l.action}</span></td>
-              <td>{l.description}</td>
-              <td>{l.userName}</td>
-              <td style={{color:"var(--text-muted)",fontSize:12,fontFamily:"JetBrains Mono,monospace"}}>{new Date(l.createdAt).toLocaleString("ar-EG")}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {MOCK_DB.auditLog.length===0&&<div className="empty-state"><Icon name="log" size={48}/><p>لا يوجد سجلات</p></div>}
-    </div>
-  </div>
-);
-
-// ============================================================
-// RETURNS PAGE
-// ============================================================
-const ReturnsPage = ({ showToast }) => {
-  const [returns] = useState([
-    { id:"ret1", type:"مبيعات", invoiceRef:"INV-2024-001", customerName:"أحمد محمد", items:[{medicineName:"باراسيتامول 500mg",qty:1,price:15}], total:15, reason:"دواء تالف", createdAt:now() }
-  ]);
-  return (
-    <div className="card">
-      <div className="card-header">
-        <div><div className="card-title">المرتجعات</div></div>
-        <button className="btn btn-primary" onClick={()=>showToast("يمكن ربط المرتجعات بالفواتير في النسخة الكاملة مع Firebase","info")}><Icon name="plus" size={16}/>مرتجع جديد</button>
-      </div>
-      <div className="table-wrap">
-        <table>
-          <thead><tr><th>النوع</th><th>مرجع الفاتورة</th><th>الاسم</th><th>الإجمالي</th><th>السبب</th><th>التاريخ</th></tr></thead>
-          <tbody>
-            {returns.map(r=>(
-              <tr key={r.id}>
-                <td><span className={`badge badge-${r.type==="مبيعات"?"green":"blue"}`}>{r.type}</span></td>
-                <td className="mono-cell">{r.invoiceRef}</td>
-                <td>{r.customerName}</td>
-                <td className="mono-cell" style={{color:"var(--amber)",fontWeight:600}}>{formatCurrency(r.total)}</td>
-                <td style={{color:"var(--text-secondary)",fontSize:12}}>{r.reason}</td>
-                <td style={{color:"var(--text-muted)",fontSize:12}}>{formatDate(r.createdAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
-
-// ============================================================
-// FIREBASE SETUP INFO PAGE
-// ============================================================
-const FirebaseSetupPage = () => (
-  <div style={{display:"flex",flexDirection:"column",gap:16}}>
-    <div className="card">
-      <div className="card-header"><div className="card-title" style={{color:"var(--accent)"}}>🔥 إعداد Firebase Firestore</div></div>
-      <div style={{fontSize:13,lineHeight:2,color:"var(--text-secondary)"}}>
-        <p style={{marginBottom:12}}>لتشغيل هذا النظام مع Firebase Firestore الحقيقي، اتبع الخطوات التالية:</p>
-        <div style={{background:"var(--bg-hover)",borderRadius:8,padding:16,marginBottom:12,fontFamily:"JetBrains Mono,monospace",fontSize:12,color:"var(--text-primary)"}}>
-{`// 1. أنشئ مشروع Firebase جديد على:
-//    https://console.firebase.google.com
-
-// 2. فعّل Firestore Database (Native Mode)
-
-// 3. استبدل FIREBASE_CONFIG بالإعدادات الحقيقية:
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "SENDER_ID",
-  appId: "APP_ID"
-};
-
-// 4. هيكل Firestore Collections المقترح:
-// /medicines/{id}          - الأدوية والأصناف
-// /batches/{id}            - التشغيلات
-// /sales/{id}              - فواتير المبيعات
-// /purchases/{id}          - فواتير المشتريات
-// /suppliers/{id}          - الموردين
-// /customers/{id}          - العملاء
-// /expenses/{id}           - المصروفات
-// /users/{id}              - المستخدمين
-// /auditLog/{id}           - سجل العمليات
-// /settings/{id}           - الإعدادات`}
-        </div>
-
-        <div style={{background:"var(--blue-dim)",border:"1px solid var(--blue)",borderRadius:8,padding:16,marginBottom:12}}>
-          <div style={{fontWeight:700,color:"var(--blue)",marginBottom:8}}>📊 Indexes المطلوبة في Firestore:</div>
-          <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:12,color:"var(--text-primary)"}}>
-{`batches: [medicineId ASC, expDate ASC]
-batches: [supplierId ASC, createdAt DESC]  
-sales: [customerId ASC, createdAt DESC]
-sales: [status ASC, createdAt DESC]
-purchases: [supplierId ASC, createdAt DESC]
-expenses: [category ASC, date DESC]`}
-          </div>
-        </div>
-
-        <div style={{background:"var(--green-dim)",border:"1px solid var(--green)",borderRadius:8,padding:16}}>
-          <div style={{fontWeight:700,color:"var(--green)",marginBottom:8}}>⚡ Security Rules المقترحة:</div>
-          <div style={{fontFamily:"JetBrains Mono,monospace",fontSize:12,color:"var(--text-primary)"}}>
-{`rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
-    }
-  }
-}`}
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-// ============================================================
-// MAIN APP
-// ============================================================
-function PharmacyApp() {
-  const [page, setPage] = useState("dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [toasts, setToasts] = useState([]);
-
-  const showToast = (message, type="success") => {
-    const id = generateId();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
-  };
-
-  const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
-
-  const navItems = [
-    { section: "الرئيسية", items: [{ id:"dashboard", label:"لوحة التحكم", icon:"dashboard" }] },
-    { section: "المخزون", items: [
-      { id:"medicines", label:"الأدوية والأصناف", icon:"medicine" },
-      { id:"batches", label:"التشغيلات", icon:"batch", badge: MOCK_DB.batches.filter(b=>b.remaining>0&&daysUntilExpiry(b.expDate)<=30&&daysUntilExpiry(b.expDate)>0).length || null },
-      { id:"inventory", label:"المخزون والجرد", icon:"stock" },
-    ]},
-    { section: "المعاملات", items: [
-      { id:"sales", label:"فواتير المبيعات", icon:"cart" },
-      { id:"purchases", label:"فواتير المشتريات", icon:"purchase" },
-      { id:"returns", label:"المرتجعات", icon:"return" },
-    ]},
-    { section: "الحسابات", items: [
-      { id:"suppliers", label:"الموردين", icon:"supplier" },
-      { id:"customers", label:"العملاء", icon:"customer" },
-      { id:"cash", label:"الخزينة والمصروفات", icon:"cash" },
-      { id:"profitloss", label:"الأرباح والخسائر", icon:"report" },
-    ]},
-    { section: "الإدارة", items: [
-      { id:"reports", label:"التقارير", icon:"report" },
-      { id:"users", label:"المستخدمين", icon:"users" },
-      { id:"auditlog", label:"سجل العمليات", icon:"log" },
-      { id:"firebase", label:"إعداد Firebase", icon:"log" },
-    ]},
-  ];
-
-  const pageTitles = { dashboard:"لوحة التحكم", medicines:"الأدوية والأصناف", batches:"التشغيلات", inventory:"المخزون والجرد", sales:"فواتير المبيعات", purchases:"فواتير المشتريات", returns:"المرتجعات", suppliers:"الموردين", customers:"العملاء", cash:"الخزينة والمصروفات", profitloss:"الأرباح والخسائر", reports:"التقارير", users:"المستخدمين والصلاحيات", auditlog:"سجل العمليات", firebase:"إعداد Firebase" };
-
-  const renderPage = () => {
-    const props = { showToast };
-    switch(page) {
-      case "dashboard": return <Dashboard />;
-      case "medicines": return <MedicinesPage {...props} />;
-      case "batches": return <BatchesPage {...props} />;
-      case "inventory": return <InventoryPage />;
-      case "sales": return <SalesPage {...props} />;
-      case "purchases": return <PurchasesPage {...props} />;
-      case "returns": return <ReturnsPage {...props} />;
-      case "suppliers": return <SuppliersPage {...props} />;
-      case "customers": return <CustomersPage {...props} />;
-      case "cash": return <CashPage {...props} />;
-      case "profitloss": return <ProfitLossPage />;
-      case "reports": return <ReportsPage />;
-      case "users": return <UsersPage {...props} />;
-      case "auditlog": return <AuditLogPage />;
-      case "firebase": return <FirebaseSetupPage />;
-      default: return <Dashboard />;
-    }
-  };
-
-  return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
-      <div className="app">
-        {/* Sidebar */}
-        <nav className={`sidebar ${sidebarOpen?"open":""}`}>
-          <div className="sidebar-logo">
-            <div className="logo-icon">Rx</div>
-            <div>
-              <div className="logo-text">PharmaSys Pro</div>
-              <div className="logo-sub">نظام إدارة الصيدلية</div>
-            </div>
-          </div>
-          <div className="sidebar-nav">
-            {navItems.map(section => (
-              <div key={section.section} className="nav-section">
-                <div className="nav-section-label">{section.section}</div>
-                {section.items.map(item => (
-                  <div key={item.id} className={`nav-item ${page===item.id?"active":""}`} onClick={()=>{ setPage(item.id); setSidebarOpen(false); }}>
-                    <Icon name={item.icon} size={17} />
-                    {item.label}
-                    {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </nav>
-
-        {/* Mobile overlay */}
-        {sidebarOpen && <div className="overlay" onClick={()=>setSidebarOpen(false)} style={{display:"block"}}/>}
-
-        {/* Main */}
-        <div className="main">
-          <header className="topbar">
-            <button className="menu-btn" onClick={()=>setSidebarOpen(!sidebarOpen)}>
-              <Icon name="menu" size={20} />
+          <div class="activity-detail-tabs" id="activityDetailTabs">
+            <button class="activity-detail-tab present-tab active" data-tab="present">
+              &#10003; حاضروا <span class="tab-count" id="presentTabCount">0</span>
             </button>
-            <h1 className="page-title">{pageTitles[page]}</h1>
-            <div className="topbar-actions">
-              <div className="user-info">
-                <div className="user-avatar">م</div>
-                <span style={{fontSize:13,fontWeight:600,color:"var(--text-secondary)"}}>مدير النظام</span>
-              </div>
-            </div>
-          </header>
-          <main className="page-content">
-            {renderPage()}
-          </main>
+            <button class="activity-detail-tab absent-tab" data-tab="absent">
+              &#10007; غائبوا <span class="tab-count" id="absentTabCount">0</span>
+            </button>
+          </div>
+          <div class="detail-girl-list" id="activityDetailList"></div>
         </div>
       </div>
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
-    </>
-  );
-}
+    </div>
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<PharmacyApp />);
+    <!-- Toast -->
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  </div>
 
-</script>
+  <script src="app.js"></script>
 </body>
 </html>
