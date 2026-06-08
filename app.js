@@ -1012,25 +1012,27 @@ const DEMO_GIRLS = [
 
 function generateDemoAttendance() {
   const attendance = {};
-  const today = new Date();
   const activities = ['دراسي', 'محفوظات', 'قبطي', 'ألحان'];
 
-  // Generate for last 30 days
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(today);
+  // Generate for last 60 days to cover current and previous month
+  for (let i = 0; i < 60; i++) {
+    const d = new Date();
     d.setDate(d.getDate() - i);
     const dayOfWeek = d.getDay();
 
     // Only service days (Mon=1, Wed=3, Sat=6)
     if (![1, 3, 6].includes(dayOfWeek)) continue;
 
-    const dateStr = d.toISOString().split('T')[0];
+    // Use local date (not UTC) to match TimeContext
+    const dateStr = DateUtil.toStr(d);
     const dayName = DAY_NAMES[dayOfWeek];
 
     DEMO_GIRLS.forEach(girl => {
       activities.forEach(act => {
         const key = `${girl.id}_${dateStr}_${act}`;
-        const isPresent = Math.random() > 0.3;
+        // Make most recent days have more attendance
+        const recencyBoost = i < 7 ? 0.2 : 0;
+        const isPresent = Math.random() > (0.35 - recencyBoost);
         const rating = isPresent ? Math.floor(Math.random() * 3) + 3 : 0;
 
         attendance[key] = {
@@ -1066,7 +1068,6 @@ function loadDemoData() {
 
     console.log('>>> DEMO DATA loaded:', state.girls.length, 'girls,', Object.keys(state.attendanceData).length, 'records');
     showToast('تم تحميل بيانات تجريبية للاختبار', 'info');
-    scheduleRender();
     return true;
   }
   return false;
@@ -3725,47 +3726,25 @@ async function bootstrap() {
   console.log('>>> Timestamp:', new Date().toISOString());
   console.log('========================================');
 
-  // Expose diagnostics to window for console debugging
-  window._diagnostics = function() {
-    console.log('=== DIAGNOSTICS ===');
-    console.log('firebaseReady:', firebaseReady);
-    console.log('window._fb:', !!window._fb);
-    console.log('auth:', !!auth);
-    console.log('provider:', !!provider);
-    console.log('DOM.googleSignIn:', !!DOM.googleSignIn);
-    console.log('state.currentUser:', state.currentUser?.email || null);
-    console.log('state.appInitialized:', state.appInitialized);
-    console.log('navigator.onLine:', navigator.onLine);
-    console.log('===================');
-    return {
-      firebaseReady,
-      hasFb: !!window._fb,
-      hasAuth: !!auth,
-      hasProvider: !!provider,
-      hasGoogleBtn: !!DOM.googleSignIn,
-      user: state.currentUser?.email || null,
-      online: navigator.onLine
-    };
-  };
-
   initDarkMode();
   TimeContext.init();
   console.log('BOOT: TimeContext OK');
 
-  // FORCED FALLBACK: unblock splash after 12s no matter what
+  // QUICK FALLBACK: show app after 2s if Firebase stalls
   setTimeout(() => {
     const splash = document.getElementById('splash');
     if (splash && !splash.classList.contains('fade-out')) {
-      console.warn('FORCED UNBLOCK SPLASH (12s timeout)');
+      console.warn('FORCED UNBLOCK SPLASH (2s timeout)');
       hideSplash();
       if (!state.appInitialized) {
         state.currentUser = { displayName: 'خادم', email: '', uid: 'anonymous' };
         showApp(state.currentUser);
         state.appInitialized = true;
-        loadData().then(() => renderPage()).catch(() => renderPage());
+        loadDemoData();
+        renderPage();
       }
     }
-  }, 12000);
+  }, 2000);
 
   // Initialize IndexedDB
   try {
@@ -3782,7 +3761,7 @@ async function bootstrap() {
   console.log('BOOT: Calling initModules()...');
   let modulesReady = false;
   try {
-    modulesReady = await withTimeout(initModules(), 8000, false);
+    modulesReady = await withTimeout(initModules(), 5000, false);
   } catch (e) {
     console.error('BOOT: initModules threw error:', e);
     modulesReady = false;
@@ -3806,12 +3785,13 @@ async function bootstrap() {
       try {
         await loadData();
       } catch(e) {
-        console.warn('BOOT: loadData failed, using demo data:', e);
+        console.warn('BOOT: loadData failed:', e);
       }
     } else {
-      console.warn('BOOT: Firebase not available — working in offline/demo mode');
+      console.warn('BOOT: Firebase not available — using demo mode');
     }
 
+    // Load demo data if no girls loaded (Firebase empty or failed)
     loadDemoData();
     renderPage();
   }
