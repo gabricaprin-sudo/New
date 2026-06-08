@@ -576,18 +576,42 @@
       });
     })();
   </script>
-  <!-- IMMEDIATE FIX: Show app right away -->
+
+  <!-- ROBUST INIT: Ensure app shows data even if bootstrap fails -->
   <script>
     (function() {
+      var checkInterval = setInterval(function() {
+        // Check if app has initialized
+        if (typeof state !== 'undefined' && state.appInitialized) {
+          clearInterval(checkInterval);
+          return;
+        }
+
+        // If bootstrap hasn't run after 2 seconds, force it
+        if (typeof bootstrap === 'function' && !window._bootstrapCalled) {
+          window._bootstrapCalled = true;
+          console.log('>>> Forcing bootstrap from HTML...');
+          try {
+            bootstrap();
+          } catch(e) {
+            console.error('Bootstrap failed:', e);
+          }
+        }
+      }, 500);
+
+      // Absolute fallback: hide splash after 3 seconds no matter what
       setTimeout(function() {
         var splash = document.getElementById('splash');
         if (splash) {
-          splash.classList.add('fade-out');
-          setTimeout(function() { splash.remove(); }, 500);
+          splash.style.opacity = '0';
+          splash.style.pointerEvents = 'none';
+          setTimeout(function() { splash.remove(); }, 300);
         }
         var loginScreen = document.getElementById('loginScreen');
-        if (loginScreen) loginScreen.style.display = 'none !important';
-      }, 1200);
+        if (loginScreen) loginScreen.style.display = 'none';
+        var mainApp = document.getElementById('mainApp');
+        if (mainApp) mainApp.style.display = 'block';
+      }, 3000);
     })();
   </script>
 </body>
