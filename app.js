@@ -464,13 +464,13 @@ async function initModules() {
 
     console.log('>>> Step 4: Initializing Firebase app...');
     const firebaseConfig = {
-      apiKey: "AIzaSyB2cycBTKMjVg8S_fBYN8C-hwUk5FUF81Q",
-      authDomain: "kenesa-e5efd.firebaseapp.com",
-      projectId: "kenesa-e5efd",
-      storageBucket: "kenesa-e5efd.firebasestorage.app",
-      messagingSenderId: "227273753184",
-      appId: "1:227273753184:web:ecdf258142ad55ed5cf905",
-      measurementId: "G-6HS8KNW1GZ"
+      apiKey: "AIzaSyDKn7oKS2of6g0P4nFoZ651iz1MZuiYFYY",
+      authDomain: "kenesanew.firebaseapp.com",
+      projectId: "kenesanew",
+      storageBucket: "kenesanew.firebasestorage.app",
+      messagingSenderId: "465825215026",
+      appId: "1:465825215026:web:2dede981f5b384f134c22b",
+      measurementId: "G-6TH30TM35E"
     };
 
     firebaseApp = initializeApp(firebaseConfig);
@@ -3733,25 +3733,14 @@ async function bootstrap() {
   console.log('BOOT: window._fb =', !!window._fb);
   console.log('BOOT: firebaseReady =', firebaseReady);
 
-  // BYPASS AUTH — open access, no login required
-  console.log('BOOT: Bypassing auth — open access mode');
-  state.currentUser = { displayName: 'خادم', email: '', uid: 'anonymous' };
-  hideSplash();
-  showApp(state.currentUser);
-
+  // AUTH FLOW: Use Firebase Auth with Google Sign-In
   if (modulesReady && window._fb && firebaseReady) {
-    console.log('BOOT: Firebase modules loaded successfully!');
-    if (!state.appInitialized) {
-      state.appInitialized = true;
-      await loadData();
-      renderPage();
-    }
+    console.log('BOOT: Firebase modules loaded — starting auth flow');
+    await initAuth();
   } else {
-    console.warn('BOOT: Firebase not available — working in offline mode');
-    if (!state.appInitialized) {
-      state.appInitialized = true;
-      renderPage();
-    }
+    console.warn('BOOT: Firebase not available — showing login screen');
+    hideSplash();
+    showLogin();
   }
 
   console.log('BOOT: Bootstrap complete');
