@@ -1,14 +1,10 @@
 // ============================================================
-// UNIFIED APP — Utils + Services + UI + Events + Bootstrap
-// FIXED: Google Sign-In + Firebase Auth Flow
+// UNIFIED APP — DOM → STATE → HELPERS → UI → EVENTS → BOOTSTRAP
+// FIXED: Code ordering + Attendance interaction swap
 // ============================================================
 
 // ============================================================
-// SECTION 1: UTILS — Constants, Date Utilities, Text Helpers
-// ============================================================
-
-// ============================================================
-// CONSTANTS
+// SECTION 1: CONSTANTS (no dependencies)
 // ============================================================
 const HISTORY_PAGE_SIZE = 30;
 const SERVICE_DAYS = { 'السبت': true, 'الاثنين': true, 'الاربعاء': true };
@@ -30,8 +26,137 @@ const PAGE_TITLES = {
 };
 
 // ============================================================
-// XSS PROTECTION
+// SECTION 2: DOM CACHE (depends on document)
 // ============================================================
+const $ = (id) => document.getElementById(id);
+const $$ = (sel, root = document) => root.querySelectorAll(sel);
+
+const DOM = {
+  splash: $('splash'), loginScreen: $('loginScreen'), mainApp: $('mainApp'),
+  pageTitle: $('pageTitle'), pageSubtitle: $('pageSubtitle'),
+  userAvatar: $('userAvatar'),
+  drawer: $('drawer'), drawerOverlay: $('drawerOverlay'),
+  drawerAvatar: $('drawerAvatar'), drawerUserName: $('drawerUserName'),
+  drawerUserEmail: $('drawerUserEmail'),
+  pageContent: $('pageContent'), toast: $('toast'),
+  globalSearch: $('globalSearch'), searchResults: $('searchResults'),
+  todayDay: $('todayDay'), todayDate: $('todayDate'), todayServiceBadge: $('todayServiceBadge'),
+  statTotal: $('statTotal'), statPresentToday: $('statPresentToday'),
+  statAbsentToday: $('statAbsentToday'), statAvgRating: $('statAvgRating'),
+  bestGrade: $('bestGrade'), bestGradePercent: $('bestGradePercent'),
+  topActivityName: $('topActivityName'), topActivityCount: $('topActivityCount'),
+  mostRegularGirl: $('mostRegularGirl'), mostRegularPercent: $('mostRegularPercent'),
+  topAttendees: $('topAttendees'), needsFollowup: $('needsFollowup'),
+  attendanceDate: $('attendanceDate'), attendanceList: $('attendanceList'),
+  attendanceSearch: $('attendanceSearch'),
+  presentCount: $('presentCount'), absentCount: $('absentCount'), totalCount: $('totalCount'),
+  selectAllPresent: $('selectAllPresent'), selectAllAbsent: $('selectAllAbsent'),
+  attToggleHint: $('attToggleHint'), quickActions: $('quickActions'),
+  girlsList: $('girlsList'), addGirlBtn: $('addGirlBtn'),
+  calendarGrid: $('calendarGrid'), calMonthYear: $('calMonthYear'),
+  dayDetail: $('dayDetail'), calPrev: $('calPrev'), calNext: $('calNext'),
+  statsMonth: $('statsMonth'), bigStatsGrid: $('bigStatsGrid'),
+  absenceChart: $('absenceChart'), attendanceRanking: $('attendanceRanking'),
+  activityStatsGrid: $('activityStatsGrid'), timeFilterTabs: $('timeFilterTabs'), activityStatsPeriod: $('activityStatsPeriod'),
+  historyList: $('historyList'), historyFilter: $('historyFilter'),
+  clearHistoryBtn: $('clearHistoryBtn'), loadMoreHistory: $('loadMoreHistory'),
+  loadMoreHistoryBtn: $('loadMoreHistoryBtn'), exportMonth: $('exportMonth'),
+  exportExcel: $('exportCSV'), exportJSON: $('exportJSON'), exportPrint: $('exportPrint'),
+  girlModal: $('girlModal'), girlModalTitle: $('girlModalTitle'),
+  girlName: $('girlName'), girlPhone: $('girlPhone'), girlGrade: $('girlGrade'),
+  girlNotes: $('girlNotes'), deleteGirlBtn: $('deleteGirlBtn'),
+  homeGradeFilters: $('homeGradeFilters'), girlsGradeFilters: $('girlsGradeFilters'),
+  attendanceGradeFilters: $('attendanceGradeFilters'),
+  closeGirlModal: $('closeGirlModal'), cancelGirlModal: $('cancelGirlModal'),
+  saveGirlBtn: $('saveGirlBtn'), girlProfileModal: $('girlProfileModal'),
+  profileName: $('profileName'), profileBody: $('profileBody'),
+  closeProfileModal: $('closeProfileModal'), attendanceModal: $('attendanceModal'),
+  attendanceModalTitle: $('attendanceModalTitle'), modalGirlName: $('modalGirlName'),
+  attendanceNotes: $('attendanceNotes'), ratingSection: $('ratingSection'),
+  starsInput: $('starsInput'), saveAttendanceEntry: $('saveAttendanceEntry'),
+  closeAttendanceModal: $('closeAttendanceModal'), cancelAttendanceModal: $('cancelAttendanceModal'),
+  confirmOverlay: $('confirmOverlay'), confirmIcon: $('confirmIcon'),
+  confirmTitle: $('confirmTitle'), confirmMsg: $('confirmMsg'),
+  confirmCancel: $('confirmCancel'), confirmOk: $('confirmOk'),
+  activityDetailModal: $('activityDetailModal'),
+  activityDetailTitle: $('activityDetailTitle'),
+  closeActivityDetailModal: $('closeActivityDetailModal'),
+  activityDetailSummary: $('activityDetailSummary'),
+  activityDetailIcon: $('activityDetailIcon'),
+  activityDetailName: $('activityDetailName'),
+  activityDetailPeriod: $('activityDetailPeriod'),
+  activityDetailTabs: $('activityDetailTabs'),
+  activityDetailList: $('activityDetailList'),
+  presentTabCount: $('presentTabCount'),
+  absentTabCount: $('absentTabCount'),
+  menuBtn: $('menuBtn'), googleSignIn: $('googleSignIn'),
+  darkModeToggle: $('darkModeToggle'), darkToggleSwitch: $('darkToggleSwitch'),
+  shareProfileBtn: $('shareProfileBtn'), editProfileBtn: $('editProfileBtn'),
+  statsGradeFilter: $('statsGradeFilter'),
+  activityStatsGrade: $('activityStatsGrade'),
+  exportPreview: $('exportPreview')
+};
+
+// ============================================================
+// SECTION 3: APP STATE (no external dependencies)
+// ============================================================
+const state = {
+  currentUser: null,
+  girls: [],
+  attendanceData: {},
+  currentPage: 'home',
+  selectedDay: 'السبت',
+  selectedActivity: 'دراسي',
+  currentAttendanceGirlId: null,
+  currentAttendanceRating: 0,
+  editingGirlId: null,
+  calendarDate: new Date(),
+  appInitialized: false,
+  renderTimeout: null,
+  historyLastDoc: null,
+  historyHasMore: true,
+  historyCurrentFilter: '',
+  historyLoadedPages: 0,
+  historyOffset: 0,
+  deleteInProgress: false,
+  filters: {
+    homeGrade: '',
+    girlsGrade: '',
+    girlsSearch: '',
+    attendanceGrade: localStorage.getItem('attendanceGradeFilter') || '',
+    statsTime: 'month',
+    statsGrade: '',
+  },
+  get homeGradeFilter() { return this.filters.homeGrade; },
+  set homeGradeFilter(v) { this.filters.homeGrade = v; },
+  get girlsGradeFilter() { return this.filters.girlsGrade; },
+  set girlsGradeFilter(v) { this.filters.girlsGrade = v; },
+  get girlsSearchQuery() { return this.filters.girlsSearch; },
+  set girlsSearchQuery(v) { this.filters.girlsSearch = v; },
+  get attendanceGradeFilter() { return this.filters.attendanceGrade; },
+  set attendanceGradeFilter(v) { this.filters.attendanceGrade = v; },
+  get statsTimeFilter() { return this.filters.statsTime; },
+  set statsTimeFilter(v) { this.filters.statsTime = v; },
+  get statsGradeFilter() { return this.filters.statsGrade; },
+  set statsGradeFilter(v) { this.filters.statsGrade = v; },
+
+  activityDetailTab: 'present',
+  currentActivityDetail: null,
+  currentProfileGirlId: null,
+  searchDebounceTimer: null,
+  attSearchDebounceTimer: null,
+  attendancePageInitialized: false,
+  savingGirl: false,
+  idb: false,
+  _girlMap: null,
+  _girlMapDirty: true,
+};
+
+// ============================================================
+// SECTION 4: UTILS — Pure helpers (depends on: constants)
+// ============================================================
+
+// XSS PROTECTION
 const esc = (() => {
   const div = document.createElement('div');
   const txt = document.createTextNode('');
@@ -51,9 +176,7 @@ function xmlEsc(str = '') {
     .replace(/'/g, '&apos;');
 }
 
-// ============================================================
 // DATE UTILITIES
-// ============================================================
 const DateUtil = {
   pad: (n) => String(n).padStart(2, '0'),
   toStr(d = new Date()) {
@@ -82,9 +205,7 @@ const DateUtil = {
   }
 };
 
-// ============================================================
 // TIMECONTEXT — Unified Date Source
-// ============================================================
 const TimeContext = {
   _selectedDate: null,
   _listeners: [],
@@ -136,9 +257,7 @@ const TimeContext = {
   }
 };
 
-// ============================================================
 // DATE PARSING HELPERS
-// ============================================================
 function parseDate(dateStr) {
   if (!dateStr || typeof dateStr !== 'string') return null;
   const parts = dateStr.split('-');
@@ -162,42 +281,7 @@ function safeDayName(dateStr) {
   return d ? (DAY_NAMES[d.getDay()] || '') : '';
 }
 
-// ============================================================
-// ATTENDANCE CACHE
-// ============================================================
-let _cachedAttendanceEntries = null;
-let _cachedAttendanceHash = '';
-
-function _computeAttendanceHash() {
-  const keys = Object.keys(state.attendanceData);
-  const count = keys.length;
-  if (count === 0) return '0:0';
-  let maxUpdated = 0;
-  for (let i = 0; i < keys.length; i++) {
-    const rec = state.attendanceData[keys[i]];
-    if (rec && rec.updatedAt && rec.updatedAt > maxUpdated) maxUpdated = rec.updatedAt;
-  }
-  return `${count}:${maxUpdated}`;
-}
-
-function getAttendanceEntries() {
-  const hash = _computeAttendanceHash();
-  if (_cachedAttendanceEntries && _cachedAttendanceHash === hash) {
-    return _cachedAttendanceEntries;
-  }
-  _cachedAttendanceEntries = Object.values(state.attendanceData);
-  _cachedAttendanceHash = hash;
-  return _cachedAttendanceEntries;
-}
-
-function invalidateAttendanceCache() {
-  _cachedAttendanceEntries = null;
-  _cachedAttendanceHash = '';
-}
-
-// ============================================================
 // SERVICE DAY HELPERS
-// ============================================================
 const _serviceDaysCache = new Map();
 
 function getServiceDaysInMonth(year, month) {
@@ -253,9 +337,38 @@ function filterServiceDayRecords(records) {
   return records.filter(a => isServiceDayDate(a.date));
 }
 
-// ============================================================
+// ATTENDANCE CACHE
+let _cachedAttendanceEntries = null;
+let _cachedAttendanceHash = '';
+
+function _computeAttendanceHash() {
+  const keys = Object.keys(state.attendanceData);
+  const count = keys.length;
+  if (count === 0) return '0:0';
+  let maxUpdated = 0;
+  for (let i = 0; i < keys.length; i++) {
+    const rec = state.attendanceData[keys[i]];
+    if (rec && rec.updatedAt && rec.updatedAt > maxUpdated) maxUpdated = rec.updatedAt;
+  }
+  return `${count}:${maxUpdated}`;
+}
+
+function getAttendanceEntries() {
+  const hash = _computeAttendanceHash();
+  if (_cachedAttendanceEntries && _cachedAttendanceHash === hash) {
+    return _cachedAttendanceEntries;
+  }
+  _cachedAttendanceEntries = Object.values(state.attendanceData);
+  _cachedAttendanceHash = hash;
+  return _cachedAttendanceEntries;
+}
+
+function invalidateAttendanceCache() {
+  _cachedAttendanceEntries = null;
+  _cachedAttendanceHash = '';
+}
+
 // CONSECUTIVE ABSENCES
-// ============================================================
 function hasConsecutiveAbsences(girlId, monthStr) {
   const absRecords = getAttendanceEntries()
     .filter(a =>
@@ -282,9 +395,7 @@ function hasConsecutiveAbsences(girlId, monthStr) {
   return { hasConsecutive: false, count: absDates.length, dates: absDates };
 }
 
-// ============================================================
 // STATS BOUNDS
-// ============================================================
 function getPeriodBounds(period, customDate) {
   const selectedDate = customDate || TimeContext.getDate();
   const selYear = parseInt(selectedDate.substring(0, 4));
@@ -310,9 +421,7 @@ function getStatsBounds() {
   return getPeriodBounds(state.statsTimeFilter);
 }
 
-// ============================================================
 // ARABIC TEXT NORMALIZATION
-// ============================================================
 const _normalizeCache = new Map();
 
 function normalizeArabic(str) {
@@ -343,9 +452,7 @@ function csvEscape(v) {
   return `"${String(v ?? '').replace(/"/g, '""')}"`;
 }
 
-// ============================================================
 // GIRL LOOKUP — O(1) via cached Map
-// ============================================================
 function buildGirlMap() {
   state._girlMap = new Map();
   state.girls.forEach(g => {
@@ -375,9 +482,7 @@ function getActiveGirlIds() {
   return ids;
 }
 
-// ============================================================
 // DEBOUNCE
-// ============================================================
 function debounce(fn, delay) {
   let timer;
   return function(...args) {
@@ -386,9 +491,7 @@ function debounce(fn, delay) {
   };
 }
 
-// ============================================================
 // DOWNLOAD HELPER
-// ============================================================
 function downloadFile(filename, content, mimeType) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -399,14 +502,23 @@ function downloadFile(filename, content, mimeType) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// TIMEOUT WRAPPER
+function withTimeout(promise, ms, fallback) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.warn(`Timeout after ${ms}ms`);
+      resolve(fallback);
+    }, ms);
+    promise.then((val) => { clearTimeout(timer); resolve(val); })
+           .catch((err) => { clearTimeout(timer); console.warn('Promise rejected:', err); resolve(fallback); });
+  });
+}
 
 // ============================================================
-// SECTION 2: SERVICES — Firebase, Auth, IndexedDB, Data Sync
+// SECTION 5: SERVICES — Firebase, Auth, IndexedDB, Data Sync
 // ============================================================
 
-// ============================================================
 // FIREBASE GLOBALS
-// ============================================================
 let firebaseApp = null;
 let auth = null;
 let db = null;
@@ -416,9 +528,6 @@ let XLSX = null;
 let _initModulesAttempts = 0;
 const MAX_INIT_ATTEMPTS = 2;
 
-// ============================================================
-// HELPER: Ensure Firebase is ready before any auth operation
-// ============================================================
 function ensureFirebaseReady() {
   if (!firebaseReady || !auth || !provider || !window._fb) {
     console.warn('[ensureFirebaseReady] Firebase NOT ready:', {
@@ -429,9 +538,6 @@ function ensureFirebaseReady() {
   return true;
 }
 
-// ============================================================
-// INIT FIREBASE MODULES
-// ============================================================
 async function initModules() {
   console.log('>>> initModules() START — attempt #' + (_initModulesAttempts + 1));
 
@@ -477,13 +583,10 @@ async function initModules() {
     auth = getAuth(firebaseApp);
     db = getFirestore(firebaseApp);
     provider = new GoogleAuthProvider();
-
-    // FIX: prompt select_account every time + add hd hint
     provider.setCustomParameters({ prompt: 'select_account' });
 
     firebaseReady = true;
 
-    // Expose everything globally
     window._fb = {
       collection, doc, setDoc, getDocs, deleteDoc,
       query, orderBy, onSnapshot, writeBatch, where, limit, startAfter,
@@ -500,9 +603,7 @@ async function initModules() {
     window.firebaseReady = firebaseReady;
 
     console.log('>>> initModules: Firebase fully ready');
-    console.log('>>> auth =', !!auth, '| provider =', !!provider, '| db =', !!db);
 
-    // Load XLSX (non-critical)
     try {
       const xlsxMod = await import('https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs');
       XLSX = xlsxMod;
@@ -536,9 +637,7 @@ window._forceReinitFirebase = async function() {
   return initModules();
 };
 
-// ============================================================
 // INDEXEDDB — Offline storage wrapper
-// ============================================================
 const IDB = {
   db: null,
   DB_NAME: 'girlsTrackerDB',
@@ -641,8 +740,9 @@ const IDB = {
   }
 };
 
+
 // ============================================================
-// AUTH — CLEAN AUTH FLOW WITH REDIRECT RESULT HANDLING
+// AUTH — CLEAN AUTH FLOW
 // ============================================================
 async function initAuth() {
   console.log('>>> initAuth() START');
@@ -667,13 +767,11 @@ async function initAuth() {
     }
   }, 8000);
 
-  // Check redirect result FIRST (handles mobile redirect flow)
   try {
     console.log('>>> Checking getRedirectResult...');
     const redirectResult = await getRedirectResult(auth);
     if (redirectResult && redirectResult.user) {
       console.log('>>> Redirect sign-in SUCCESS:', redirectResult.user.email);
-      // User is signed in via redirect — onAuthStateChanged will fire too
     } else {
       console.log('>>> No redirect result (normal flow)');
     }
@@ -711,13 +809,9 @@ async function initAuth() {
   });
 }
 
-// ============================================================
-// GOOGLE SIGN-IN — CLEAN FUNCTION WITH POPUP → REDIRECT FALLBACK
-// ============================================================
 async function signInWithGoogle() {
   console.log('>>> signInWithGoogle() called');
 
-  // Guard: ensure Firebase is ready
   if (!ensureFirebaseReady()) {
     console.error('>>> signInWithGoogle: Firebase NOT ready — attempting emergency init');
     showToast('جاري تهيئة Firebase...', 'info');
@@ -733,7 +827,6 @@ async function signInWithGoogle() {
     }
   }
 
-  // Double-check after potential init
   if (!ensureFirebaseReady()) {
     showToast('Firebase غير متاح — أعد تحميل الصفحة', 'error');
     return null;
@@ -749,7 +842,6 @@ async function signInWithGoogle() {
   } catch (error) {
     console.error('>>> signInWithPopup FAILED:', error.code, error.message);
 
-    // FALLBACK: popup blocked or unsupported → use redirect
     if (
       error.code === 'auth/popup-blocked' ||
       error.code === 'auth/popup-closed-by-user' ||
@@ -761,7 +853,6 @@ async function signInWithGoogle() {
       try {
         const { signInWithRedirect } = window._fb;
         await signInWithRedirect(auth, provider);
-        // Page will reload, onAuthStateChanged will handle the rest
       } catch (redirectError) {
         console.error('>>> signInWithRedirect also failed:', redirectError);
         showToast('فشل تسجيل الدخول: ' + redirectError.message, 'error');
@@ -769,7 +860,6 @@ async function signInWithGoogle() {
       return null;
     }
 
-    // Handle specific error codes
     if (error.code === 'auth/network-request-failed') {
       showToast('فشل الاتصال — تحقق من الإنترنت وأعد المحاولة', 'error');
     } else if (error.code === 'auth/operation-not-allowed') {
@@ -789,7 +879,7 @@ async function signInWithGoogle() {
 }
 
 // ============================================================
-// APP VISIBILITY HELPERS
+// APP VISIBILITY HELPERS (depends on DOM)
 // ============================================================
 function showApp(user) {
   if (DOM.loginScreen) DOM.loginScreen.classList.add('hidden');
@@ -811,7 +901,6 @@ function showLogin() {
   console.log('>>> showLogin()');
   if (DOM.loginScreen) DOM.loginScreen.classList.remove('hidden');
   if (DOM.mainApp) DOM.mainApp.classList.add('hidden');
-  // Reset Google button state
   if (DOM.googleSignIn) DOM.googleSignIn.classList.remove('is-loading');
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
@@ -826,9 +915,6 @@ function showLogin() {
   });
 }
 
-// ============================================================
-// SAFE SNAPSHOT
-// ============================================================
 function safeSnapshot(queryFn, handler) {
   try {
     return queryFn(handler);
@@ -837,9 +923,6 @@ function safeSnapshot(queryFn, handler) {
   }
 }
 
-// ============================================================
-// FIREBASE DATA LISTENERS
-// ============================================================
 async function loadData() {
   console.log('>>> loadData() START');
   try {
@@ -996,27 +1079,9 @@ async function autoMarkAbsentForNewGirl(girlId, date) {
 }
 
 // ============================================================
-// BOOTSTRAP HELPER
-// ============================================================
-function withTimeout(promise, ms, fallback) {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      console.warn(`Timeout after ${ms}ms`);
-      resolve(fallback);
-    }, ms);
-    promise.then((val) => { clearTimeout(timer); resolve(val); })
-           .catch((err) => { clearTimeout(timer); console.warn('Promise rejected:', err); resolve(fallback); });
-  });
-}
-
-
-// ============================================================
-// SECTION 3: UI — All Render Functions, Modals, Stats
+// SECTION 6: UI — All Render Functions, Modals, Stats
 // ============================================================
 
-// ============================================================
-// SPLASH & TOAST
-// ============================================================
 let splashDone = false;
 let splashForceHidden = false;
 let toastTimeout;
@@ -1060,9 +1125,6 @@ function showToast(msg, type = 'info') {
   toastTimeout = setTimeout(() => { if (DOM.toast) DOM.toast.className = 'toast hidden'; }, 3000);
 }
 
-// ============================================================
-// DARK MODE
-// ============================================================
 function initDarkMode() {
   const saved = localStorage.getItem('darkMode');
   if (saved === 'true') {
@@ -1071,9 +1133,7 @@ function initDarkMode() {
   }
 }
 
-// ============================================================
 // RENDER ENGINE
-// ============================================================
 let _pendingRender = null;
 
 function scheduleRender() {
@@ -1101,9 +1161,7 @@ function _doRender() {
   }
 }
 
-// ============================================================
 // NAVIGATION
-// ============================================================
 function navigateTo(page) {
   const pageEl = document.getElementById(`page-${page}`);
   if (!pageEl) {
@@ -1144,9 +1202,7 @@ function closeDrawer() {
   if (DOM.drawerOverlay) DOM.drawerOverlay.classList.remove('show');
 }
 
-// ============================================================
 // MODAL HELPERS
-// ============================================================
 function openModal(id) {
   if (!DOM[id]) return;
   DOM[id].classList.add('show');
@@ -1159,9 +1215,7 @@ function closeModal(id) {
   if (!anyOpen) document.body.style.overflow = '';
 }
 
-// ============================================================
 // CONFIRM MODAL
-// ============================================================
 let confirmResolve = null;
 
 function showConfirm({ icon = '&#9888;', title, msg, okLabel = 'تأكيد', okClass = '', onOk }) {
@@ -1178,6 +1232,7 @@ function showConfirm({ icon = '&#9888;', title, msg, okLabel = 'تأكيد', okC
   confirmResolve = onOk;
   if (DOM.confirmOverlay) DOM.confirmOverlay.classList.add('show');
 }
+
 
 // ============================================================
 // HOME PAGE
@@ -1960,6 +2015,7 @@ function setRating(val) {
   document.querySelectorAll('.star').forEach(s => s.classList.toggle('active', parseInt(s.dataset.val) <= state.currentAttendanceRating));
 }
 
+
 // ============================================================
 // CALENDAR PAGE
 // ============================================================
@@ -2324,6 +2380,7 @@ function renderStats() {
   }
 }
 
+
 // ============================================================
 // HISTORY PAGE
 // ============================================================
@@ -2556,840 +2613,843 @@ function updateExportPreview() {
 
 
 // ============================================================
-// SECTION 4: EVENTS — All Event Listeners, Delegation
-// WRAPPED in initEventListeners() to avoid TDZ with DOM/state
+// SECTION 7: EVENTS — All Event Listeners + Delegation
+// ============================================================
 
-// Global error handlers
 function initEventListeners() {
 
-// ESC key closes drawer
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    const drawer = document.getElementById('drawer');
-    if (drawer && drawer.classList.contains('open')) {
-      drawer.classList.remove('open');
-      const overlay = document.getElementById('drawerOverlay');
-      if (overlay) overlay.classList.remove('show');
-    }
-  }
-});
-
-window.addEventListener('error', (e) => {
-  console.error('Global error:', e.error || e.message);
-  try { hideSplashForced(); } catch (_) {}
-});
-window.addEventListener('unhandledrejection', (e) => {
-  console.error('Unhandled rejection:', e.reason);
-  try { hideSplashForced(); } catch (_) {}
-});
-
-setTimeout(hideSplashForced, 6000);
-
-// ============================================================
-// NAVIGATION EVENTS
-// ============================================================
-document.querySelectorAll('.nav-btn').forEach(btn =>
-  btn.addEventListener('click', () => navigateTo(btn.dataset.page))
-);
-
-document.querySelectorAll('.menu-item[data-page]').forEach(item =>
-  item.addEventListener('click', e => {
-    e.preventDefault();
-    navigateTo(item.dataset.page);
-  })
-);
-
-// ============================================================
-// DARK MODE
-// ============================================================
-if (DOM.darkModeToggle) {
-  DOM.darkModeToggle.addEventListener('click', () => {
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    if (isDark) {
-      document.documentElement.removeAttribute('data-theme');
-      if (DOM.darkToggleSwitch) DOM.darkToggleSwitch.classList.remove('on');
-      localStorage.setItem('darkMode', 'false');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      if (DOM.darkToggleSwitch) DOM.darkToggleSwitch.classList.add('on');
-      localStorage.setItem('darkMode', 'true');
+  // ESC key closes drawer
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      const drawer = document.getElementById('drawer');
+      if (drawer && drawer.classList.contains('open')) {
+        drawer.classList.remove('open');
+        const overlay = document.getElementById('drawerOverlay');
+        if (overlay) overlay.classList.remove('show');
+      }
     }
   });
-}
 
-// ============================================================
-// AUTH EVENTS — FIXED: Google Sign-In with proper binding
-// ============================================================
-(function setupAuthEvents() {
-  // Bind Google Sign-In button
-  const googleBtn = document.getElementById('googleSignIn');
-  if (googleBtn) {
-    let _signingIn = false;
+  // Global error handlers
+  window.addEventListener('error', (e) => {
+    console.error('Global error:', e.error || e.message);
+    try { hideSplashForced(); } catch (_) {}
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    console.error('Unhandled rejection:', e.reason);
+    try { hideSplashForced(); } catch (_) {}
+  });
 
-    googleBtn.addEventListener('click', async () => {
-      if (_signingIn) {
-        console.log('>>> Sign-in already in progress, ignoring double-click');
-        return;
-      }
-      _signingIn = true;
-      console.log('>>> GOOGLE SIGN-IN CLICKED');
+  setTimeout(hideSplashForced, 6000);
 
-      // Add loading state
-      googleBtn.classList.add('is-loading');
+  // ============================================================
+  // NAVIGATION EVENTS
+  // ============================================================
+  document.querySelectorAll('.nav-btn').forEach(btn =>
+    btn.addEventListener('click', () => navigateTo(btn.dataset.page))
+  );
 
-      try {
-        await signInWithGoogle();
-        // onAuthStateChanged will handle the rest (showApp, loadData, etc.)
-      } catch (e) {
-        console.error('>>> signInWithGoogle wrapper error:', e);
-      } finally {
-        // Reset signing flag after delay
-        setTimeout(() => {
-          _signingIn = false;
-          googleBtn.classList.remove('is-loading');
-        }, 3000);
+  document.querySelectorAll('.menu-item[data-page]').forEach(item =>
+    item.addEventListener('click', e => {
+      e.preventDefault();
+      navigateTo(item.dataset.page);
+    })
+  );
+
+  // ============================================================
+  // DARK MODE
+  // ============================================================
+  if (DOM.darkModeToggle) {
+    DOM.darkModeToggle.addEventListener('click', () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        document.documentElement.removeAttribute('data-theme');
+        if (DOM.darkToggleSwitch) DOM.darkToggleSwitch.classList.remove('on');
+        localStorage.setItem('darkMode', 'false');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        if (DOM.darkToggleSwitch) DOM.darkToggleSwitch.classList.add('on');
+        localStorage.setItem('darkMode', 'true');
       }
     });
-
-    console.log('>>> Google Sign-In button event listener ATTACHED');
-  } else {
-    console.error('>>> googleSignIn button NOT FOUND in DOM!');
   }
 
-  // Sign-out button removed — open access mode, no auth required
-})();
+  // ============================================================
+  // AUTH EVENTS
+  // ============================================================
+  (function setupAuthEvents() {
+    const googleBtn = document.getElementById('googleSignIn');
+    if (googleBtn) {
+      let _signingIn = false;
 
-// ============================================================
-// DRAWER EVENTS
-// ============================================================
-if (DOM.menuBtn) DOM.menuBtn.addEventListener('click', openDrawer);
-if (DOM.drawerOverlay) DOM.drawerOverlay.addEventListener('click', closeDrawer);
+      googleBtn.addEventListener('click', async () => {
+        if (_signingIn) {
+          console.log('>>> Sign-in already in progress, ignoring double-click');
+          return;
+        }
+        _signingIn = true;
+        console.log('>>> GOOGLE SIGN-IN CLICKED');
 
-// ============================================================
-// SEARCH EVENTS
-// ============================================================
-const debouncedSearch = debounce(doGlobalSearch, 250);
-if (DOM.globalSearch) DOM.globalSearch.addEventListener('input', debouncedSearch);
-
-// ============================================================
-// GIRLS PAGE EVENTS
-// ============================================================
-if (DOM.addGirlBtn) {
-  DOM.addGirlBtn.addEventListener('click', () => {
-    state.editingGirlId = null;
-    if (DOM.girlModalTitle) DOM.girlModalTitle.textContent = 'إضافة مخدومة';
-    if (DOM.girlName) DOM.girlName.value = '';
-    if (DOM.girlPhone) DOM.girlPhone.value = '';
-    if (DOM.girlGrade) DOM.girlGrade.value = '';
-    if (DOM.girlNotes) DOM.girlNotes.value = '';
-    if (DOM.deleteGirlBtn) DOM.deleteGirlBtn.classList.add('hidden');
-    openModal('girlModal');
-  });
-}
-
-if (DOM.deleteGirlBtn) {
-  DOM.deleteGirlBtn.addEventListener('click', async () => {
-    if (!state.editingGirlId || state.deleteInProgress) return;
-    const g = getGirl(state.editingGirlId);
-    if (!g) return;
-
-    closeModal('girlModal');
-
-    showConfirm({
-      icon: '&#9888;', title: 'حذف مخدومة',
-      msg: `هل أنت متأكد من حذف "${esc(g.name)}"؟ سيتم حذف جميع بيانات الحضور الخاصة بها أيضاً.`,
-      okLabel: 'حذف',
-      okClass: 'confirm-delete',
-      onOk: async () => {
-        if (state.deleteInProgress) return;
-        state.deleteInProgress = true;
+        googleBtn.classList.add('is-loading');
 
         try {
-          const id = state.editingGirlId;
-          state.girls = state.girls.filter(x => x.id !== id);
-          state._girlMapDirty = true;
-          const attKeys = Object.keys(state.attendanceData).filter(k => state.attendanceData[k].girlId === id);
-          attKeys.forEach(k => delete state.attendanceData[k]);
-          invalidateAttendanceCache();
-
-          try {
-            const { setDoc, doc, collection, query, where, getDocs, writeBatch } = window._fb;
-            await setDoc(doc(db, 'girls', id), {
-              isDeleted: true, deletedAt: Date.now(),
-              deletedBy: state.currentUser?.email || '',
-              name: g.name, grade: g.grade
-            }, { merge: true });
-
-            const attQuery = query(collection(db, 'attendance'), where('girlId', '==', id));
-            const attSnap = await getDocs(attQuery);
-            if (!attSnap.empty) {
-              const docs = attSnap.docs;
-              for (let i = 0; i < docs.length; i += 500) {
-                const batch = writeBatch(db);
-                docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
-                await batch.commit();
-              }
-            }
-          } catch (e) {
-            console.error('Delete girl Firestore error:', e);
-          }
-
-          await logHistory('حذف مخدومة', `${g.name} - ${g.grade}`);
-          showToast(`تم حذف ${g.name}`, 'success');
-          state.editingGirlId = null;
-          scheduleRender();
-        } catch (err) {
-          console.error('Delete error:', err);
-          showToast('حدث خطأ أثناء الحذف', 'error');
+          await signInWithGoogle();
+        } catch (e) {
+          console.error('>>> signInWithGoogle wrapper error:', e);
         } finally {
-          state.deleteInProgress = false;
+          setTimeout(() => {
+            _signingIn = false;
+            googleBtn.classList.remove('is-loading');
+          }, 3000);
         }
-      }
+      });
+
+      console.log('>>> Google Sign-In button event listener ATTACHED');
+    } else {
+      console.error('>>> googleSignIn button NOT FOUND in DOM!');
+    }
+  })();
+
+  // ============================================================
+  // DRAWER EVENTS
+  // ============================================================
+  if (DOM.menuBtn) DOM.menuBtn.addEventListener('click', openDrawer);
+  if (DOM.drawerOverlay) DOM.drawerOverlay.addEventListener('click', closeDrawer);
+
+  // ============================================================
+  // SEARCH EVENTS
+  // ============================================================
+  const debouncedSearch = debounce(doGlobalSearch, 250);
+  if (DOM.globalSearch) DOM.globalSearch.addEventListener('input', debouncedSearch);
+
+  // ============================================================
+  // GIRLS PAGE EVENTS
+  // ============================================================
+  if (DOM.addGirlBtn) {
+    DOM.addGirlBtn.addEventListener('click', () => {
+      state.editingGirlId = null;
+      if (DOM.girlModalTitle) DOM.girlModalTitle.textContent = 'إضافة مخدومة';
+      if (DOM.girlName) DOM.girlName.value = '';
+      if (DOM.girlPhone) DOM.girlPhone.value = '';
+      if (DOM.girlGrade) DOM.girlGrade.value = '';
+      if (DOM.girlNotes) DOM.girlNotes.value = '';
+      if (DOM.deleteGirlBtn) DOM.deleteGirlBtn.classList.add('hidden');
+      openModal('girlModal');
     });
-  });
-}
+  }
 
-// ============================================================
-// SAVE GIRL
-// ============================================================
-if (DOM.saveGirlBtn) {
-  DOM.saveGirlBtn.addEventListener('click', async () => {
-    if (state.savingGirl) return;
-    state.savingGirl = true;
-    try {
-      const name = DOM.girlName ? DOM.girlName.value.trim() : '';
-      const phone = DOM.girlPhone ? DOM.girlPhone.value.trim() : '';
-      const grade = DOM.girlGrade ? DOM.girlGrade.value : '';
-      const notes = DOM.girlNotes ? DOM.girlNotes.value.trim() : '';
-
-      if (!name) { showToast('الرجاء إدخال اسم المخدومة', 'error'); return; }
-      if (!grade) { showToast('الرجاء اختيار السنة الدراسية', 'error'); return; }
-
-      const normalizedName = normalizeName(name);
-      const existingGirl = state.girls.find(g =>
-        normalizeName(g.name) === normalizedName && g.id !== state.editingGirlId && !g.isDeleted
-      );
-      if (existingGirl) { showToast('هذه المخدومة موجودة بالفعل', 'error'); return; }
-
-      const id = state.editingGirlId || 'girl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-      const now = Date.now();
-      const girlData = {
-        id, name, phone, grade, notes,
-        createdAt: state.editingGirlId ? (state.girls.find(g => g.id === state.editingGirlId)?.createdAt || now) : now,
-        updatedAt: now,
-        updatedBy: state.currentUser?.displayName || 'خادم',
-        updatedByEmail: state.currentUser?.email || '',
-        isDeleted: false
-      };
-
-      if (state.editingGirlId) {
-        state.girls = state.girls.map(g => g.id === id ? girlData : g);
-      } else {
-        state.girls.push(girlData);
-      }
-      state._girlMapDirty = true;
-
-      const isNewGirl = !state.editingGirlId;
-
-      if (ensureFirebaseReady()) {
-        try { await window._fb.setDoc(window._fb.doc(db, 'girls', id), girlData); }
-        catch (e) { console.error('Save girl Firestore error:', e); }
-      }
-
-      await logHistory(state.editingGirlId ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} - ${grade}`);
-
-      if (isNewGirl) {
-        const todayStr = DateUtil.toStr();
-        if (isServiceDayDate(todayStr)) {
-          await autoMarkAbsentForNewGirl(id, todayStr);
-        }
-      }
+  if (DOM.deleteGirlBtn) {
+    DOM.deleteGirlBtn.addEventListener('click', async () => {
+      if (!state.editingGirlId || state.deleteInProgress) return;
+      const g = getGirl(state.editingGirlId);
+      if (!g) return;
 
       closeModal('girlModal');
-      showToast(isNewGirl ? 'تمت إضافة المخدومة' : 'تم تعديل البيانات', 'success');
-      state.editingGirlId = null;
-      renderPage();
-    } finally {
-      state.savingGirl = false;
-    }
-  });
-}
 
-// ============================================================
-// GIRL PROFILE EVENTS
-// ============================================================
-if (DOM.closeProfileModal) DOM.closeProfileModal.addEventListener('click', () => closeModal('girlProfileModal'));
-if (DOM.editProfileBtn) {
-  DOM.editProfileBtn.addEventListener('click', () => {
-    closeModal('girlProfileModal');
-    if (state.currentProfileGirlId) editGirl(state.currentProfileGirlId);
-  });
-}
+      showConfirm({
+        icon: '&#9888;', title: 'حذف مخدومة',
+        msg: `هل أنت متأكد من حذف "${esc(g.name)}"؟ سيتم حذف جميع بيانات الحضور الخاصة بها أيضاً.`,
+        okLabel: 'حذف',
+        okClass: 'confirm-delete',
+        onOk: async () => {
+          if (state.deleteInProgress) return;
+          state.deleteInProgress = true;
 
-if (DOM.shareProfileBtn) {
-  DOM.shareProfileBtn.addEventListener('click', async () => {
-    const id = state.currentProfileGirlId;
-    if (!id) return;
-    const g = getGirl(id);
-    if (!g) return;
+          try {
+            const id = state.editingGirlId;
+            state.girls = state.girls.filter(x => x.id !== id);
+            state._girlMapDirty = true;
+            const attKeys = Object.keys(state.attendanceData).filter(k => state.attendanceData[k].girlId === id);
+            attKeys.forEach(k => delete state.attendanceData[k]);
+            invalidateAttendanceCache();
 
-    const girlAtt = Object.values(state.attendanceData).filter(a => a.girlId === id);
-    const presentCount = girlAtt.filter(a => a.status === 'حاضر').length;
-    const absentCount = girlAtt.filter(a => a.status === 'غائب').length;
-    const attendanceRate = girlAtt.length > 0 ? Math.round((presentCount / girlAtt.length) * 100) : 0;
+            try {
+              const { setDoc, doc, collection, query, where, getDocs, writeBatch } = window._fb;
+              await setDoc(doc(db, 'girls', id), {
+                isDeleted: true, deletedAt: Date.now(),
+                deletedBy: state.currentUser?.email || '',
+                name: g.name, grade: g.grade
+              }, { merge: true });
 
-    const shareText = `👧 ${g.name}\n📚 ${g.grade}\n✅ حضور: ${presentCount}\n❌ غياب: ${absentCount}\n📊 نسبة: ${attendanceRate}%`.trim();
+              const attQuery = query(collection(db, 'attendance'), where('girlId', '==', id));
+              const attSnap = await getDocs(attQuery);
+              if (!attSnap.empty) {
+                const docs = attSnap.docs;
+                for (let i = 0; i < docs.length; i += 500) {
+                  const batch = writeBatch(db);
+                  docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
+                  await batch.commit();
+                }
+              }
+            } catch (e) {
+              console.error('Delete girl Firestore error:', e);
+            }
 
-    if (navigator.share) {
-      try { await navigator.share({ title: `ملف ${g.name}`, text: shareText }); } catch (e) { /* user cancelled */ }
-    } else {
+            await logHistory('حذف مخدومة', `${g.name} - ${g.grade}`);
+            showToast(`تم حذف ${g.name}`, 'success');
+            state.editingGirlId = null;
+            scheduleRender();
+          } catch (err) {
+            console.error('Delete error:', err);
+            showToast('حدث خطأ أثناء الحذف', 'error');
+          } finally {
+            state.deleteInProgress = false;
+          }
+        }
+      });
+    });
+  }
+
+  // ============================================================
+  // SAVE GIRL
+  // ============================================================
+  if (DOM.saveGirlBtn) {
+    DOM.saveGirlBtn.addEventListener('click', async () => {
+      if (state.savingGirl) return;
+      state.savingGirl = true;
       try {
-        await navigator.clipboard.writeText(shareText);
-        showToast('تم نسخ البيانات للمشاركة', 'success');
-      } catch (e) {
-        showToast('المشاركة غير متوفرة على هذا الجهاز', 'warning');
-      }
-    }
-  });
-}
+        const name = DOM.girlName ? DOM.girlName.value.trim() : '';
+        const phone = DOM.girlPhone ? DOM.girlPhone.value.trim() : '';
+        const grade = DOM.girlGrade ? DOM.girlGrade.value : '';
+        const notes = DOM.girlNotes ? DOM.girlNotes.value.trim() : '';
 
-// ============================================================
-// ATTENDANCE PAGE EVENTS
-// ============================================================
-document.querySelectorAll('.day-btn').forEach(b => b.addEventListener('click', () => {
-  setActiveDay(b.dataset.day);
-  state.attendancePageInitialized = false;
-  renderAttendancePage();
-}));
+        if (!name) { showToast('الرجاء إدخال اسم المخدومة', 'error'); return; }
+        if (!grade) { showToast('الرجاء اختيار السنة الدراسية', 'error'); return; }
 
-document.querySelectorAll('.act-tab').forEach(b => b.addEventListener('click', () => {
-  setActiveActivity(b.dataset.activity);
-  state.attendancePageInitialized = false;
-  renderAttendancePage();
-}));
+        const normalizedName = normalizeName(name);
+        const existingGirl = state.girls.find(g =>
+          normalizeName(g.name) === normalizedName && g.id !== state.editingGirlId && !g.isDeleted
+        );
+        if (existingGirl) { showToast('هذه المخدومة موجودة بالفعل', 'error'); return; }
 
-if (DOM.attendanceDate) {
-  DOM.attendanceDate.addEventListener('change', () => {
-    TimeContext.setDate(DOM.attendanceDate.value);
-    state.attendancePageInitialized = false;
-    renderAttendancePage();
-  });
-}
+        const id = state.editingGirlId || 'girl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const now = Date.now();
+        const girlData = {
+          id, name, phone, grade, notes,
+          createdAt: state.editingGirlId ? (state.girls.find(g => g.id === state.editingGirlId)?.createdAt || now) : now,
+          updatedAt: now,
+          updatedBy: state.currentUser?.displayName || 'خادم',
+          updatedByEmail: state.currentUser?.email || '',
+          isDeleted: false
+        };
 
-if (DOM.selectAllPresent) DOM.selectAllPresent.addEventListener('click', () => selectAllStatus('حاضر'));
-if (DOM.selectAllAbsent) DOM.selectAllAbsent.addEventListener('click', () => selectAllStatus('غائب'));
+        if (state.editingGirlId) {
+          state.girls = state.girls.map(g => g.id === id ? girlData : g);
+        } else {
+          state.girls.push(girlData);
+        }
+        state._girlMapDirty = true;
 
-const debouncedAttSearch = debounce(renderAttendanceList, 250);
-if (DOM.attendanceSearch) DOM.attendanceSearch.addEventListener('input', debouncedAttSearch);
-
-// ============================================================
-// ATTENDANCE MODAL EVENTS
-// ============================================================
-document.querySelectorAll('.attend-btn').forEach(b => {
-  b.addEventListener('click', () => {
-    document.querySelectorAll('.attend-btn').forEach(x => x.classList.remove('selected'));
-    b.classList.add('selected');
-    if (DOM.ratingSection) DOM.ratingSection.classList.toggle('hidden', b.dataset.status !== 'حاضر');
-  });
-});
-
-document.querySelectorAll('.star').forEach(s => s.addEventListener('click', () => setRating(parseInt(s.dataset.val))));
-
-if (DOM.saveAttendanceEntry) {
-  DOM.saveAttendanceEntry.addEventListener('click', async () => {
-    if (!DOM.attendanceDate) return;
-    const date = DOM.attendanceDate.value;
-    const statusBtn = document.querySelector('.attend-btn.selected');
-    if (!statusBtn) { showToast('الرجاء تحديد الحضور أو الغياب', 'error'); return; }
-
-    const key = `${state.currentAttendanceGirlId}_${date}_${state.selectedActivity}`;
-    const safeRating = Math.max(0, Math.min(5, state.currentAttendanceRating));
-    const rec = {
-      id: key,
-      girlId: state.currentAttendanceGirlId,
-      date,
-      day: state.selectedDay,
-      activity: state.selectedActivity,
-      status: statusBtn.dataset.status,
-      rating: statusBtn.dataset.status === 'حاضر' ? safeRating : 0,
-      notes: DOM.attendanceNotes ? DOM.attendanceNotes.value.trim() : '',
-      updatedAt: Date.now(),
-      updatedBy: state.currentUser?.displayName || 'خادم',
-      updatedByEmail: state.currentUser?.email || ''
-    };
-
-    state.attendanceData[key] = rec;
-    invalidateAttendanceCache();
-
-    if (ensureFirebaseReady()) {
-      try { await window._fb.setDoc(window._fb.doc(db, 'attendance', key), rec); }
-      catch (e) { console.error('Save attendance Firestore error:', e); }
-    }
-
-    const gName = getGirl(state.currentAttendanceGirlId)?.name || '';
-    await logHistory('تسجيل حضور', `${gName} - ${state.selectedActivity} - ${date} - ${rec.status}`);
-    closeModal('attendanceModal');
-    showToast('تم الحفظ', 'success');
-    renderAttendanceList();
-
-    if (state.currentPage === 'home') renderHome();
-    if (state.currentPage === 'stats') renderStats();
-    if (state.currentPage === 'calendar') renderCalendar();
-  });
-}
-
-// ============================================================
-// CALENDAR EVENTS
-// ============================================================
-if (DOM.calPrev) {
-  DOM.calPrev.addEventListener('click', () => {
-    hideDayDetail();
-    state.calendarDate.setMonth(state.calendarDate.getMonth() - 1);
-    const y = state.calendarDate.getFullYear();
-    const m = state.calendarDate.getMonth() + 1;
-    const d = parseInt(TimeContext.getDate().split('-')[2]) || 1;
-    TimeContext.setDate(`${y}-${String(m).padStart(2, '0')}-${String(Math.min(d, 28)).padStart(2, '0')}`);
-    renderCalendar();
-  });
-}
-if (DOM.calNext) {
-  DOM.calNext.addEventListener('click', () => {
-    hideDayDetail();
-    state.calendarDate.setMonth(state.calendarDate.getMonth() + 1);
-    const y = state.calendarDate.getFullYear();
-    const m = state.calendarDate.getMonth() + 1;
-    const d = parseInt(TimeContext.getDate().split('-')[2]) || 1;
-    TimeContext.setDate(`${y}-${String(m).padStart(2, '0')}-${String(Math.min(d, 28)).padStart(2, '0')}`);
-    renderCalendar();
-  });
-}
-
-// ============================================================
-// STATS PAGE EVENTS
-// ============================================================
-if (DOM.statsMonth) {
-  DOM.statsMonth.addEventListener('change', () => {
-    TimeContext.setDate(DOM.statsMonth.value);
-    renderStats();
-  });
-}
-
-if (DOM.timeFilterTabs) {
-  DOM.timeFilterTabs.addEventListener('click', e => {
-    const btn = e.target.closest('.time-filter-tab');
-    if (!btn) return;
-    state.statsTimeFilter = btn.dataset.period;
-    renderStats();
-  });
-}
-
-if (DOM.statsGradeFilter) {
-  DOM.statsGradeFilter.addEventListener('click', e => {
-    const btn = e.target.closest('.stats-grade-btn');
-    if (!btn) return;
-    state.statsGradeFilter = btn.dataset.grade;
-    renderStats();
-  });
-}
-
-// ============================================================
-// ACTIVITY STATS & DETAIL EVENTS
-// ============================================================
-if (DOM.activityStatsGrid) {
-  DOM.activityStatsGrid.addEventListener('click', e => {
-    const card = e.target.closest('.activity-stat-card');
-    if (!card || !card.dataset.activity) return;
-    const selectedDate = DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : TimeContext.getDate();
-    openActivityDetailModal(card.dataset.activity, state.statsTimeFilter, state.statsGradeFilter, selectedDate);
-  });
-}
-
-if (DOM.activityDetailTabs) {
-  DOM.activityDetailTabs.addEventListener('click', e => {
-    const tab = e.target.closest('.activity-detail-tab');
-    if (!tab) return;
-    state.activityDetailTab = tab.dataset.tab;
-    renderActivityDetailTab();
-  });
-}
-
-if (DOM.activityDetailList) {
-  DOM.activityDetailList.addEventListener('click', e => {
-    const item = e.target.closest('.detail-girl-item');
-    if (item && item.dataset.girlId) {
-      closeModal('activityDetailModal');
-      showGirlProfile(item.dataset.girlId);
-    }
-  });
-}
-
-if (DOM.closeActivityDetailModal) {
-  DOM.closeActivityDetailModal.addEventListener('click', () => closeModal('activityDetailModal'));
-}
-
-// ============================================================
-// HISTORY PAGE EVENTS
-// ============================================================
-if (DOM.historyFilter) DOM.historyFilter.addEventListener('change', () => renderHistory(false));
-if (DOM.loadMoreHistoryBtn) DOM.loadMoreHistoryBtn.addEventListener('click', () => renderHistory(true));
-
-if (DOM.clearHistoryBtn) {
-  DOM.clearHistoryBtn.addEventListener('click', () => {
-    showConfirm({
-      icon: '&#9888;', title: 'مسح السجل التاريخي',
-      msg: 'هل أنت متأكد؟ سيتم مسح كل السجلات نهائياً ولا يمكن التراجع.',
-      okLabel: 'مسح الكل',
-      onOk: async () => {
-        try { await IDB.clear('history'); } catch (e) { }
+        const isNewGirl = !state.editingGirlId;
 
         if (ensureFirebaseReady()) {
-          try {
-            const { collection, query, orderBy, limit, getDocs, writeBatch } = window._fb;
-            let deleted = 0;
-            let hasMore = true;
-
-            while (hasMore && deleted < 5000) {
-              const q = query(collection(db, 'history'), orderBy('timestamp', 'desc'), limit(500));
-              const snap = await getDocs(q);
-              if (snap.empty) { hasMore = false; break; }
-
-              const batch = writeBatch(db);
-              snap.docs.forEach(d => batch.delete(d.ref));
-              await batch.commit();
-              deleted += snap.docs.length;
-
-              if (snap.docs.length < 500) hasMore = false;
-            }
-
-            if (deleted >= 5000) {
-              showToast('تم مسح أول 5000 سجل. يُفضل استخدام Cloud Function للمسح الجماعي.', 'warning');
-              return;
-            }
-          } catch (e) { console.error('Firestore clear history error:', e); }
+          try { await window._fb.setDoc(window._fb.doc(db, 'girls', id), girlData); }
+          catch (e) { console.error('Save girl Firestore error:', e); }
         }
 
-        state.historyLastDoc = null;
-        state.historyHasMore = true;
-        state.historyOffset = 0;
+        await logHistory(state.editingGirlId ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} - ${grade}`);
 
-        showToast('تم مسح السجل التاريخي', 'success');
-        renderHistory(false);
+        if (isNewGirl) {
+          const todayStr = DateUtil.toStr();
+          if (isServiceDayDate(todayStr)) {
+            await autoMarkAbsentForNewGirl(id, todayStr);
+          }
+        }
+
+        closeModal('girlModal');
+        showToast(isNewGirl ? 'تمت إضافة المخدومة' : 'تم تعديل البيانات', 'success');
+        state.editingGirlId = null;
+        renderPage();
+      } finally {
+        state.savingGirl = false;
       }
     });
-  });
-}
+  }
 
-// ============================================================
-// EXPORT PAGE EVENTS
-// ============================================================
-if (DOM.exportMonth) {
-  DOM.exportMonth.addEventListener('change', () => {
-    if (DOM.exportMonth?.value) {
-      TimeContext.setDate(DOM.exportMonth.value);
-      updateExportPreview();
-    }
-  });
-}
-
-document.querySelectorAll('input[name="exportMode"]').forEach(radio => {
-  radio.addEventListener('change', () => {
-    document.querySelectorAll('.export-mode-option').forEach(opt => {
-      const input = opt.querySelector('input[type="radio"]');
-      opt.classList.toggle('checked', input && input.checked);
+  // ============================================================
+  // GIRL PROFILE EVENTS
+  // ============================================================
+  if (DOM.closeProfileModal) DOM.closeProfileModal.addEventListener('click', () => closeModal('girlProfileModal'));
+  if (DOM.editProfileBtn) {
+    DOM.editProfileBtn.addEventListener('click', () => {
+      closeModal('girlProfileModal');
+      if (state.currentProfileGirlId) editGirl(state.currentProfileGirlId);
     });
-    updateExportPreview();
+  }
+
+  if (DOM.shareProfileBtn) {
+    DOM.shareProfileBtn.addEventListener('click', async () => {
+      const id = state.currentProfileGirlId;
+      if (!id) return;
+      const g = getGirl(id);
+      if (!g) return;
+
+      const girlAtt = Object.values(state.attendanceData).filter(a => a.girlId === id);
+      const presentCount = girlAtt.filter(a => a.status === 'حاضر').length;
+      const absentCount = girlAtt.filter(a => a.status === 'غائب').length;
+      const attendanceRate = girlAtt.length > 0 ? Math.round((presentCount / girlAtt.length) * 100) : 0;
+
+      const shareText = `👧 ${g.name}\n📚 ${g.grade}\n✅ حضور: ${presentCount}\n❌ غياب: ${absentCount}\n📊 نسبة: ${attendanceRate}%`.trim();
+
+      if (navigator.share) {
+        try { await navigator.share({ title: `ملف ${g.name}`, text: shareText }); } catch (e) { /* user cancelled */ }
+      } else {
+        try {
+          await navigator.clipboard.writeText(shareText);
+          showToast('تم نسخ البيانات للمشاركة', 'success');
+        } catch (e) {
+          showToast('المشاركة غير متوفرة على هذا الجهاز', 'warning');
+        }
+      }
+    });
+  }
+
+  // ============================================================
+  // ATTENDANCE PAGE EVENTS
+  // ============================================================
+  document.querySelectorAll('.day-btn').forEach(b => b.addEventListener('click', () => {
+    setActiveDay(b.dataset.day);
+    state.attendancePageInitialized = false;
+    renderAttendancePage();
+  }));
+
+  document.querySelectorAll('.act-tab').forEach(b => b.addEventListener('click', () => {
+    setActiveActivity(b.dataset.activity);
+    state.attendancePageInitialized = false;
+    renderAttendancePage();
+  }));
+
+  if (DOM.attendanceDate) {
+    DOM.attendanceDate.addEventListener('change', () => {
+      TimeContext.setDate(DOM.attendanceDate.value);
+      state.attendancePageInitialized = false;
+      renderAttendancePage();
+    });
+  }
+
+  if (DOM.selectAllPresent) DOM.selectAllPresent.addEventListener('click', () => selectAllStatus('حاضر'));
+  if (DOM.selectAllAbsent) DOM.selectAllAbsent.addEventListener('click', () => selectAllStatus('غائب'));
+
+  const debouncedAttSearch = debounce(renderAttendanceList, 250);
+  if (DOM.attendanceSearch) DOM.attendanceSearch.addEventListener('input', debouncedAttSearch);
+
+  // ============================================================
+  // ATTENDANCE MODAL EVENTS
+  // ============================================================
+  document.querySelectorAll('.attend-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.attend-btn').forEach(x => x.classList.remove('selected'));
+      b.classList.add('selected');
+      if (DOM.ratingSection) DOM.ratingSection.classList.toggle('hidden', b.dataset.status !== 'حاضر');
+    });
   });
-});
 
-document.querySelectorAll('.export-mode-option').forEach(opt => {
-  const input = opt.querySelector('input[type="radio"]');
-  if (input && input.checked) opt.classList.add('checked');
-});
+  document.querySelectorAll('.star').forEach(s => s.addEventListener('click', () => setRating(parseInt(s.dataset.val))));
 
-// Excel export
-if (DOM.exportExcel) {
-  DOM.exportExcel.addEventListener('click', () => {
-    if (!XLSX) { showToast('مكتبة Excel غير محملة، حاول تحديث الصفحة', 'error'); return; }
+  if (DOM.saveAttendanceEntry) {
+    DOM.saveAttendanceEntry.addEventListener('click', async () => {
+      if (!DOM.attendanceDate) return;
+      const date = DOM.attendanceDate.value;
+      const statusBtn = document.querySelector('.attend-btn.selected');
+      if (!statusBtn) { showToast('الرجاء تحديد الحضور أو الغياب', 'error'); return; }
 
-    const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || 'day';
-    if (!DOM.exportMonth) return;
-    const exportDate = (DOM.exportMonth?.value) || TimeContext.getDate();
+      const key = `${state.currentAttendanceGirlId}_${date}_${state.selectedActivity}`;
+      const safeRating = Math.max(0, Math.min(5, state.currentAttendanceRating));
+      const rec = {
+        id: key,
+        girlId: state.currentAttendanceGirlId,
+        date,
+        day: state.selectedDay,
+        activity: state.selectedActivity,
+        status: statusBtn.dataset.status,
+        rating: statusBtn.dataset.status === 'حاضر' ? safeRating : 0,
+        notes: DOM.attendanceNotes ? DOM.attendanceNotes.value.trim() : '',
+        updatedAt: Date.now(),
+        updatedBy: state.currentUser?.displayName || 'خادم',
+        updatedByEmail: state.currentUser?.email || ''
+      };
 
-    let exportStart, exportEnd, reportTitle;
-    const activeGirls = getActiveGirls();
-    const activeGirlIds = new Set(activeGirls.map(g => g.id));
+      state.attendanceData[key] = rec;
+      invalidateAttendanceCache();
 
-    if (exportMode === 'month') {
-      const [year, month] = exportDate.substring(0, 7).split('-').map(Number);
-      const daysInMonth = new Date(year, month, 0).getDate();
-      exportStart = exportDate.substring(0, 7) + '-01';
-      exportEnd = exportDate.substring(0, 7) + '-' + String(daysInMonth).padStart(2, '0');
-      reportTitle = 'تقرير حضور شهر ' + DateUtil.formatMonth(exportDate.substring(0, 7));
-    } else {
-      exportStart = exportDate;
-      exportEnd = exportDate;
-      const dayName = safeDayName(exportDate);
-      reportTitle = 'تقرير حضور يوم ' + exportDate + ' (' + dayName + ')';
-    }
+      if (ensureFirebaseReady()) {
+        try { await window._fb.setDoc(window._fb.doc(db, 'attendance', key), rec); }
+        catch (e) { console.error('Save attendance Firestore error:', e); }
+      }
 
-    const exportAtt = getAttendanceEntries().filter(a =>
-      a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId) && isServiceDayDate(a.date)
-    );
+      const gName = getGirl(state.currentAttendanceGirlId)?.name || '';
+      await logHistory('تسجيل حضور', `${gName} - ${state.selectedActivity} - ${date} - ${rec.status}`);
+      closeModal('attendanceModal');
+      showToast('تم الحفظ', 'success');
+      renderAttendanceList();
 
-    const wb = XLSX.utils.book_new();
+      if (state.currentPage === 'home') renderHome();
+      if (state.currentPage === 'stats') renderStats();
+      if (state.currentPage === 'calendar') renderCalendar();
+    });
+  }
 
-    if (exportMode === 'month') {
-      const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
-      const girlStats = {};
-      activeGirls.forEach(g => {
-        girlStats[g.id] = {
-          name: g.name, grade: g.grade,
-          ...Object.fromEntries(ACTIVITIES.map(a => [a, { present: 0, absent: 0 }])),
-          totalPresent: 0, totalAbsent: 0
-        };
-      });
+  // ============================================================
+  // CALENDAR EVENTS
+  // ============================================================
+  if (DOM.calPrev) {
+    DOM.calPrev.addEventListener('click', () => {
+      hideDayDetail();
+      state.calendarDate.setMonth(state.calendarDate.getMonth() - 1);
+      const y = state.calendarDate.getFullYear();
+      const m = state.calendarDate.getMonth() + 1;
+      const d = parseInt(TimeContext.getDate().split('-')[2]) || 1;
+      TimeContext.setDate(`${y}-${String(m).padStart(2, '0')}-${String(Math.min(d, 28)).padStart(2, '0')}`);
+      renderCalendar();
+    });
+  }
+  if (DOM.calNext) {
+    DOM.calNext.addEventListener('click', () => {
+      hideDayDetail();
+      state.calendarDate.setMonth(state.calendarDate.getMonth() + 1);
+      const y = state.calendarDate.getFullYear();
+      const m = state.calendarDate.getMonth() + 1;
+      const d = parseInt(TimeContext.getDate().split('-')[2]) || 1;
+      TimeContext.setDate(`${y}-${String(m).padStart(2, '0')}-${String(Math.min(d, 28)).padStart(2, '0')}`);
+      renderCalendar();
+    });
+  }
 
-      exportAtt.forEach(a => {
-        if (!girlStats[a.girlId]) return;
-        if (girlStats[a.girlId][a.activity]) {
-          if (a.status === 'حاضر') { girlStats[a.girlId][a.activity].present++; girlStats[a.girlId].totalPresent++; }
-          else { girlStats[a.girlId][a.activity].absent++; girlStats[a.girlId].totalAbsent++; }
+  // ============================================================
+  // STATS PAGE EVENTS
+  // ============================================================
+  if (DOM.statsMonth) {
+    DOM.statsMonth.addEventListener('change', () => {
+      TimeContext.setDate(DOM.statsMonth.value);
+      renderStats();
+    });
+  }
+
+  if (DOM.timeFilterTabs) {
+    DOM.timeFilterTabs.addEventListener('click', e => {
+      const btn = e.target.closest('.time-filter-tab');
+      if (!btn) return;
+      state.statsTimeFilter = btn.dataset.period;
+      renderStats();
+    });
+  }
+
+  if (DOM.statsGradeFilter) {
+    DOM.statsGradeFilter.addEventListener('click', e => {
+      const btn = e.target.closest('.stats-grade-btn');
+      if (!btn) return;
+      state.statsGradeFilter = btn.dataset.grade;
+      renderStats();
+    });
+  }
+
+  // ============================================================
+  // ACTIVITY STATS & DETAIL EVENTS
+  // ============================================================
+  if (DOM.activityStatsGrid) {
+    DOM.activityStatsGrid.addEventListener('click', e => {
+      const card = e.target.closest('.activity-stat-card');
+      if (!card || !card.dataset.activity) return;
+      const selectedDate = DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : TimeContext.getDate();
+      openActivityDetailModal(card.dataset.activity, state.statsTimeFilter, state.statsGradeFilter, selectedDate);
+    });
+  }
+
+  if (DOM.activityDetailTabs) {
+    DOM.activityDetailTabs.addEventListener('click', e => {
+      const tab = e.target.closest('.activity-detail-tab');
+      if (!tab) return;
+      state.activityDetailTab = tab.dataset.tab;
+      renderActivityDetailTab();
+    });
+  }
+
+  if (DOM.activityDetailList) {
+    DOM.activityDetailList.addEventListener('click', e => {
+      const item = e.target.closest('.detail-girl-item');
+      if (item && item.dataset.girlId) {
+        closeModal('activityDetailModal');
+        showGirlProfile(item.dataset.girlId);
+      }
+    });
+  }
+
+  if (DOM.closeActivityDetailModal) {
+    DOM.closeActivityDetailModal.addEventListener('click', () => closeModal('activityDetailModal'));
+  }
+
+  // ============================================================
+  // HISTORY PAGE EVENTS
+  // ============================================================
+  if (DOM.historyFilter) DOM.historyFilter.addEventListener('change', () => renderHistory(false));
+  if (DOM.loadMoreHistoryBtn) DOM.loadMoreHistoryBtn.addEventListener('click', () => renderHistory(true));
+
+  if (DOM.clearHistoryBtn) {
+    DOM.clearHistoryBtn.addEventListener('click', () => {
+      showConfirm({
+        icon: '&#9888;', title: 'مسح السجل التاريخي',
+        msg: 'هل أنت متأكد؟ سيتم مسح كل السجلات نهائياً ولا يمكن التراجع.',
+        okLabel: 'مسح الكل',
+        onOk: async () => {
+          try { await IDB.clear('history'); } catch (e) { }
+
+          if (ensureFirebaseReady()) {
+            try {
+              const { collection, query, orderBy, limit, getDocs, writeBatch } = window._fb;
+              let deleted = 0;
+              let hasMore = true;
+
+              while (hasMore && deleted < 5000) {
+                const q = query(collection(db, 'history'), orderBy('timestamp', 'desc'), limit(500));
+                const snap = await getDocs(q);
+                if (snap.empty) { hasMore = false; break; }
+
+                const batch = writeBatch(db);
+                snap.docs.forEach(d => batch.delete(d.ref));
+                await batch.commit();
+                deleted += snap.docs.length;
+
+                if (snap.docs.length < 500) hasMore = false;
+              }
+
+              if (deleted >= 5000) {
+                showToast('تم مسح أول 5000 سجل. يُفضل استخدام Cloud Function للمسح الجماعي.', 'warning');
+                return;
+              }
+            } catch (e) { console.error('Firestore clear history error:', e); }
+          }
+
+          state.historyLastDoc = null;
+          state.historyHasMore = true;
+          state.historyOffset = 0;
+
+          showToast('تم مسح السجل التاريخي', 'success');
+          renderHistory(false);
         }
       });
+    });
+  }
 
-      const sortedGirls = [...Object.values(girlStats)].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-      const wsData = [];
-      wsData.push(['تقرير حضور شهر ' + monthName]);
-      wsData.push([]);
-      wsData.push(['عدد المخدومات', activeGirlIds.size]);
-      wsData.push([]);
+  // ============================================================
+  // EXPORT PAGE EVENTS
+  // ============================================================
+  if (DOM.exportMonth) {
+    DOM.exportMonth.addEventListener('change', () => {
+      if (DOM.exportMonth?.value) {
+        TimeContext.setDate(DOM.exportMonth.value);
+        updateExportPreview();
+      }
+    });
+  }
 
-      const headerRow = ['الاسم', 'السنة'];
-      ACTIVITIES.forEach(a => { headerRow.push(esc(a) + ' (حضور)'); headerRow.push(esc(a) + ' (غياب)'); });
-      headerRow.push('إجمالي الحضور', 'إجمالي الغياب');
-      wsData.push(headerRow);
-
-      sortedGirls.forEach(r => {
-        const row = [r.name, r.grade];
-        ACTIVITIES.forEach(a => { row.push(r[a].present); row.push(r[a].absent); });
-        row.push(r.totalPresent, r.totalAbsent);
-        wsData.push(row);
+  document.querySelectorAll('input[name="exportMode"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('.export-mode-option').forEach(opt => {
+        const input = opt.querySelector('input[type="radio"]');
+        opt.classList.toggle('checked', input && input.checked);
       });
+      updateExportPreview();
+    });
+  });
 
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      const colWidths = [{ wch: 28 }, { wch: 14 }];
-      ACTIVITIES.forEach(() => { colWidths.push({ wch: 12 }, { wch: 12 }); });
-      colWidths.push({ wch: 14 }, { wch: 14 });
-      ws['!cols'] = colWidths;
-      ws['!dir'] = 'rtl';
-      XLSX.utils.book_append_sheet(wb, ws, 'ملخص الشهر');
+  document.querySelectorAll('.export-mode-option').forEach(opt => {
+    const input = opt.querySelector('input[type="radio"]');
+    if (input && input.checked) opt.classList.add('checked');
+  });
 
-      exportAtt.sort((a, b) => a.date !== b.date ? a.date.localeCompare(b.date) : (a.activity || '').localeCompare(b.activity || '', 'ar'));
-      const detailData = [['تقرير تفصيلي — ' + monthName], [], ['التاريخ', 'اليوم', 'المخدومة', 'السنة', 'النشاط', 'الحالة', 'التقييم', 'ملاحظات']];
+  // Excel export
+  if (DOM.exportExcel) {
+    DOM.exportExcel.addEventListener('click', () => {
+      if (!XLSX) { showToast('مكتبة Excel غير محملة، حاول تحديث الصفحة', 'error'); return; }
 
-      exportAtt.forEach(a => {
-        const g = getGirl(a.girlId);
-        const dayName = safeDayName(a.date);
-        const safeRating = Math.max(0, Math.min(5, a.rating || 0));
-        const stars = safeRating ? '★'.repeat(safeRating) + '☆'.repeat(5 - safeRating) : '';
-        detailData.push([a.date, dayName, g?.name || '', g?.grade || '', a.activity || '', a.status === 'حاضر' ? '✓' : '✗', stars, a.notes || '']);
-      });
+      const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || 'day';
+      if (!DOM.exportMonth) return;
+      const exportDate = (DOM.exportMonth?.value) || TimeContext.getDate();
 
-      const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
-      wsDetail['!cols'] = [{ wch: 14 }, { wch: 10 }, { wch: 24 }, { wch: 14 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 24 }];
-      wsDetail['!dir'] = 'rtl';
-      XLSX.utils.book_append_sheet(wb, wsDetail, 'تفاصيل يومية');
+      let exportStart, exportEnd, reportTitle;
+      const activeGirls = getActiveGirls();
+      const activeGirlIds = new Set(activeGirls.map(g => g.id));
 
-    } else {
-      const wsData = [[reportTitle], [], ['الاسم', 'السنة', ...ACTIVITIES]];
-      const sortedGirls = [...activeGirls].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-      sortedGirls.forEach(g => {
-        const row = [g.name, g.grade];
-        ACTIVITIES.forEach(act => {
-          const rec = state.attendanceData[`${g.id}_${exportDate}_${act}`];
-          row.push(rec ? (rec.status === 'حاضر' ? '✓' : '✗') : '—');
+      if (exportMode === 'month') {
+        const [year, month] = exportDate.substring(0, 7).split('-').map(Number);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        exportStart = exportDate.substring(0, 7) + '-01';
+        exportEnd = exportDate.substring(0, 7) + '-' + String(daysInMonth).padStart(2, '0');
+        reportTitle = 'تقرير حضور شهر ' + DateUtil.formatMonth(exportDate.substring(0, 7));
+      } else {
+        exportStart = exportDate;
+        exportEnd = exportDate;
+        const dayName = safeDayName(exportDate);
+        reportTitle = 'تقرير حضور يوم ' + exportDate + ' (' + dayName + ')';
+      }
+
+      const exportAtt = getAttendanceEntries().filter(a =>
+        a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId) && isServiceDayDate(a.date)
+      );
+
+      const wb = XLSX.utils.book_new();
+
+      if (exportMode === 'month') {
+        const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
+        const girlStats = {};
+        activeGirls.forEach(g => {
+          girlStats[g.id] = {
+            name: g.name, grade: g.grade,
+            ...Object.fromEntries(ACTIVITIES.map(a => [a, { present: 0, absent: 0 }])),
+            totalPresent: 0, totalAbsent: 0
+          };
         });
-        wsData.push(row);
-      });
+
+        exportAtt.forEach(a => {
+          if (!girlStats[a.girlId]) return;
+          if (girlStats[a.girlId][a.activity]) {
+            if (a.status === 'حاضر') { girlStats[a.girlId][a.activity].present++; girlStats[a.girlId].totalPresent++; }
+            else { girlStats[a.girlId][a.activity].absent++; girlStats[a.girlId].totalAbsent++; }
+          }
+        });
+
+        const sortedGirls = [...Object.values(girlStats)].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        const wsData = [];
+        wsData.push(['تقرير حضور شهر ' + monthName]);
+        wsData.push([]);
+        wsData.push(['عدد المخدومات', activeGirlIds.size]);
+        wsData.push([]);
+
+        const headerRow = ['الاسم', 'السنة'];
+        ACTIVITIES.forEach(a => { headerRow.push(esc(a) + ' (حضور)'); headerRow.push(esc(a) + ' (غياب)'); });
+        headerRow.push('إجمالي الحضور', 'إجمالي الغياب');
+        wsData.push(headerRow);
+
+        sortedGirls.forEach(r => {
+          const row = [r.name, r.grade];
+          ACTIVITIES.forEach(a => { row.push(r[a].present); row.push(r[a].absent); });
+          row.push(r.totalPresent, r.totalAbsent);
+          wsData.push(row);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        const colWidths = [{ wch: 28 }, { wch: 14 }];
+        ACTIVITIES.forEach(() => { colWidths.push({ wch: 12 }, { wch: 12 }); });
+        colWidths.push({ wch: 14 }, { wch: 14 });
+        ws['!cols'] = colWidths;
+        ws['!dir'] = 'rtl';
+        XLSX.utils.book_append_sheet(wb, ws, 'ملخص الشهر');
+
+        exportAtt.sort((a, b) => a.date !== b.date ? a.date.localeCompare(b.date) : (a.activity || '').localeCompare(b.activity || '', 'ar'));
+        const detailData = [['تقرير تفصيلي — ' + monthName], [], ['التاريخ', 'اليوم', 'المخدومة', 'السنة', 'النشاط', 'الحالة', 'التقييم', 'ملاحظات']];
+
+        exportAtt.forEach(a => {
+          const g = getGirl(a.girlId);
+          const dayName = safeDayName(a.date);
+          const safeRating = Math.max(0, Math.min(5, a.rating || 0));
+          const stars = safeRating ? '★'.repeat(safeRating) + '☆'.repeat(5 - safeRating) : '';
+          detailData.push([a.date, dayName, g?.name || '', g?.grade || '', a.activity || '', a.status === 'حاضر' ? '✓' : '✗', stars, a.notes || '']);
+        });
+
+        const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
+        wsDetail['!cols'] = [{ wch: 14 }, { wch: 10 }, { wch: 24 }, { wch: 14 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 24 }];
+        wsDetail['!dir'] = 'rtl';
+        XLSX.utils.book_append_sheet(wb, wsDetail, 'تفاصيل يومية');
+
+      } else {
+        const wsData = [[reportTitle], [], ['الاسم', 'السنة', ...ACTIVITIES]];
+        const sortedGirls = [...activeGirls].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        sortedGirls.forEach(g => {
+          const row = [g.name, g.grade];
+          ACTIVITIES.forEach(act => {
+            const rec = state.attendanceData[`${g.id}_${exportDate}_${act}`];
+            row.push(rec ? (rec.status === 'حاضر' ? '✓' : '✗') : '—');
+          });
+          wsData.push(row);
+        });
+
+        const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
+        const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
+        wsData.push([]);
+        wsData.push(['', '', 'حاضر: ' + totalPresent, '', 'غائب: ' + totalAbsent, '']);
+
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        const colWidths = [{ wch: 28 }, { wch: 14 }];
+        ACTIVITIES.forEach(() => colWidths.push({ wch: 10 }));
+        ws['!cols'] = colWidths;
+        ws['!dir'] = 'rtl';
+        XLSX.utils.book_append_sheet(wb, ws, 'يوم ' + exportDate);
+      }
+
+      const xlsxBlob = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([xlsxBlob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `حضور_${exportDate}${exportMode === 'month' ? '_شهر' : '_يوم'}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(exportMode === 'month' ? 'تم تصدير ملف Excel للشهر' : 'تم تصدير ملف Excel لليوم', 'success');
+    });
+  }
+
+  // JSON export
+  if (DOM.exportJSON) {
+    DOM.exportJSON.addEventListener('click', () => {
+      const exportDate = (DOM.exportMonth?.value) || TimeContext.getDate();
+      const exportStart = exportDate.substring(0, 7) + '-01';
+      const [exportYear, exportMonthNum] = exportDate.substring(0, 7).split('-').map(Number);
+      const daysInExportMonth = new Date(exportYear, exportMonthNum, 0).getDate();
+      const exportEnd = exportDate.substring(0, 7) + '-' + String(daysInExportMonth).padStart(2, '0');
+      const activeGirlIds = getActiveGirlIds();
+
+      const exportAtt = getAttendanceEntries().filter(a =>
+        a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId) && isServiceDayDate(a.date)
+      );
+
+      const payload = {
+        dateRange: { start: exportStart, end: exportEnd },
+        girls: getActiveGirls(),
+        attendance: exportAtt,
+        exportedAt: new Date().toISOString()
+      };
+      downloadFile(`بيانات_${exportDate}.json`, JSON.stringify(payload, null, 2), 'application/json');
+      showToast('تم تصدير JSON', 'success');
+    });
+  }
+
+  // Print export
+  if (DOM.exportPrint) {
+    DOM.exportPrint.addEventListener('click', () => {
+      const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || 'day';
+      if (!DOM.exportMonth) return;
+      const exportDate = (DOM.exportMonth?.value) || TimeContext.getDate();
+
+      let exportStart, exportEnd;
+      if (exportMode === 'month') {
+        const [year, month] = exportDate.substring(0, 7).split('-').map(Number);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        exportStart = exportDate.substring(0, 7) + '-01';
+        exportEnd = exportDate.substring(0, 7) + '-' + String(daysInMonth).padStart(2, '0');
+      } else {
+        exportStart = exportDate;
+        exportEnd = exportDate;
+      }
+
+      const activeGirls = getActiveGirls();
+      const activeGirlIds = new Set(activeGirls.map(g => g.id));
+      const exportAtt = getAttendanceEntries().filter(a =>
+        a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId) && isServiceDayDate(a.date)
+      );
 
       const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
       const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
-      wsData.push([]);
-      wsData.push(['', '', 'حاضر: ' + totalPresent, '', 'غائب: ' + totalAbsent, '']);
 
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      const colWidths = [{ wch: 28 }, { wch: 14 }];
-      ACTIVITIES.forEach(() => colWidths.push({ wch: 10 }));
-      ws['!cols'] = colWidths;
-      ws['!dir'] = 'rtl';
-      XLSX.utils.book_append_sheet(wb, ws, 'يوم ' + exportDate);
-    }
+      let html;
+      const baseStyle = `body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px}h1{color:#1a2744;border-bottom:2px solid #1a2744;padding-bottom:10px}.summary{display:flex;gap:20px;margin:15px 0;flex-wrap:wrap}.sum-box{background:#f0f2f8;border-radius:10px;padding:12px 20px;text-align:center}.sum-box b{font-size:24px;color:#1a2744}.sum-box span{font-size:13px;color:#6b7a99}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ddd;padding:8px;text-align:center;font-size:13px}th{background:#1a2744;color:white}.footer{margin-top:20px;font-size:12px;color:#6b7a99;border-top:1px solid #e2e8f0;padding-top:10px}@media print{body{padding:10px}}`;
 
-    const xlsxBlob = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([xlsxBlob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `حضور_${exportDate}${exportMode === 'month' ? '_شهر' : '_يوم'}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast(exportMode === 'month' ? 'تم تصدير ملف Excel للشهر' : 'تم تصدير ملف Excel لليوم', 'success');
-  });
-}
-
-// JSON export
-if (DOM.exportJSON) {
-  DOM.exportJSON.addEventListener('click', () => {
-    const exportDate = (DOM.exportMonth?.value) || TimeContext.getDate();
-    const exportStart = exportDate.substring(0, 7) + '-01';
-    const [exportYear, exportMonthNum] = exportDate.substring(0, 7).split('-').map(Number);
-    const daysInExportMonth = new Date(exportYear, exportMonthNum, 0).getDate();
-    const exportEnd = exportDate.substring(0, 7) + '-' + String(daysInExportMonth).padStart(2, '0');
-    const activeGirlIds = getActiveGirlIds();
-
-    const exportAtt = getAttendanceEntries().filter(a =>
-      a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId) && isServiceDayDate(a.date)
-    );
-
-    const payload = {
-      dateRange: { start: exportStart, end: exportEnd },
-      girls: getActiveGirls(),
-      attendance: exportAtt,
-      exportedAt: new Date().toISOString()
-    };
-    downloadFile(`بيانات_${exportDate}.json`, JSON.stringify(payload, null, 2), 'application/json');
-    showToast('تم تصدير JSON', 'success');
-  });
-}
-
-// Print export
-if (DOM.exportPrint) {
-  DOM.exportPrint.addEventListener('click', () => {
-    const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || 'day';
-    if (!DOM.exportMonth) return;
-    const exportDate = (DOM.exportMonth?.value) || TimeContext.getDate();
-
-    let exportStart, exportEnd;
-    if (exportMode === 'month') {
-      const [year, month] = exportDate.substring(0, 7).split('-').map(Number);
-      const daysInMonth = new Date(year, month, 0).getDate();
-      exportStart = exportDate.substring(0, 7) + '-01';
-      exportEnd = exportDate.substring(0, 7) + '-' + String(daysInMonth).padStart(2, '0');
-    } else {
-      exportStart = exportDate;
-      exportEnd = exportDate;
-    }
-
-    const activeGirls = getActiveGirls();
-    const activeGirlIds = new Set(activeGirls.map(g => g.id));
-    const exportAtt = getAttendanceEntries().filter(a =>
-      a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId) && isServiceDayDate(a.date)
-    );
-
-    const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
-    const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
-
-    let html;
-    const baseStyle = `body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px}h1{color:#1a2744;border-bottom:2px solid #1a2744;padding-bottom:10px}.summary{display:flex;gap:20px;margin:15px 0;flex-wrap:wrap}.sum-box{background:#f0f2f8;border-radius:10px;padding:12px 20px;text-align:center}.sum-box b{font-size:24px;color:#1a2744}.sum-box span{font-size:13px;color:#6b7a99}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ddd;padding:8px;text-align:center;font-size:13px}th{background:#1a2744;color:white}.footer{margin-top:20px;font-size:12px;color:#6b7a99;border-top:1px solid #e2e8f0;padding-top:10px}@media print{body{padding:10px}}`;
-
-    if (exportMode === 'month') {
-      const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
-      const girlStats = {};
-      activeGirls.forEach(g => {
-        girlStats[g.id] = { name: g.name, grade: g.grade, ...Object.fromEntries(ACTIVITIES.map(a => [a, { present: 0, absent: 0 }])), totalPresent: 0, totalAbsent: 0 };
-      });
-      exportAtt.forEach(a => {
-        if (!girlStats[a.girlId] || !girlStats[a.girlId][a.activity]) return;
-        if (a.status === 'حاضر') { girlStats[a.girlId][a.activity].present++; girlStats[a.girlId].totalPresent++; }
-        else { girlStats[a.girlId][a.activity].absent++; girlStats[a.girlId].totalAbsent++; }
-      });
-      const sortedGirls = [...Object.values(girlStats)].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-      const activityHeaders = ACTIVITIES.map(a => `<th>${esc(a)}</th>`).join('');
-      const rows = sortedGirls.map((r, i) => {
-        const activityCells = ACTIVITIES.map(a => `<td>${r[a].present} <span style="color:#e74c3c;font-size:11px">(${r[a].absent})</span></td>`).join('');
-        return `<tr><td>${i + 1}</td><td>${esc(r.name)}</td><td>${esc(r.grade)}</td>${activityCells}<td style="color:green;font-weight:700">${r.totalPresent}</td><td style="color:red;font-weight:700">${r.totalAbsent}</td></tr>`;
-      }).join('');
-      html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تقرير شهر ${monthName}</title><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet"><style>${baseStyle}</style></head><body><h1>تقرير حضور شهر ${monthName}</h1><p style="color:#6b7a99;font-size:14px">من ${exportStart} إلى ${exportEnd}</p><div class="summary"><div class="sum-box"><b>${activeGirls.length}</b><br><span>عدد المخدومات</span></div><div class="sum-box"><b>${totalPresent}</b><br><span>إجمالي الحضور</span></div><div class="sum-box"><b>${totalAbsent}</b><br><span>إجمالي الغياب</span></div><div class="sum-box"><b>${sortedGirls.filter(g => g.totalPresent > 0).length}</b><br><span>مخدومات مشاركة</span></div></div><table><tr><th>#</th><th>الاسم</th><th>السنة</th>${activityHeaders}<th>إجمالي الحضور</th><th>إجمالي الغياب</th></tr>${rows}</table><div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div></body></html>`;
-    } else {
-      const dayName = safeDayName(exportDate);
-      const sortedGirls = [...activeGirls].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-      const activityHeaders = ACTIVITIES.map(a => `<th>${esc(a)}</th>`).join('');
-      const rows = sortedGirls.map((g, i) => {
-        const cells = ACTIVITIES.map(act => {
-          const rec = state.attendanceData[`${g.id}_${exportDate}_${act}`];
-          if (rec) return rec.status === 'حاضر' ? '<td style="color:green;font-weight:700;font-size:16px">&#10003;</td>' : '<td style="color:red;font-weight:700;font-size:16px">&#10007;</td>';
-          return '<td style="color:#ccc">—</td>';
+      if (exportMode === 'month') {
+        const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
+        const girlStats = {};
+        activeGirls.forEach(g => {
+          girlStats[g.id] = { name: g.name, grade: g.grade, ...Object.fromEntries(ACTIVITIES.map(a => [a, { present: 0, absent: 0 }])), totalPresent: 0, totalAbsent: 0 };
+        });
+        exportAtt.forEach(a => {
+          if (!girlStats[a.girlId] || !girlStats[a.girlId][a.activity]) return;
+          if (a.status === 'حاضر') { girlStats[a.girlId][a.activity].present++; girlStats[a.girlId].totalPresent++; }
+          else { girlStats[a.girlId][a.activity].absent++; girlStats[a.girlId].totalAbsent++; }
+        });
+        const sortedGirls = [...Object.values(girlStats)].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        const activityHeaders = ACTIVITIES.map(a => `<th>${esc(a)}</th>`).join('');
+        const rows = sortedGirls.map((r, i) => {
+          const activityCells = ACTIVITIES.map(a => `<td>${r[a].present} <span style="color:#e74c3c;font-size:11px">(${r[a].absent})</span></td>`).join('');
+          return `<tr><td>${i + 1}</td><td>${esc(r.name)}</td><td>${esc(r.grade)}</td>${activityCells}<td style="color:green;font-weight:700">${r.totalPresent}</td><td style="color:red;font-weight:700">${r.totalAbsent}</td></tr>`;
         }).join('');
-        return `<tr><td>${i + 1}</td><td>${esc(g.name)}</td><td>${esc(g.grade)}</td>${cells}</tr>`;
-      }).join('');
-      html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تقرير يوم ${exportDate}</title><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet"><style>${baseStyle}</style></head><body><h1>تقرير حضور يوم ${exportDate}</h1><p style="color:#6b7a99;font-size:14px">اليوم: ${dayName}</p><div class="summary"><div class="sum-box"><b>${activeGirls.length}</b><br><span>عدد المخدومات</span></div><div class="sum-box"><b>${totalPresent}</b><br><span>حاضر</span></div><div class="sum-box"><b>${totalAbsent}</b><br><span>غائب</span></div></div><table><tr><th>#</th><th>الاسم</th><th>السنة</th>${activityHeaders}</tr>${rows}</table><div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div></body></html>`;
-    }
+        html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تقرير شهر ${monthName}</title><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet"><style>${baseStyle}</style></head><body><h1>تقرير حضور شهر ${monthName}</h1><p style="color:#6b7a99;font-size:14px">من ${exportStart} إلى ${exportEnd}</p><div class="summary"><div class="sum-box"><b>${activeGirls.length}</b><br><span>عدد المخدومات</span></div><div class="sum-box"><b>${totalPresent}</b><br><span>إجمالي الحضور</span></div><div class="sum-box"><b>${totalAbsent}</b><br><span>إجمالي الغياب</span></div><div class="sum-box"><b>${sortedGirls.filter(g => g.totalPresent > 0).length}</b><br><span>مخدومات مشاركة</span></div></div><table><tr><th>#</th><th>الاسم</th><th>السنة</th>${activityHeaders}<th>إجمالي الحضور</th><th>إجمالي الغياب</th></tr>${rows}</table><div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div></body></html>`;
+      } else {
+        const dayName = safeDayName(exportDate);
+        const sortedGirls = [...activeGirls].sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        const activityHeaders = ACTIVITIES.map(a => `<th>${esc(a)}</th>`).join('');
+        const rows = sortedGirls.map((g, i) => {
+          const cells = ACTIVITIES.map(act => {
+            const rec = state.attendanceData[`${g.id}_${exportDate}_${act}`];
+            if (rec) return rec.status === 'حاضر' ? '<td style="color:green;font-weight:700;font-size:16px">&#10003;</td>' : '<td style="color:red;font-weight:700;font-size:16px">&#10007;</td>';
+            return '<td style="color:#ccc">—</td>';
+          }).join('');
+          return `<tr><td>${i + 1}</td><td>${esc(g.name)}</td><td>${esc(g.grade)}</td>${cells}</tr>`;
+        }).join('');
+        html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تقرير يوم ${exportDate}</title><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet"><style>${baseStyle}</style></head><body><h1>تقرير حضور يوم ${exportDate}</h1><p style="color:#6b7a99;font-size:14px">اليوم: ${dayName}</p><div class="summary"><div class="sum-box"><b>${activeGirls.length}</b><br><span>عدد المخدومات</span></div><div class="sum-box"><b>${totalPresent}</b><br><span>حاضر</span></div><div class="sum-box"><b>${totalAbsent}</b><br><span>غائب</span></div></div><table><tr><th>#</th><th>الاسم</th><th>السنة</th>${activityHeaders}</tr>${rows}</table><div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div></body></html>`;
+      }
 
-    const printBlob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const printUrl = URL.createObjectURL(printBlob);
-    const w = window.open(printUrl, '_blank');
-    if (!w) {
-      URL.revokeObjectURL(printUrl);
-      showToast('تم حجب النافذة من المتصفح', 'error');
-      return;
-    }
-    const cleanupPrintUrl = () => URL.revokeObjectURL(printUrl);
-    w.onload = () => { w._printed = true; cleanupPrintUrl(); w.print(); };
-    setTimeout(() => { if (!w._printed) { w._printed = true; cleanupPrintUrl(); w.print(); } }, 500);
-  });
-}
+      const printBlob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const printUrl = URL.createObjectURL(printBlob);
+      const w = window.open(printUrl, '_blank');
+      if (!w) {
+        URL.revokeObjectURL(printUrl);
+        showToast('تم حجب النافذة من المتصفح', 'error');
+        return;
+      }
+      const cleanupPrintUrl = () => URL.revokeObjectURL(printUrl);
+      w.onload = () => { w._printed = true; cleanupPrintUrl(); w.print(); };
+      setTimeout(() => { if (!w._printed) { w._printed = true; cleanupPrintUrl(); w.print(); } }, 500);
+    });
+  }
 
-// ============================================================
-// MODAL CLOSE EVENTS
-// ============================================================
-if (DOM.closeGirlModal) DOM.closeGirlModal.addEventListener('click', () => closeModal('girlModal'));
-if (DOM.cancelGirlModal) DOM.cancelGirlModal.addEventListener('click', () => closeModal('girlModal'));
-if (DOM.closeAttendanceModal) DOM.closeAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
-if (DOM.cancelAttendanceModal) DOM.cancelAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
+  // ============================================================
+  // MODAL CLOSE EVENTS
+  // ============================================================
+  if (DOM.closeGirlModal) DOM.closeGirlModal.addEventListener('click', () => closeModal('girlModal'));
+  if (DOM.cancelGirlModal) DOM.cancelGirlModal.addEventListener('click', () => closeModal('girlModal'));
+  if (DOM.closeAttendanceModal) DOM.closeAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
+  if (DOM.cancelAttendanceModal) DOM.cancelAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
 
-document.querySelectorAll('.modal-overlay').forEach(overlay => overlay.addEventListener('click', e => {
-  if (e.target === overlay) closeModal(overlay.id);
-}));
+  document.querySelectorAll('.modal-overlay').forEach(overlay => overlay.addEventListener('click', e => {
+    if (e.target === overlay) closeModal(overlay.id);
+  }));
 
-// ============================================================
-// CONFIRM MODAL EVENTS
-// ============================================================
-if (DOM.confirmOk) {
-  DOM.confirmOk.addEventListener('click', async () => {
-    if (DOM.confirmOverlay) DOM.confirmOverlay.classList.remove('show');
-    if (confirmResolve) {
-      const fn = confirmResolve;
+  // ============================================================
+  // CONFIRM MODAL EVENTS
+  // ============================================================
+  if (DOM.confirmOk) {
+    DOM.confirmOk.addEventListener('click', async () => {
+      if (DOM.confirmOverlay) DOM.confirmOverlay.classList.remove('show');
+      if (confirmResolve) {
+        const fn = confirmResolve;
+        confirmResolve = null;
+        try { await fn(); } catch (e) { console.error('Confirm ok error:', e); }
+      }
+    });
+  }
+
+  if (DOM.confirmCancel) {
+    DOM.confirmCancel.addEventListener('click', () => {
+      if (DOM.confirmOverlay) DOM.confirmOverlay.classList.remove('show');
       confirmResolve = null;
-      try { await fn(); } catch (e) { console.error('Confirm ok error:', e); }
-    }
-  });
-}
+    });
+  }
 
-if (DOM.confirmCancel) {
-  DOM.confirmCancel.addEventListener('click', () => {
-    if (DOM.confirmOverlay) DOM.confirmOverlay.classList.remove('show');
-    confirmResolve = null;
-  });
-}
+  if (DOM.confirmOverlay) {
+    DOM.confirmOverlay.addEventListener('click', e => {
+      if (e.target === DOM.confirmOverlay) {
+        DOM.confirmOverlay.classList.remove('show');
+        confirmResolve = null;
+      }
+    });
+  }
 
-if (DOM.confirmOverlay) {
-  DOM.confirmOverlay.addEventListener('click', e => {
-    if (e.target === DOM.confirmOverlay) {
-      DOM.confirmOverlay.classList.remove('show');
-      confirmResolve = null;
-    }
-  });
-}
+  // ============================================================
+  // EVENT DELEGATION — Centralized click/touch handling
+  // ============================================================
+  setupDelegation();
+
+} // end initEventListeners()
+
 
 // ============================================================
-// EVENT DELEGATION
+// EVENT DELEGATION — setupDelegation (called by initEventListeners)
 // ============================================================
 function setupDelegation() {
   if (setupDelegation._done) return;
   setupDelegation._done = true;
 
+  // Follow-up list → open girl profile
   if (DOM.needsFollowup) {
     DOM.needsFollowup.addEventListener('click', e => {
       const item = e.target.closest('.followup-item');
@@ -3397,6 +3457,7 @@ function setupDelegation() {
     });
   }
 
+  // Girls list → open profile or edit
   if (DOM.girlsList) {
     DOM.girlsList.addEventListener('click', e => {
       const editBtn = e.target.closest('.edit-btn');
@@ -3406,6 +3467,7 @@ function setupDelegation() {
     });
   }
 
+  // Search results → open profile
   if (DOM.searchResults) {
     DOM.searchResults.addEventListener('click', e => {
       const item = e.target.closest('.search-item');
@@ -3413,10 +3475,23 @@ function setupDelegation() {
     });
   }
 
+  // ============================================================
+  // ATTENDANCE LIST — SWAPPED INTERACTIONS
+  // ============================================================
+  // NEW BEHAVIOR:
+  //   - Normal click (short press) → toggle attendance status (present ↔ absent)
+  //   - Long press (500ms) → open attendance entry modal (notes & evaluation)
+  // OLD BEHAVIOR was the opposite:
+  //   - Normal click → open modal
+  //   - Long press → toggle status
+  // ============================================================
   if (DOM.attendanceList) {
     const LP_STATE = new WeakMap();
+    const LONG_PRESS_DURATION = 500;
 
+    // Click handler — toggles attendance status on normal click
     DOM.attendanceList.addEventListener('click', e => {
+      // Inline star rating takes priority
       const star = e.target.closest('.att-inline-star');
       if (star) {
         e.stopPropagation();
@@ -3425,42 +3500,64 @@ function setupDelegation() {
         if (ratingWrap) saveInlineRating(ratingWrap.dataset.attKey, parseInt(star.dataset.val));
         return;
       }
+
       const item = e.target.closest('.att-item');
       if (!item) return;
-      if (LP_STATE.get(item) === 'long-pressed') { LP_STATE.set(item, null); e.preventDefault(); return; }
+
+      // If this click was preceded by a long-press, do nothing (the long-press handler already opened the modal)
+      if (LP_STATE.get(item) === 'long-pressed') {
+        LP_STATE.set(item, null);
+        e.preventDefault();
+        return;
+      }
+
+      // Normal click → toggle attendance status (present ↔ absent)
       const girlId = item.dataset.girlId;
       const girlName = item.dataset.girlName;
       const date = DOM.attendanceDate.value;
-      openAttendanceEntry(girlId, girlName, date);
+      toggleAttendanceStatus(girlId, girlName, date);
     });
 
+    // Mouse long-press handlers → opens attendance entry modal
     let pressTimer;
     DOM.attendanceList.addEventListener('mousedown', e => {
       const item = e.target.closest('.att-item');
       if (!item) return;
+      // Don't trigger long-press on inline stars
+      if (e.target.closest('.att-inline-star')) return;
       LP_STATE.set(item, null);
       pressTimer = setTimeout(() => {
         LP_STATE.set(item, 'long-pressed');
-        toggleAttendanceStatus(item.dataset.girlId, item.dataset.girlName, DOM.attendanceDate.value);
-      }, 500);
+        const girlId = item.dataset.girlId;
+        const girlName = item.dataset.girlName;
+        const date = DOM.attendanceDate.value;
+        openAttendanceEntry(girlId, girlName, date);
+      }, LONG_PRESS_DURATION);
     });
     DOM.attendanceList.addEventListener('mouseup', () => clearTimeout(pressTimer));
     DOM.attendanceList.addEventListener('mouseleave', () => clearTimeout(pressTimer));
 
+    // Touch long-press handlers → opens attendance entry modal
     let touchTimer;
     DOM.attendanceList.addEventListener('touchstart', e => {
       const item = e.target.closest('.att-item');
       if (!item) return;
+      // Don't trigger long-press on inline stars
+      if (e.target.closest('.att-inline-star')) return;
       LP_STATE.set(item, null);
       touchTimer = setTimeout(() => {
         LP_STATE.set(item, 'long-pressed');
-        toggleAttendanceStatus(item.dataset.girlId, item.dataset.girlName, DOM.attendanceDate.value);
-      }, 500);
+        const girlId = item.dataset.girlId;
+        const girlName = item.dataset.girlName;
+        const date = DOM.attendanceDate.value;
+        openAttendanceEntry(girlId, girlName, date);
+      }, LONG_PRESS_DURATION);
     }, { passive: true });
     DOM.attendanceList.addEventListener('touchend', () => clearTimeout(touchTimer));
     DOM.attendanceList.addEventListener('touchcancel', () => clearTimeout(touchTimer));
   }
 
+  // Top attendees → open profile
   if (DOM.topAttendees) {
     DOM.topAttendees.addEventListener('click', e => {
       const item = e.target.closest('.top-item');
@@ -3470,6 +3567,7 @@ function setupDelegation() {
     });
   }
 
+  // Calendar grid → show day detail
   if (DOM.calendarGrid) {
     DOM.calendarGrid.addEventListener('click', e => {
       const day = e.target.closest('.cal-day[data-date]');
@@ -3477,6 +3575,7 @@ function setupDelegation() {
     });
   }
 
+  // Grade filters
   if (DOM.homeGradeFilters) {
     DOM.homeGradeFilters.addEventListener('click', e => {
       const btn = e.target.closest('.grade-filter-btn');
@@ -3506,144 +3605,8 @@ function setupDelegation() {
   }
 }
 
-setupDelegation();
-
-
 // ============================================================
-
-}
-// SECTION 5: APP — DOM Cache, State, Bootstrap
-// ============================================================
-
-// ============================================================
-// DOM CACHE
-// ============================================================
-const $ = (id) => document.getElementById(id);
-const $$ = (sel, root = document) => root.querySelectorAll(sel);
-
-const DOM = {
-  splash: $('splash'), loginScreen: $('loginScreen'), mainApp: $('mainApp'),
-  pageTitle: $('pageTitle'), pageSubtitle: $('pageSubtitle'),
-  userAvatar: $('userAvatar'),
-  drawer: $('drawer'), drawerOverlay: $('drawerOverlay'),
-  drawerAvatar: $('drawerAvatar'), drawerUserName: $('drawerUserName'),
-  drawerUserEmail: $('drawerUserEmail'),
-  pageContent: $('pageContent'), toast: $('toast'),
-  globalSearch: $('globalSearch'), searchResults: $('searchResults'),
-  todayDay: $('todayDay'), todayDate: $('todayDate'), todayServiceBadge: $('todayServiceBadge'),
-  statTotal: $('statTotal'), statPresentToday: $('statPresentToday'),
-  statAbsentToday: $('statAbsentToday'), statAvgRating: $('statAvgRating'),
-  bestGrade: $('bestGrade'), bestGradePercent: $('bestGradePercent'),
-  topActivityName: $('topActivityName'), topActivityCount: $('topActivityCount'),
-  mostRegularGirl: $('mostRegularGirl'), mostRegularPercent: $('mostRegularPercent'),
-  topAttendees: $('topAttendees'), needsFollowup: $('needsFollowup'),
-  attendanceDate: $('attendanceDate'), attendanceList: $('attendanceList'),
-  attendanceSearch: $('attendanceSearch'),
-  presentCount: $('presentCount'), absentCount: $('absentCount'), totalCount: $('totalCount'),
-  selectAllPresent: $('selectAllPresent'), selectAllAbsent: $('selectAllAbsent'),
-  attToggleHint: $('attToggleHint'), quickActions: $('quickActions'),
-  girlsList: $('girlsList'), addGirlBtn: $('addGirlBtn'),
-  calendarGrid: $('calendarGrid'), calMonthYear: $('calMonthYear'),
-  dayDetail: $('dayDetail'), calPrev: $('calPrev'), calNext: $('calNext'),
-  statsMonth: $('statsMonth'), bigStatsGrid: $('bigStatsGrid'),
-  absenceChart: $('absenceChart'), attendanceRanking: $('attendanceRanking'),
-  activityStatsGrid: $('activityStatsGrid'), timeFilterTabs: $('timeFilterTabs'), activityStatsPeriod: $('activityStatsPeriod'),
-  historyList: $('historyList'), historyFilter: $('historyFilter'),
-  clearHistoryBtn: $('clearHistoryBtn'), loadMoreHistory: $('loadMoreHistory'),
-  loadMoreHistoryBtn: $('loadMoreHistoryBtn'), exportMonth: $('exportMonth'),
-  exportExcel: $('exportCSV'), exportJSON: $('exportJSON'), exportPrint: $('exportPrint'),
-  girlModal: $('girlModal'), girlModalTitle: $('girlModalTitle'),
-  girlName: $('girlName'), girlPhone: $('girlPhone'), girlGrade: $('girlGrade'),
-  girlNotes: $('girlNotes'), deleteGirlBtn: $('deleteGirlBtn'),
-  homeGradeFilters: $('homeGradeFilters'), girlsGradeFilters: $('girlsGradeFilters'),
-  attendanceGradeFilters: $('attendanceGradeFilters'),
-  closeGirlModal: $('closeGirlModal'), cancelGirlModal: $('cancelGirlModal'),
-  saveGirlBtn: $('saveGirlBtn'), girlProfileModal: $('girlProfileModal'),
-  profileName: $('profileName'), profileBody: $('profileBody'),
-  closeProfileModal: $('closeProfileModal'), attendanceModal: $('attendanceModal'),
-  attendanceModalTitle: $('attendanceModalTitle'), modalGirlName: $('modalGirlName'),
-  attendanceNotes: $('attendanceNotes'), ratingSection: $('ratingSection'),
-  starsInput: $('starsInput'), saveAttendanceEntry: $('saveAttendanceEntry'),
-  closeAttendanceModal: $('closeAttendanceModal'), cancelAttendanceModal: $('cancelAttendanceModal'),
-  confirmOverlay: $('confirmOverlay'), confirmIcon: $('confirmIcon'),
-  confirmTitle: $('confirmTitle'), confirmMsg: $('confirmMsg'),
-  confirmCancel: $('confirmCancel'), confirmOk: $('confirmOk'),
-  activityDetailModal: $('activityDetailModal'),
-  activityDetailTitle: $('activityDetailTitle'),
-  closeActivityDetailModal: $('closeActivityDetailModal'),
-  activityDetailSummary: $('activityDetailSummary'),
-  activityDetailIcon: $('activityDetailIcon'),
-  activityDetailName: $('activityDetailName'),
-  activityDetailPeriod: $('activityDetailPeriod'),
-  activityDetailTabs: $('activityDetailTabs'),
-  activityDetailList: $('activityDetailList'),
-  presentTabCount: $('presentTabCount'),
-  absentTabCount: $('absentTabCount'),
-  menuBtn: $('menuBtn'), googleSignIn: $('googleSignIn'),
-  darkModeToggle: $('darkModeToggle'), darkToggleSwitch: $('darkToggleSwitch'),
-  shareProfileBtn: $('shareProfileBtn'), editProfileBtn: $('editProfileBtn'),
-  statsGradeFilter: $('statsGradeFilter'),
-  activityStatsGrade: $('activityStatsGrade'),
-  exportPreview: $('exportPreview')
-};
-
-// ============================================================
-// APP STATE
-// ============================================================
-const state = {
-  currentUser: null,
-  girls: [],
-  attendanceData: {},
-  currentPage: 'home',
-  selectedDay: 'السبت',
-  selectedActivity: 'دراسي',
-  currentAttendanceGirlId: null,
-  currentAttendanceRating: 0,
-  editingGirlId: null,
-  calendarDate: new Date(),
-  appInitialized: false,
-  renderTimeout: null,
-  historyLastDoc: null,
-  historyHasMore: true,
-  historyCurrentFilter: '',
-  historyLoadedPages: 0,
-  historyOffset: 0,
-  deleteInProgress: false,
-  filters: {
-    homeGrade: '',
-    girlsGrade: '',
-    girlsSearch: '',
-    attendanceGrade: localStorage.getItem('attendanceGradeFilter') || '',
-    statsTime: 'month',
-    statsGrade: '',
-  },
-  get homeGradeFilter() { return this.filters.homeGrade; },
-  set homeGradeFilter(v) { this.filters.homeGrade = v; },
-  get girlsGradeFilter() { return this.filters.girlsGrade; },
-  set girlsGradeFilter(v) { this.filters.girlsGrade = v; },
-  get girlsSearchQuery() { return this.filters.girlsSearch; },
-  set girlsSearchQuery(v) { this.filters.girlsSearch = v; },
-  get attendanceGradeFilter() { return this.filters.attendanceGrade; },
-  set attendanceGradeFilter(v) { this.filters.attendanceGrade = v; },
-  get statsTimeFilter() { return this.filters.statsTime; },
-  set statsTimeFilter(v) { this.filters.statsTime = v; },
-  get statsGradeFilter() { return this.filters.statsGrade; },
-  set statsGradeFilter(v) { this.filters.statsGrade = v; },
-
-  activityDetailTab: 'present',
-  currentActivityDetail: null,
-  currentProfileGirlId: null,
-  searchDebounceTimer: null,
-  attSearchDebounceTimer: null,
-  attendancePageInitialized: false,
-  savingGirl: false,
-  idb: false,
-  _girlMap: null,
-  _girlMapDirty: true,
-};
-
-// ============================================================
-// TIME CONTEXT SUBSCRIPTION
+// SECTION 8: TIME CONTEXT SUBSCRIPTION
 // ============================================================
 const _timeUnsub = TimeContext.subscribe(() => {
   if (state.currentPage === 'home') renderHome();
@@ -3654,7 +3617,7 @@ const _timeUnsub = TimeContext.subscribe(() => {
 window._timeUnsub = _timeUnsub;
 
 // ============================================================
-// BOOTSTRAP — with forced splash unblock fallback
+// SECTION 9: BOOTSTRAP — App initialization
 // ============================================================
 async function bootstrap() {
   console.log('========================================');
@@ -3687,9 +3650,12 @@ async function bootstrap() {
     };
   };
 
+  // ORDER MATTERS: init dark mode → TimeContext → Event Listeners
   initDarkMode();
   TimeContext.init();
   console.log('BOOT: TimeContext OK');
+
+  // Event listeners are attached AFTER DOM and state are defined
   initEventListeners();
   console.log('BOOT: Event listeners initialized');
 
@@ -3733,7 +3699,7 @@ async function bootstrap() {
   console.log('BOOT: window._fb =', !!window._fb);
   console.log('BOOT: firebaseReady =', firebaseReady);
 
-  // AUTH FLOW: Use Firebase Auth with Google Sign-In
+  // AUTH FLOW
   if (modulesReady && window._fb && firebaseReady) {
     console.log('BOOT: Firebase modules loaded — starting auth flow');
     await initAuth();
