@@ -126,9 +126,19 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none;
+}
+
+/* Disable selection on interactive elements only */
+.nav-btn, .menu-btn, .grade-filter-btn, .day-btn, .act-tab,
+.time-filter-tab, .stats-grade-btn, .quick-action-btn,
+.att-item, .girl-card, .top-item, .followup-item,
+.cal-day, .btn-primary, .btn-cancel, .btn-danger,
+.edit-btn, .star, .att-inline-star, .activity-stat-card,
+.stat-card, .export-btn, .btn-load-more, .menu-item,
+.cal-nav-btn, .dark-mode-toggle, .dark-toggle-switch {
   user-select: none;
   -webkit-user-select: none;
-  overscroll-behavior-y: none;
 }
 
 #app { min-height: 100vh; position: relative; max-width: 480px; margin: 0 auto; }
@@ -598,7 +608,7 @@ body {
   background: white; border-top: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-around;
   padding: 8px 0 calc(8px + var(--safe-bottom));
-  z-index: 100; box-shadow: 0 -2px 16px rgba(0,0,0,0.08);
+  z-index: var(--z-dropdown); box-shadow: 0 -2px 16px rgba(0,0,0,0.08);
 }
 .nav-btn {
   flex: 1; background: none; border: none;
@@ -1632,7 +1642,7 @@ textarea.form-input { resize: none; }
   background: var(--primary); color: white;
   border-radius: 12px; padding: 12px 20px;
   font-size: 15px; font-weight: 600;
-  z-index: var(--z-toast); white-space: nowrap;
+  z-index: var(--z-toast); white-space: normal; word-wrap: break-word; max-width: 90vw;
   box-shadow: var(--shadow-lg);
   transition: opacity 0.3s, transform 0.3s;
   pointer-events: none;
@@ -1886,4 +1896,4 @@ input[type="date"], input[type="month"] {
   font-weight: 600;
   margin-bottom: 12px;
   text-align: center;
-   }
+}
