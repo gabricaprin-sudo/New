@@ -221,14 +221,6 @@
             <label for="attendanceDate">التاريخ:</label>
             <input type="date" id="attendanceDate" class="date-input">
           </div>
-          <!-- Servants Display -->
-          <div id="servantsDisplay" class="servants-display">
-            <div class="servants-header">
-              <span>&#128101; خدام الفصول</span>
-              <button id="editServantsBtn" class="edit-servants-btn" title="تعديل أسماء الخدام">&#9999;</button>
-            </div>
-            <div id="servantsList" class="servants-list"></div>
-          </div>
           <!-- Grade Filter for Attendance -->
           <div class="grade-filter-btns" id="attendanceGradeFilters">
             <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="attFilterCountAll">0</span></button>
@@ -521,23 +513,6 @@
         <div class="modal-footer">
           <button class="btn-cancel" id="cancelAttendanceModal">&#10005; إلغاء</button>
           <button class="btn-primary" id="saveAttendanceEntry">&#128190; حفظ</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal: Edit Servants -->
-    <div class="modal-overlay" id="servantsModal" role="dialog" aria-modal="true" aria-labelledby="servantsModalTitle">
-      <div class="modal">
-        <div class="modal-header">
-          <h3 id="servantsModalTitle">تعديل خدام الفصول</h3>
-          <button class="modal-close" id="closeServantsModal" aria-label="إغلاق">&#10005;</button>
-        </div>
-        <div class="modal-body" id="servantsModalBody">
-          <p class="modal-girl-name">أدخل أسماء الخدام (٣ لكل فصل)</p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-cancel" id="cancelServantsModal">&#10005; إلغاء</button>
-          <button class="btn-primary" id="saveServantsBtn">&#128190; حفظ</button>
         </div>
       </div>
     </div>

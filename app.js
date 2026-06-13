@@ -233,6 +233,7 @@ function _buildDOMCache() {
     'darkModeToggle', 'darkToggleSwitch',
     'shareProfileBtn', 'editProfileBtn',
     'statsGradeFilter', 'activityStatsGrade', 'exportGradeFilter'
+    // NOTE: servants-related DOM refs removed
   ];
   ids.forEach(id => { _domCache[id] = document.getElementById(id); });
 }
@@ -292,7 +293,7 @@ const state = {
   // NEW: Export grade filter state
   exportGradeFilter: '',
   // NEW: Track which service days have been auto-marked as absent (to prevent duplicates)
-  autoMarkedDates: new Set(JSON.parse(localStorage.getItem('autoMarkedDates') || '[]')),
+  autoMarkedDates: new Set(JSON.parse(localStorage.getItem('autoMarkedDates') || '[]'))
 };
 
 // ============================================================
@@ -1048,8 +1049,6 @@ async function initAuth() {
       if (!state.appInitialized) {
         state.appInitialized = true;
         await loadData();
-        loadServants();
-        renderServants();
         renderPage();
         // NEW: Auto-mark absence for today if it's a service day
         await checkAndAutoMarkAbsence();
@@ -1301,9 +1300,6 @@ function navigateTo(page) {
     state.attendancePageInitialized = false;
     // NEW: Auto-mark absence when opening attendance page on a service day
     checkAndAutoMarkAbsence();
-    // Render servants display
-    loadServants();
-    renderServants();
   }
   if (page !== 'calendar') {
     hideDayDetail();
@@ -1832,8 +1828,8 @@ if (DOM.saveGirlBtn) {
       const grade = DOM.girlGrade ? DOM.girlGrade.value : '';
       const notes = DOM.girlNotes ? DOM.girlNotes.value.trim() : '';
 
-      if (!name) { showToast('الرجاء إدخال اسم المخدومة', 'error'); return; }
-      if (!grade) { showToast('الرجاء اختيار الفصل', 'error'); return; }
+      if (!name) { showToast('الرجاء إدخال اسم المخدومة', 'error'); state.savingGirl = false; state.pendingSaveGirl = false; return; }
+      if (!grade) { showToast('الرجاء اختيار الفصل', 'error'); state.savingGirl = false; state.pendingSaveGirl = false; return; }
 
       const normalizedName = normalizeName(name);
       const existingGirl = state.girls.find(g =>
@@ -4065,96 +4061,6 @@ function hideAutoMarkIndicator() {
   if (existing) existing.remove();
 }
 
-
-// ============================================================
-// SERVANTS MANAGEMENT — NEW: Add/edit servant names per class
-// ============================================================
-const DEFAULT_CLASSES = ['أولى أ', 'أولى ب', 'تانيه أ', 'تانيه ب', 'تالته أ', 'تالته ب'];
-
-function loadServants() {
-  try {
-    const saved = localStorage.getItem('fridayServants');
-    if (saved) {
-      state.servants = JSON.parse(saved);
-    }
-  } catch (e) {
-    console.warn('Failed to load servants:', e);
-  }
-}
-
-function saveServantsToStorage() {
-  try {
-    localStorage.setItem('fridayServants', JSON.stringify(state.servants));
-  } catch (e) {
-    console.warn('Failed to save servants:', e);
-  }
-}
-
-function getServantsForClass(className) {
-  return state.servants[className] || ['', '', ''];
-}
-
-function renderServants() {
-  const el = DOM.servantsList;
-  if (!el) return;
-
-  let html = '';
-  DEFAULT_CLASSES.forEach(cls => {
-    const names = getServantsForClass(cls);
-    const displayNames = names.filter(n => n.trim()).join(' · ') || '—';
-    html += `<div class="servant-group">
-      <div class="servant-class-name">${cls}</div>
-      <div class="servant-name">${displayNames}</div>
-    </div>`;
-  });
-  el.innerHTML = html;
-}
-
-function openServantsModal() {
-  const body = DOM.servantsModalBody;
-  if (!body) return;
-
-  let html = '<p class="modal-girl-name">أدخل أسماء الخدام (٣ لكل فصل)</p>';
-  DEFAULT_CLASSES.forEach(cls => {
-    const names = getServantsForClass(cls);
-    html += `<div class="servant-input-group">
-      <label>${cls}</label>
-      <input type="text" class="servant-input" data-class="${cls}" data-index="0" placeholder="خادمة ١" value="${names[0]}">
-      <input type="text" class="servant-input" data-class="${cls}" data-index="1" placeholder="خادمة ٢" value="${names[1]}">
-      <input type="text" class="servant-input" data-class="${cls}" data-index="2" placeholder="خادمة ٣" value="${names[2]}">
-    </div>`;
-  });
-  body.innerHTML = html;
-  openModal('servantsModal');
-}
-
-function saveServants() {
-  const inputs = document.querySelectorAll('.servant-input');
-  inputs.forEach(input => {
-    const cls = input.dataset.class;
-    const idx = parseInt(input.dataset.index);
-    if (!state.servants[cls]) state.servants[cls] = ['', '', ''];
-    state.servants[cls][idx] = input.value.trim();
-  });
-  saveServantsToStorage();
-  renderServants();
-  closeModal('servantsModal');
-  showToast('تم حفظ أسماء الخدام', 'success');
-}
-
-// Servants event listeners
-if (DOM.editServantsBtn) {
-  DOM.editServantsBtn.addEventListener('click', openServantsModal);
-}
-if (DOM.closeServantsModal) {
-  DOM.closeServantsModal.addEventListener('click', () => closeModal('servantsModal'));
-}
-if (DOM.cancelServantsModal) {
-  DOM.cancelServantsModal.addEventListener('click', () => closeModal('servantsModal'));
-}
-if (DOM.saveServantsBtn) {
-  DOM.saveServantsBtn.addEventListener('click', saveServants);
-}
 
 // ============================================================
 
