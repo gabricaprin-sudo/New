@@ -22,6 +22,16 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- FIXED: noscript tag for JavaScript-disabled browsers -->
+  <noscript>
+    <div style="position:fixed;inset:0;background:linear-gradient(160deg,#1a2744 0%,#2a3d6b 50%,#1a2744 100%);display:flex;align-items:center;justify-content:center;z-index:99999;direction:rtl;text-align:center;color:white;font-family:'Tajawal',sans-serif;padding:20px;">
+      <div>
+        <div style="font-size:64px;margin-bottom:16px;">&#10013;</div>
+        <h1 style="font-size:24px;margin-bottom:12px;">JavaScript مطلوب</h1>
+        <p style="font-size:16px;opacity:0.8;line-height:1.6;">نظام متابعة المخدومات يتطلب تفعيل JavaScript في المتصفح.<br>يرجى تفعيله من إعدادات المتصفح وإعادة تحميل الصفحة.</p>
+      </div>
+    </div>
+  </noscript>
   <div id="app">
     <!-- Splash Screen -->
     <div id="splash" class="splash">
@@ -40,13 +50,13 @@
       <!-- Hero Image -->
       <div class="login-hero">
         <img
-          src="https://i.ibb.co/Hf86pKxc/d041aaef2c786ed113ab887ce89a3b0060f9df0b8895f4103b871fc88b5e9e4b.png"
-          alt="Photo"
+          src="group_photo.jpg"
+          alt="صورة مجموعة الخدمة"
           class="login-hero-img"
           fetchpriority="high"
           width="640"
           height="381"
-         
+          onerror="this.src='https://placehold.co/640x381/0F2B5B/ffffff?text=كنيسه+مارجرجس+والشهداء';this.onerror=null;"
         >
         <div class="login-gradient-bridge"></div>
       </div>
@@ -90,11 +100,13 @@
           <button class="menu-btn" id="menuBtn" aria-label="القائمة">&#9776;</button>
           <div class="header-titles">
             <h1 id="pageTitle">الرئيسية</h1>
-            <span id="pageSubtitle" class="page-subtitle"></span>
+            <span id="pageSubtitle" class="page-subtitle">يوم الجمعة</span>
           </div>
         </div>
         <div class="header-left">
-<div class="avatar" id="userAvatar">خ</div>
+          <div id="offlineBadge" class="offline-badge" style="display:none"></div>
+          <span id="syncIndicator" class="sync-indicator"></span>
+          <div class="avatar" id="userAvatar">خ</div>
         </div>
       </header>
 
@@ -147,9 +159,12 @@
 
           <div class="grade-filter-btns" id="homeGradeFilters">
             <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="homeFilterCountAll">0</span></button>
-            <button class="grade-filter-btn" data-grade="أولى إعدادي">أولى <span class="count" id="homeFilterCount1">0</span></button>
-            <button class="grade-filter-btn" data-grade="تانية إعدادي">تانية <span class="count" id="homeFilterCount2">0</span></button>
-            <button class="grade-filter-btn" data-grade="تالتة إعدادي">تالتة <span class="count" id="homeFilterCount3">0</span></button>
+            <button class="grade-filter-btn" data-grade="أولى أ">أولى أ <span class="count" id="homeFilterCount1">0</span></button>
+            <button class="grade-filter-btn" data-grade="أولى ب">أولى ب <span class="count" id="homeFilterCount1b">0</span></button>
+            <button class="grade-filter-btn" data-grade="تانيه أ">تانيه أ <span class="count" id="homeFilterCount2">0</span></button>
+            <button class="grade-filter-btn" data-grade="تانيه ب">تانيه ب <span class="count" id="homeFilterCount2b">0</span></button>
+            <button class="grade-filter-btn" data-grade="تالته أ">تالته أ <span class="count" id="homeFilterCount3">0</span></button>
+            <button class="grade-filter-btn" data-grade="تالته ب">تالته ب <span class="count" id="homeFilterCount3b">0</span></button>
           </div>
 
           <div class="stats-grid">
@@ -176,12 +191,12 @@
             <div class="stat-card gold">
               <div class="stat-icon">&#127942;</div>
               <div class="stat-value" id="bestGrade">-</div>
-              <div class="stat-sublabel" id="bestGradePercent">أفضل سنة دراسية</div>
+              <div class="stat-sublabel" id="bestGradePercent">أفضل فصل</div>
             </div>
             <div class="stat-card teal">
               <div class="stat-icon">&#128218;</div>
               <div class="stat-value" id="topActivityName">-</div>
-              <div class="stat-sublabel" id="topActivityCount">أكثر نشاط حضورًا</div>
+              <div class="stat-sublabel" id="topActivityCount">أكثر بند حضورًا</div>
             </div>
             <div class="stat-card rose">
               <div class="stat-icon">&#11088;</div>
@@ -200,26 +215,36 @@
         <!-- ATTENDANCE PAGE -->
         <div id="page-attendance" class="page">
           <div class="day-selector">
-            <button class="day-btn" data-day="السبت">السبت</button>
-            <button class="day-btn" data-day="الاثنين">الإثنين</button>
-            <button class="day-btn" data-day="الاربعاء">الأربعاء</button>
+            <button class="day-btn active" data-day="الجمعة">يوم الجمعة</button>
           </div>
           <div class="date-input-wrap">
             <label for="attendanceDate">التاريخ:</label>
             <input type="date" id="attendanceDate" class="date-input">
           </div>
+          <!-- Servants Display -->
+          <div id="servantsDisplay" class="servants-display">
+            <div class="servants-header">
+              <span>&#128101; خدام الفصول</span>
+              <button id="editServantsBtn" class="edit-servants-btn" title="تعديل أسماء الخدام">&#9999;</button>
+            </div>
+            <div id="servantsList" class="servants-list"></div>
+          </div>
           <!-- Grade Filter for Attendance -->
           <div class="grade-filter-btns" id="attendanceGradeFilters">
             <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="attFilterCountAll">0</span></button>
-            <button class="grade-filter-btn" data-grade="أولى إعدادي">أولى <span class="count" id="attFilterCount1">0</span></button>
-            <button class="grade-filter-btn" data-grade="تانية إعدادي">تانية <span class="count" id="attFilterCount2">0</span></button>
-            <button class="grade-filter-btn" data-grade="تالتة إعدادي">تالتة <span class="count" id="attFilterCount3">0</span></button>
+            <button class="grade-filter-btn" data-grade="أولى أ">أولى أ <span class="count" id="attFilterCount1">0</span></button>
+            <button class="grade-filter-btn" data-grade="أولى ب">أولى ب <span class="count" id="attFilterCount1b">0</span></button>
+            <button class="grade-filter-btn" data-grade="تانيه أ">تانيه أ <span class="count" id="attFilterCount2">0</span></button>
+            <button class="grade-filter-btn" data-grade="تانيه ب">تانيه ب <span class="count" id="attFilterCount2b">0</span></button>
+            <button class="grade-filter-btn" data-grade="تالته أ">تالته أ <span class="count" id="attFilterCount3">0</span></button>
+            <button class="grade-filter-btn" data-grade="تالته ب">تالته ب <span class="count" id="attFilterCount3b">0</span></button>
           </div>
           <div class="activities-tabs">
-            <button class="act-tab active" data-activity="دراسي">&#128216; دراسي</button>
-            <button class="act-tab" data-activity="محفوظات">&#128221; محفوظات</button>
-            <button class="act-tab" data-activity="قبطي">&#9961; قبطي</button>
-            <button class="act-tab" data-activity="ألحان">&#127925; ألحان</button>
+            <button class="act-tab active" data-activity="قداس">&#9961; قداس</button>
+            <button class="act-tab" data-activity="تناول">&#127807; تناول</button>
+            <button class="act-tab" data-activity="خدمة">&#128330; خدمة</button>
+            <button class="act-tab" data-activity="اعتراف">&#128221; اعتراف</button>
+            <button class="act-tab" data-activity="سبب الغياب">&#128196; سبب الغياب</button>
           </div>
 
           <!-- Attendance Search Bar -->
@@ -249,9 +274,12 @@
           <div class="girls-filter-row">
             <div class="grade-filter-btns" id="girlsGradeFilters">
               <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="girlsFilterCountAll">0</span></button>
-              <button class="grade-filter-btn" data-grade="أولى إعدادي">أولى <span class="count" id="girlsFilterCount1">0</span></button>
-              <button class="grade-filter-btn" data-grade="تانية إعدادي">تانية <span class="count" id="girlsFilterCount2">0</span></button>
-              <button class="grade-filter-btn" data-grade="تالتة إعدادي">تالتة <span class="count" id="girlsFilterCount3">0</span></button>
+              <button class="grade-filter-btn" data-grade="أولى أ">أولى أ <span class="count" id="girlsFilterCount1">0</span></button>
+              <button class="grade-filter-btn" data-grade="أولى ب">أولى ب <span class="count" id="girlsFilterCount1b">0</span></button>
+              <button class="grade-filter-btn" data-grade="تانيه أ">تانيه أ <span class="count" id="girlsFilterCount2">0</span></button>
+              <button class="grade-filter-btn" data-grade="تانيه ب">تانيه ب <span class="count" id="girlsFilterCount2b">0</span></button>
+              <button class="grade-filter-btn" data-grade="تالته أ">تالته أ <span class="count" id="girlsFilterCount3">0</span></button>
+              <button class="grade-filter-btn" data-grade="تالته ب">تالته ب <span class="count" id="girlsFilterCount3b">0</span></button>
             </div>
             <button class="btn-add-girl" id="addGirlBtn">+ إضافة</button>
           </div>
@@ -285,9 +313,12 @@
           <!-- Grade filter for stats -->
           <div class="stats-grade-filter" id="statsGradeFilter">
             <button class="stats-grade-btn active" data-grade="">الكل</button>
-            <button class="stats-grade-btn" data-grade="أولى إعدادي">أولى إعدادي</button>
-            <button class="stats-grade-btn" data-grade="تانية إعدادي">تانية إعدادي</button>
-            <button class="stats-grade-btn" data-grade="تالتة إعدادي">تالتة إعدادي</button>
+            <button class="stats-grade-btn" data-grade="أولى أ">أولى أ</button>
+            <button class="stats-grade-btn" data-grade="أولى ب">أولى ب</button>
+            <button class="stats-grade-btn" data-grade="تانيه أ">تانيه أ</button>
+            <button class="stats-grade-btn" data-grade="تانيه ب">تانيه ب</button>
+            <button class="stats-grade-btn" data-grade="تالته أ">تالته أ</button>
+            <button class="stats-grade-btn" data-grade="تالته ب">تالته ب</button>
           </div>
           <div class="big-stats-grid" id="bigStatsGrid"></div>
 
@@ -329,6 +360,19 @@
               <label for="exportMonth">التاريخ:</label>
               <input type="date" id="exportMonth" class="month-input">
             </div>
+            <!-- NEW: Grade Filter for Export -->
+            <div class="export-grade-wrap">
+              <label class="export-grade-label">تصدير حسب الفصل:</label>
+              <div class="export-grade-filter" id="exportGradeFilter">
+                <button class="export-grade-btn active" data-grade="">الكل</button>
+                <button class="export-grade-btn" data-grade="أولى أ">أولى أ</button>
+                <button class="export-grade-btn" data-grade="أولى ب">أولى ب</button>
+                <button class="export-grade-btn" data-grade="تانيه أ">تانيه أ</button>
+                <button class="export-grade-btn" data-grade="تانيه ب">تانيه ب</button>
+                <button class="export-grade-btn" data-grade="تالته أ">تالته أ</button>
+                <button class="export-grade-btn" data-grade="تالته ب">تالته ب</button>
+              </div>
+            </div>
             <!-- Export Mode Selector -->
             <div class="export-mode-wrap">
               <label class="export-mode-label">نطاق التصدير:</label>
@@ -346,7 +390,7 @@
               </div>
             </div>
             <div class="export-hint">
-              <span>&#128161;</span> "يوم محدد" = تقرير يومي (✓ حاضر / ✗ غايب) &nbsp;|&nbsp; "الشهر كامل" = تقرير أرقام (إحصائيات)
+              <span>&#128161;</span> "يوم محدد" = تقرير يومي (✓ حاضر / ✗ غايب) &nbsp;|&nbsp; "الشهر كامل" = تقرير أرقام (إحصائيات) &nbsp;|&nbsp; الترتيب: تالثة ← تانية ← أولى
             </div>
             <div class="export-btns">
               <button class="export-btn csv" id="exportCSV">
@@ -394,12 +438,15 @@
             <input type="tel" id="girlPhone" class="form-input" placeholder="رقم التليفون" dir="ltr">
           </div>
           <div class="form-group">
-            <label for="girlGrade">السنة الدراسية *</label>
+            <label for="girlGrade">الفصل *</label>
             <select id="girlGrade" class="form-input">
-              <option value="">اختر السنة</option>
-              <option value="أولى إعدادي">أولى إعدادي</option>
-              <option value="تانية إعدادي">تانية إعدادي</option>
-              <option value="تالتة إعدادي">تالتة إعدادي</option>
+              <option value="">اختر الفصل</option>
+              <option value="أولى أ">أولى أ</option>
+              <option value="أولى ب">أولى ب</option>
+              <option value="تانيه أ">تانيه أ</option>
+              <option value="تانيه ب">تانيه ب</option>
+              <option value="تالته أ">تالته أ</option>
+              <option value="تالته ب">تالته ب</option>
             </select>
           </div>
           <div class="form-group">
@@ -474,6 +521,23 @@
         <div class="modal-footer">
           <button class="btn-cancel" id="cancelAttendanceModal">&#10005; إلغاء</button>
           <button class="btn-primary" id="saveAttendanceEntry">&#128190; حفظ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Edit Servants -->
+    <div class="modal-overlay" id="servantsModal" role="dialog" aria-modal="true" aria-labelledby="servantsModalTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="servantsModalTitle">تعديل خدام الفصول</h3>
+          <button class="modal-close" id="closeServantsModal" aria-label="إغلاق">&#10005;</button>
+        </div>
+        <div class="modal-body" id="servantsModalBody">
+          <p class="modal-girl-name">أدخل أسماء الخدام (٣ لكل فصل)</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" id="cancelServantsModal">&#10005; إلغاء</button>
+          <button class="btn-primary" id="saveServantsBtn">&#128190; حفظ</button>
         </div>
       </div>
     </div>

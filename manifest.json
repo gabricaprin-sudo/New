@@ -1,8 +1,8 @@
 {
   "name": "متابعة المخدومات",
   "short_name": "متابعة",
-  "description": "نظام متابعة خدمة الاعدادي بنات - كنيسة مارجرجس والشهداء",
-  "start_url": "./index.html",
+  "description": "نظام متابعة خدمة الاعدادي بنات يوم الجمعة - كنيسة مارجرجس والشهداء",
+  "start_url": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0F2B5B",
