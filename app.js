@@ -1381,25 +1381,33 @@ async function initAuth() {
   }
 }
 
-// Google Sign In — FIXED: Use FB module instead of window._fb
+// Google Sign In — FIXED: popup + redirect fallback with race condition fix
 if (DOM.googleSignIn) {
   DOM.googleSignIn.addEventListener('click', async () => {
     if (!firebaseReady) {
       showToast('الإنترنت غير متاح - حاول تحديث الصفحة', 'warning');
       return;
     }
-    // FIXED: Reset any previous auth state to force account selection
+
+    // FIXED (Issue #4): signOut before signIn causes race condition.
+    // Added delay to let auth state settle before starting new sign-in.
     try {
       await FB.signOut(auth);
-    } catch (e) { /* ignore sign-out errors */ }
+      // Wait for auth state to fully settle — prevents auth/internal-error
+      await new Promise(r => setTimeout(r, 300));
+    } catch (e) {
+      // ignore sign-out errors
+    }
 
     DOM.googleSignIn.classList.add('is-loading');
     let useRedirect = false;
+
+    // FIXED (Issue #2): On mobile browsers, signInWithPopup often fails.
+    // Try popup first, then fall back to redirect for specific error codes.
     try {
       await FB.signInWithPopup(auth, provider);
     } catch (e) {
       console.error('Google Sign-In error:', e.code, e.message);
-      // FIXED: Expanded error codes that trigger redirect fallback
       const redirectErrors = [
         'auth/popup-blocked',
         'auth/popup-closed-by-user',
@@ -1410,16 +1418,16 @@ if (DOM.googleSignIn) {
         'auth/timeout'
       ];
       if (redirectErrors.includes(e.code)) {
-        showToast('جاري المحاولة بطريقة أخرى...', 'info');
+        showToast('جاري التحويل لتسجيل الدخول...', 'info');
         useRedirect = true;
       } else {
         showToast('فشل تسجيل الدخول: ' + (e.message || 'خطأ غير معروف'), 'error');
       }
     } finally {
-      // FIXED: Always remove loading spinner
       if (DOM.googleSignIn) DOM.googleSignIn.classList.remove('is-loading');
     }
-    // FIXED: Redirect is attempted outside the catch block to avoid nested try/catch issues
+
+    // Redirect fallback — attempted outside catch to avoid nested try/catch issues
     if (useRedirect) {
       try {
         await FB.signInWithRedirect(auth, provider);

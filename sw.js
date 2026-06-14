@@ -45,6 +45,15 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Firebase domains — MUST bypass Service Worker completely
+const FIREBASE_DOMAINS = [
+  'googleapis.com',
+  'gstatic.com',
+  'firebaseapp.com',
+  'firebaseio.com',
+  'google.com'
+];
+
 // Fetch: Serve from cache when offline
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -52,26 +61,13 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (request.method !== 'GET') return;
 
-  // Skip Firebase/Google API requests (let them fail naturally when offline)
   const url = new URL(request.url);
-  if (
-    url.hostname.includes('googleapis.com') ||
-    url.hostname.includes('gstatic.com')
-  ) {
-    // Try network first for Firebase, fail silently if offline
-    event.respondWith(
-      fetch(request).catch(() => {
-        // Return a minimal error response for Firebase scripts
-        if (request.url.includes('.js')) {
-          return new Response(
-            'console.warn("[SW] Firebase script blocked — offline mode");',
-            { headers: { 'Content-Type': 'application/javascript' } }
-          );
-        }
-        return new Response('{}', { status: 503, statusText: 'Service Unavailable' });
-      })
-    );
-    return;
+
+  // CRITICAL FIX: Let Firebase/Google requests pass through untouched.
+  // Using event.respondWith() breaks Firebase Auth popup/redirect flow.
+  // The browser must handle these requests natively.
+  if (FIREBASE_DOMAINS.some(d => url.hostname.includes(d))) {
+    return; // Do NOT call event.respondWith — let browser handle it
   }
 
   // For all other requests: Cache-first strategy
