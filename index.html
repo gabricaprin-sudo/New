@@ -166,8 +166,6 @@
             <button class="grade-filter-btn" data-grade="تالته أ">تالته أ <span class="count" id="homeFilterCount3">0</span></button>
             <button class="grade-filter-btn" data-grade="تالته ب">تالته ب <span class="count" id="homeFilterCount3b">0</span></button>
           </div>
-          <!-- بطاقة خدام الفصل - الرئيسية -->
-          <div id="homeServantsCard" class="grade-servants-card" style="display:none;"></div>
 
           <div class="stats-grid">
             <div class="stat-card blue">
@@ -233,8 +231,6 @@
             <button class="grade-filter-btn" data-grade="تالته أ">تالته أ <span class="count" id="attFilterCount3">0</span></button>
             <button class="grade-filter-btn" data-grade="تالته ب">تالته ب <span class="count" id="attFilterCount3b">0</span></button>
           </div>
-          <!-- بطاقة خدام الفصل - الحضور -->
-          <div id="attServantsCard" class="grade-servants-card" style="display:none;"></div>
           <div class="activities-tabs">
             <button class="act-tab active" data-activity="قداس">&#9961; قداس</button>
             <button class="act-tab" data-activity="تناول">&#127807; تناول</button>
@@ -279,8 +275,6 @@
             </div>
             <button class="btn-add-girl" id="addGirlBtn">+ إضافة</button>
           </div>
-          <!-- بطاقة خدام الفصل - المخدومات -->
-          <div id="girlsServantsCard" class="grade-servants-card" style="display:none;"></div>
           <div id="girlsList" class="girls-list"></div>
         </div>
 
@@ -548,35 +542,6 @@
             </button>
           </div>
           <div class="detail-girl-list" id="activityDetailList"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal: تعديل خدام الفصل -->
-    <div class="modal-overlay" id="servantsModal" role="dialog" aria-modal="true" aria-labelledby="servantsModalTitle">
-      <div class="modal">
-        <div class="modal-header">
-          <h3 id="servantsModalTitle">خدام الفصل</h3>
-          <button class="modal-close" id="closeServantsModal" aria-label="إغلاق">&#10005;</button>
-        </div>
-        <div class="modal-body">
-          <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">أضف أسماء خدام هذا الفصل (حتى 3 خدام)</p>
-          <div class="form-group">
-            <label for="servantInput1">الخادم الأول</label>
-            <input type="text" id="servantInput1" class="form-input" placeholder="اسم الخادم الأول" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label for="servantInput2">الخادم الثاني</label>
-            <input type="text" id="servantInput2" class="form-input" placeholder="اسم الخادم الثاني" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label for="servantInput3">الخادم الثالث</label>
-            <input type="text" id="servantInput3" class="form-input" placeholder="اسم الخادم الثالث" autocomplete="off">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-cancel" id="cancelServantsModal">&#10005; إلغاء</button>
-          <button class="btn-primary" id="saveServantsBtn">&#128190; حفظ</button>
         </div>
       </div>
     </div>
