@@ -908,10 +908,7 @@ body {
 }
 .activity-stat-card:active { transform: scale(0.97); }
 .activity-stat-card:hover::after, .activity-stat-card:active::after { opacity: 0.6; }
-.activity-stat-card:nth-child(1) { border-color: #3498db; }
-.activity-stat-card:nth-child(2) { border-color: #e74c3c; }
-.activity-stat-card:nth-child(3) { border-color: #2ecc71; }
-.activity-stat-card:nth-child(4) { border-color: #9b59b6; }
+/* Activity stat card colors — defined below with all 5 activities */
 .activity-stat-rank { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; }
 .activity-stat-icon { font-size: 28px; margin-bottom: 4px; }
 .activity-stat-num { font-size: 28px; font-weight: 900; color: var(--primary); line-height: 1.1; }
@@ -1045,33 +1042,7 @@ body {
   border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 600;
 }
 
-/* Grade Filter Buttons */
-.grade-filter-btns {
-  display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
-}
-.grade-filter-btn {
-  padding: 10px 16px; background: var(--surface);
-  border: 2px solid var(--border); border-radius: 12px;
-  font-family: 'Tajawal', sans-serif; font-size: 14px;
-  font-weight: 600; color: var(--text-muted); cursor: pointer;
-  transition: all var(--transition) var(--easing-default);
-  min-height: var(--tap-target);
-  touch-action: manipulation;
-  display: flex;
-  align-items: center; gap: 6px;
-}
-.grade-filter-btn.active {
-  background: var(--primary); color: white;
-  border-color: var(--primary);
-  box-shadow: var(--shadow);
-}
-.grade-filter-btn:active { transform: scale(0.97); }
-.grade-filter-btn .count {
-  background: rgba(26,39,68,0.1); color: var(--text-muted);
-  border-radius: 8px; padding: 2px 8px; font-size: 12px;
-  font-weight: 700; min-width: 22px; text-align: center;
-}
-.grade-filter-btn.active .count { background: rgba(255,255,255,0.25); color: white; }
+/* Grade Filter Buttons — COMPACT version for 6-item layout */
 .girls-filter-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
 .girls-filter-row .grade-filter-btns { flex: 1; margin-bottom: 0; }
 
@@ -2125,6 +2096,19 @@ textarea:focus:not(:focus-visible) {
 .grade-filter-btn.active .count {
   background: rgba(255,255,255,0.25);
   color: white;
+}
+
+/* Chart bar fill and label - FIXED: Added missing styles */
+.chart-bar-fill {
+  height: 100%;
+  background: var(--red);
+  border-radius: 5px;
+  transition: width var(--transition-slow);
+}
+.chart-bar-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 /* Activity stat card colors - 5 items now */

@@ -1627,6 +1627,19 @@ function debouncedSearch() {
 
 if (DOM.globalSearch) DOM.globalSearch.addEventListener('input', debouncedSearch);
 
+// FIXED: Close search results when clicking outside
+document.addEventListener('click', (e) => {
+  const resultsEl = DOM.searchResults;
+  const searchEl = DOM.globalSearch;
+  if (resultsEl && resultsEl.classList.contains('show')) {
+    const isClickInside = resultsEl.contains(e.target) || (searchEl && searchEl.contains(e.target));
+    if (!isClickInside) {
+      resultsEl.classList.remove('show');
+      resultsEl.innerHTML = '';
+    }
+  }
+});
+
 // ============================================================
 // GIRLS PAGE — FIXED: Use Cache instead of repeated .find()
 // ============================================================
@@ -1949,13 +1962,17 @@ function showGirlProfile(id) {
   // FIXED: Use findLast (or reverse find) to get MOST RECENT present record
   const sortedAtt = [...girlAtt].sort((a, b) => compareDateStr(a.date, b.date)); // oldest first
   const lastAttendance = [...sortedAtt].reverse().find(a => a.status === 'حاضر');
-  const lastDate = lastAttendance ? lastAttendance.date : '-';
+  const lastDateRaw = lastAttendance ? lastAttendance.date : null;
+  const lastDate = lastDateRaw ? (() => {
+    const d = parseDateStr(lastDateRaw);
+    return isNaN(d.getTime()) ? lastDateRaw : `${d.getDate()}/${d.getMonth() + 1} ${DAY_NAMES[d.getDay()] || ''}`;
+  })() : '-';
 
   // FIXED: Safe month grouping with date validation
   const months = {};
   girlAtt.forEach(a => {
     const m = a.date?.substring(0, 7);
-    if (!m || /^\d{4}-\d{2}$/.test(m)) return; // Skip malformed dates
+    if (!m || !/^\d{4}-\d{2}$/.test(m)) return; // Skip malformed dates
     if (!months[m]) months[m] = [];
     months[m].push(a);
   });
@@ -2126,14 +2143,12 @@ async function checkAndAutoMarkAbsence() {
   }
 
   // Mark all girls as absent for all activities
-  showToast('جاري تسجيل الغياب التلقائي ليوم الخدمة...', 'info');
+  showToast('جاري تسجيل الغياب التلقائي...', 'info');
   await markAllAbsentForDate(today);
 
   // Track that we auto-marked this day
   state.autoMarkedDates.add(today);
   persistAutoMarkedDates();
-
-  showToast('تم تسجيل الغياب التلقائي — ', 'success');
 }
 
 // FIXED: Renamed to clarify this is a hardcoded lookup, not dynamic
@@ -3115,9 +3130,12 @@ function renderStats() {
     } else {
       DOM.absenceChart.innerHTML = entries.map(([date, count]) => {
         const pct = (count / maxAbsences) * 100;
-        return `<div class="chart-bar" title="${date}: ${count} غياب">
-          <div class="chart-bar-fill" style="width:${pct}%"></div>
-          <span class="chart-bar-label">${date.substring(8)} — ${count}</span>
+        return `<div class="chart-row">
+          <span class="chart-name">${date.substring(8)}</span>
+          <div class="chart-bar-wrap">
+            <div class="chart-bar" style="width:${pct}%"></div>
+          </div>
+          <span class="chart-val">${count}</span>
         </div>`;
       }).join('');
     }
@@ -3322,6 +3340,23 @@ if (DOM.exportMonth) {
     if (DOM.exportMonth.value) TimeContext.setDate(DOM.exportMonth.value);
   });
 }
+
+// FIXED: Cross-browser support for export mode option selected state
+function updateExportModeSelection() {
+  const checked = document.querySelector('input[name="exportMode"]:checked');
+  if (!checked) return;
+  document.querySelectorAll('.export-mode-option').forEach(opt => {
+    const input = opt.querySelector('input[name="exportMode"]');
+    opt.classList.toggle('selected', input && input.checked);
+  });
+}
+
+// Initialize export mode selection
+document.querySelectorAll('input[name="exportMode"]').forEach(radio => {
+  radio.addEventListener('change', updateExportModeSelection);
+});
+// Set initial state
+updateExportModeSelection();
 
 // NEW: Grade filter for export page
 if (DOM.exportGradeFilter) {
@@ -4066,12 +4101,15 @@ function showAutoMarkIndicator() {
 
   const indicator = document.createElement('div');
   indicator.id = 'autoMarkIndicator';
-  indicator.style.cssText = 'background:rgba(231,76,60,0.1);color:var(--red);border:1px solid rgba(231,76,60,0.3);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;';
-  indicator.innerHTML = '&#9888; تم تسجيل الغياب التلقائي';
+  indicator.innerHTML = '&#9888; تم تسجيل الغياب التلقائي لهذا اليوم';
 
-  const attendanceList = DOM.attendanceList;
-  if (attendanceList && attendanceList.parentNode) {
-    attendanceList.parentNode.insertBefore(indicator, attendanceList);
+  // FIXED: Find attendance list dynamically and insert at the right place
+  const attList = document.getElementById('attendanceList');
+  const attPage = document.getElementById('page-attendance');
+  if (attList && attList.parentNode === attPage) {
+    attPage.insertBefore(indicator, attList);
+  } else if (attList && attList.parentNode) {
+    attList.parentNode.insertBefore(indicator, attList);
   }
 }
 
