@@ -231,7 +231,12 @@ function _buildDOMCache() {
     'menuBtn', 'signOutBtn', 'googleSignIn',
     'darkModeToggle', 'darkToggleSwitch',
     'shareProfileBtn', 'editProfileBtn',
-    'statsGradeFilter', 'activityStatsGrade', 'exportGradeFilter'
+    'statsGradeFilter', 'activityStatsGrade', 'exportGradeFilter',
+    // SERVANTS: خدام الفصول
+    'attServantsCard', 'homeServantsCard', 'girlsServantsCard',
+    'servantsModal', 'servantsModalTitle',
+    'servantInput1', 'servantInput2', 'servantInput3',
+    'saveServantsBtn', 'cancelServantsModal', 'closeServantsModal'
     // NOTE: servants-related DOM refs removed
   ];
   ids.forEach(id => { _domCache[id] = document.getElementById(id); });
@@ -292,7 +297,10 @@ const state = {
   // NEW: Export grade filter state
   exportGradeFilter: '',
   // NEW: Track which service days have been auto-marked as absent (to prevent duplicates)
-  autoMarkedDates: new Set(JSON.parse(localStorage.getItem('autoMarkedDates') || '[]'))
+  autoMarkedDates: new Set(JSON.parse(localStorage.getItem('autoMarkedDates') || '[]')),
+  // SERVANTS: خدام كل فصل { 'فصل': ['خادم1', 'خادم2', 'خادم3'] }
+  gradeServants: {},
+  servantEditGrade: null
 };
 
 // ============================================================
@@ -1218,7 +1226,21 @@ async function loadData() {
     );
     pushUnsubscriber(unsub3);
 
-  } catch (e) {
+    // SERVANTS: Firebase listener for خدام الفصول
+    const unsub4 = FB.onSnapshot(
+      FB.collection(db, 'gradeServants'),
+      (snap) => {
+        const newServants = {};
+        snap.forEach(d => {
+          const data = d.data();
+          if (data.grade) newServants[data.grade] = data.servants || [];
+        });
+        state.gradeServants = newServants;
+        scheduleRender();
+      },
+      (err) => console.error('GradeServants snapshot error:', err)
+    );
+    pushUnsubscriber(unsub4);
     console.error('Load error:', e);
     // FIXED: Reset flag on error so loadData can be retried
     _listenersInitialized = false;
@@ -1423,6 +1445,111 @@ function getMostRegularGirlFiltered(monthStr, gradeFilter) {
 }
 
 // ============================================================
+// GRADE SERVANTS — خدام الفصول
+// ============================================================
+
+/**
+ * Render a servants info card into a container element.
+ * Shows servant names for the active grade with an edit button.
+ */
+function renderServantsCard(el, grade) {
+  if (!el) return;
+  if (!grade) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+
+  const servants = (state.gradeServants?.[grade] || []).filter(s => s && s.trim());
+
+  el.style.display = 'flex';
+  const servantChips = servants.length
+    ? servants.map(s => `<span class="servant-chip">${esc(s)}</span>`).join('')
+    : '<span class="servant-chip servant-chip--empty">لم يُضف خدام بعد</span>';
+
+  el.innerHTML = `
+    <div class="servants-info">
+      <span class="servants-label">&#128101; خدام ${esc(grade)}</span>
+      <div class="servants-chips">${servantChips}</div>
+    </div>
+    <button class="servants-edit-btn" data-grade="${esc(grade)}" aria-label="تعديل خدام الفصل" title="تعديل الخدام">&#9999;</button>
+  `;
+}
+
+/**
+ * Save servant names for a grade to Firestore and local state.
+ */
+async function saveGradeServants(grade, servants) {
+  const docId = grade.replace(/\s+/g, '_');
+  const cleanedServants = servants.map(s => (s || '').trim()).filter(s => s.length > 0);
+
+  if (!state.gradeServants) state.gradeServants = {};
+  state.gradeServants[grade] = cleanedServants;
+
+  if (firebaseReady) {
+    try {
+      await FB.setDoc(FB.doc(db, 'gradeServants', docId), {
+        grade,
+        servants: cleanedServants,
+        updatedAt: Date.now(),
+        updatedBy: state.currentUser?.displayName || 'خادم',
+        updatedByEmail: state.currentUser?.email || ''
+      });
+    } catch (e) {
+      console.error('Save gradeServants error:', e);
+      showToast('فشل حفظ الخدام', 'error');
+      return;
+    }
+  }
+
+  await logHistory('تعديل خدام فصل', `${grade}: ${cleanedServants.join(', ') || '(لا أحد)'}`);
+  showToast('تم حفظ خدام الفصل ✓', 'success');
+  scheduleRender();
+}
+
+// Open servants edit modal via event delegation (cards are dynamically created)
+document.addEventListener('click', (e) => {
+  const editBtn = e.target.closest('.servants-edit-btn');
+  if (!editBtn) return;
+  const grade = editBtn.dataset.grade;
+  if (!grade) return;
+  state.servantEditGrade = grade;
+  const servants = state.gradeServants?.[grade] || [];
+  if (DOM.servantsModalTitle) DOM.servantsModalTitle.textContent = `خدام ${grade}`;
+  if (DOM.servantInput1) DOM.servantInput1.value = servants[0] || '';
+  if (DOM.servantInput2) DOM.servantInput2.value = servants[1] || '';
+  if (DOM.servantInput3) DOM.servantInput3.value = servants[2] || '';
+  openModal('servantsModal');
+});
+
+if (DOM.saveServantsBtn) {
+  DOM.saveServantsBtn.addEventListener('click', async () => {
+    if (!state.servantEditGrade) return;
+    const servants = [
+      DOM.servantInput1?.value?.trim() || '',
+      DOM.servantInput2?.value?.trim() || '',
+      DOM.servantInput3?.value?.trim() || ''
+    ];
+    await saveGradeServants(state.servantEditGrade, servants);
+    closeModal('servantsModal');
+    state.servantEditGrade = null;
+  });
+}
+
+if (DOM.cancelServantsModal) {
+  DOM.cancelServantsModal.addEventListener('click', () => {
+    closeModal('servantsModal');
+    state.servantEditGrade = null;
+  });
+}
+if (DOM.closeServantsModal) {
+  DOM.closeServantsModal.addEventListener('click', () => {
+    closeModal('servantsModal');
+    state.servantEditGrade = null;
+  });
+}
+
+// ============================================================
 // HOME PAGE — FIXED: O(n^2) eliminated with cache + single-pass logic
 // ============================================================
 function renderHome() {
@@ -1476,6 +1603,9 @@ function renderHome() {
   document.querySelectorAll('#homeGradeFilters .grade-filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.grade === gradeFilter);
   });
+
+  // SERVANTS: Update servants card for home page
+  renderServantsCard(document.getElementById('homeServantsCard'), gradeFilter);
 
   if (DOM.statTotal) DOM.statTotal.textContent = filteredGirls.length;
 
@@ -1675,6 +1805,9 @@ function renderGirlsList() {
   document.querySelectorAll('#girlsGradeFilters .grade-filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.grade === filter);
   });
+
+  // SERVANTS: Update servants card for girls page
+  renderServantsCard(document.getElementById('girlsServantsCard'), filter);
 
   if (!filtered.length) {
     el.innerHTML = '<div class="empty-state">لا توجد مخدومات<br><small>اضغط + لإضافة مخدومة جديدة</small></div>';
@@ -2499,6 +2632,9 @@ function renderAttendanceList() {
     btn.classList.toggle('active', btn.dataset.grade === gradeFilter);
   });
 
+  // SERVANTS: Update servants card for attendance page
+  renderServantsCard(document.getElementById('attServantsCard'), gradeFilter);
+
   if (searchQuery && !activeGirls.length) {
     el.innerHTML = '<div class="empty-state">لا توجد نتائج للبحث</div>';
     if (DOM.presentCount) DOM.presentCount.textContent = 0;
@@ -2553,1638 +2689,4 @@ function renderAttendanceList() {
       for (let i = 1; i <= 5; i++) {
         starsHtml += `<span class="att-inline-star ${i <= currentRating ? 'active' : ''}" data-val="${i}" role="button" aria-label="${i} نجمة">&#9733;</span>`;
       }
-      inlineRatingHtml = `<div class="att-inline-rating" data-att-key="${esc(key)}">
-        <span class="att-inline-rating-label">التقييم:</span>
-        <span class="att-inline-stars">${starsHtml}</span>
-        ${currentRating > 0 ? `<span class="att-inline-rating-val">${currentRating}/5</span>` : '<span class="att-inline-rating-hint">اضغط نجمة للتقييم</span>'}
-      </div>`;
-    }
-
-    div.innerHTML = `
-      <div class="att-icon">${statusIcon}</div>
-      <div class="att-info">
-        <span class="att-name">${esc(g.name)}</span>
-        <span class="att-grade">${esc(g.grade)}</span>
-        ${stars ? `<span class="att-stars">${stars}</span>` : ''}
-        ${inlineRatingHtml}
-        ${rec?.notes ? `<span class="att-note">${esc(rec.notes)}</span>` : ''}
-      </div>
-      <span class="att-status-text ${statusClass}">${statusText}</span>`;
-    frag.appendChild(div);
-  });
-
-  el.innerHTML = '';
-  el.appendChild(frag);
-  if (DOM.presentCount) DOM.presentCount.textContent = present;
-  if (DOM.absentCount) DOM.absentCount.textContent = absent;
-  if (DOM.totalCount) DOM.totalCount.textContent = activeGirls.length;
-}
-
-// ============================================================
-// INLINE RATING — FIXED: Operation lock + safer DOM handling
-// ============================================================
-async function saveInlineRating(attKey, rating) {
-  const rec = state.attendanceData[attKey];
-  if (!rec) return;
-  if (rec.status !== 'حاضر') { showToast('التقييم متاح فقط للحاضرات', 'warning'); return; }
-
-  const opKey = `rating_${attKey}`;
-  if (state.pendingAttendanceOps.has(opKey)) return;
-  state.pendingAttendanceOps.add(opKey);
-
-  try {
-    const updatedRec = {
-      ...rec,
-      rating: rating,
-      updatedAt: Date.now(),
-      updatedBy: state.currentUser?.displayName || 'خادم',
-      updatedByEmail: state.currentUser?.email || ''
-    };
-
-    setStateAttendanceData({ ...state.attendanceData, [attKey]: updatedRec });
-
-    if (firebaseReady) {
-      try { await FB.setDoc(FB.doc(db, 'attendance', attKey), updatedRec); }
-      catch (e) { console.error('Save inline rating Firestore error:', e); }
-    }
-
-    const g = Cache.getGirl(rec.girlId);
-    await logHistory('تقييم مخدومة', `${g?.name || ''} - ${rec.activity} - ${rec.date} - ${rating} نجوم`);
-    showToast(`تم التقييم: ${rating} نجوم`, 'success');
-
-    renderAttendanceList();
-    if (state.currentPage === 'home') renderHome();
-    if (state.currentPage === 'stats') renderStats();
-  } finally {
-    state.pendingAttendanceOps.delete(opKey);
-  }
-}
-
-function openAttendanceEntry(girlId, girlName, date) {
-  state.currentAttendanceGirlId = girlId;
-  state.currentAttendanceRating = 0;
-  if (DOM.attendanceModalTitle) DOM.attendanceModalTitle.textContent = `${state.selectedActivity} - ${date}`;
-  if (DOM.modalGirlName) DOM.modalGirlName.textContent = girlName;
-  if (DOM.attendanceNotes) DOM.attendanceNotes.value = '';
-
-  // FIXED: Use makeAttKey for consistent key generation
-  const key = makeAttKey(girlId, date, state.selectedActivity);
-  const existing = state.attendanceData[key];
-  if (existing) {
-    document.querySelectorAll('.attend-btn').forEach(b => b.classList.toggle('selected', b.dataset.status === existing.status));
-    setRating(existing.rating || 0);
-    if (DOM.attendanceNotes) DOM.attendanceNotes.value = existing.notes || '';
-    if (DOM.ratingSection) DOM.ratingSection.classList.toggle('hidden', existing.status !== 'حاضر');
-  } else {
-    document.querySelectorAll('.attend-btn').forEach(b => b.classList.remove('selected'));
-    setRating(0);
-    if (DOM.ratingSection) DOM.ratingSection.classList.add('hidden');
-  }
-  openModal('attendanceModal');
-}
-
-document.querySelectorAll('.attend-btn').forEach(b => {
-  b.addEventListener('click', () => {
-    document.querySelectorAll('.attend-btn').forEach(x => x.classList.remove('selected'));
-    b.classList.add('selected');
-    if (DOM.ratingSection) DOM.ratingSection.classList.toggle('hidden', b.dataset.status !== 'حاضر');
-  });
-});
-
-document.querySelectorAll('.star').forEach(s => s.addEventListener('click', () => setRating(parseInt(s.dataset.val))));
-function setRating(val) {
-  state.currentAttendanceRating = val;
-  document.querySelectorAll('.star').forEach(s => s.classList.toggle('active', parseInt(s.dataset.val) <= val));
-}
-
-if (DOM.saveAttendanceEntry) {
-  DOM.saveAttendanceEntry.addEventListener('click', async () => {
-    if (!DOM.attendanceDate) return;
-    const date = DOM.attendanceDate.value;
-    const statusBtn = document.querySelector('.attend-btn.selected');
-    if (!statusBtn) { showToast('الرجاء تحديد الحضور أو الغياب', 'error'); return; }
-
-    // FIXED: Use makeAttKey for consistent key generation
-    const key = makeAttKey(state.currentAttendanceGirlId, date, state.selectedActivity);
-    const rec = {
-      id: key,
-      girlId: state.currentAttendanceGirlId,
-      date,
-      day: state.selectedDay,
-      activity: state.selectedActivity,
-      status: statusBtn.dataset.status,
-      rating: statusBtn.dataset.status === 'حاضر' ? state.currentAttendanceRating : 0,
-      notes: DOM.attendanceNotes ? DOM.attendanceNotes.value.trim() : '',
-      updatedAt: Date.now(),
-      updatedBy: state.currentUser?.displayName || 'خادم',
-      updatedByEmail: state.currentUser?.email || ''
-    };
-
-    setStateAttendanceData({ ...state.attendanceData, [key]: rec });
-
-    if (firebaseReady) {
-      try { await FB.setDoc(FB.doc(db, 'attendance', key), rec); }
-      catch (e) { console.error('Save attendance Firestore error:', e); }
-    }
-
-    const gName = Cache.getGirl(state.currentAttendanceGirlId)?.name || '';
-    await logHistory('تسجيل حضور', `${gName} - ${state.selectedActivity} - ${date} - ${rec.status}`);
-    closeModal('attendanceModal');
-    showToast('تم الحفظ', 'success');
-    renderAttendanceList();
-
-    if (state.currentPage === 'home') renderHome();
-    if (state.currentPage === 'stats') renderStats();
-    if (state.currentPage === 'calendar') renderCalendar();
-  });
-}
-
-// ============================================================
-// CALENDAR PAGE — FIXED: O(n^3) eliminated with date-index lookup
-// ============================================================
-function renderCalendar() {
-  const year = state.calendarDate.getFullYear();
-  const month = state.calendarDate.getMonth();
-  if (DOM.calMonthYear) DOM.calMonthYear.textContent = state.calendarDate.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long' });
-
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const todayStr = TimeContext.getDate();
-
-  // FIXED: Build date+activity index for accurate has-data detection
-  // Prevents false positive: day has data for OTHER activity but not current one
-  const dateIndex = new Set();
-  const currentCalendarActivity = state.selectedActivity || '';
-  const allAttendance = Cache.getAllAttendance();
-  const activeGirlIds = Cache.getActiveGirlIds(); // FIXED: Use cached Set
-  allAttendance.forEach(a => {
-    if (activeGirlIds.has(a.girlId)) {
-      // FIXED: Include activity in index key for accurate per-activity detection
-      dateIndex.add(`${a.date}_${a.activity}`);
-    }
-  });
-
-  let html = '<div class="cal-weekdays">';
-  ['أح', 'إث', 'ثل', 'أر', 'خم', 'جم', 'سب'].forEach(d => html += `<div class="cal-wday">${d}</div>`);
-  html += '</div><div class="cal-days">';
-  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day empty"></div>';
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${year}-${DateUtil.pad(month + 1)}-${DateUtil.pad(d)}`;
-    const dayOfWeek = new Date(year, month, d).getDay();
-    const isService = SERVICE_DAY_NUMBERS.includes(dayOfWeek);
-    // FIXED: O(1) lookup with activity-aware index — no false positives
-    const hasData = dateIndex.has(`${dateStr}_${currentCalendarActivity}`);
-    const isToday = dateStr === todayStr;
-    html += `<div class="cal-day ${isService ? 'service-day' : ''} ${hasData ? 'has-data' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">
-      <span>${d}</span>${isService ? '<div class="service-dot"></div>' : ''}
-    </div>`;
-  }
-  html += '</div>';
-  if (DOM.calendarGrid) DOM.calendarGrid.innerHTML = html;
-
-  // Only auto-show today on initial load
-  const now = new Date();
-  if (year === now.getFullYear() && month === now.getMonth() && !currentDayDetailDate) {
-    currentDayDetailDate = todayStr;
-    refreshDayDetail();
-  } else if (currentDayDetailDate) {
-    refreshDayDetail();
-  }
-}
-
-let currentDayDetailDate = null;
-
-function showDayDetail(dateStr) {
-  currentDayDetailDate = dateStr;
-  refreshDayDetail();
-}
-
-function refreshDayDetail() {
-  if (!currentDayDetailDate || !DOM.dayDetail) return;
-  const dateStr = currentDayDetailDate;
-
-  // FIXED: O(1) indexed lookup instead of O(n) full scan
-  const activeGirlIds = Cache.getActiveGirlIds();
-  const dayRecords = Cache.getAttendanceByDate(dateStr);
-  const filteredRecords = dayRecords.filter(r => activeGirlIds.has(r.girlId));
-
-  const el = DOM.dayDetail;
-  if (!filteredRecords.length) {
-    el.innerHTML = `<div class="day-detail-header">${dateStr}</div><div class="empty-state">لا توجد سجلات لهذا اليوم</div>`;
-  } else {
-    const grouped = {};
-    filteredRecords.forEach(r => {
-      const act = r.activity || 'عام';
-      if (!grouped[act]) grouped[act] = [];
-      grouped[act].push(r);
-    });
-    let html = `<div class="day-detail-header">${dateStr}</div>`;
-    Object.entries(grouped).forEach(([act, recs]) => {
-      const presentCount = recs.filter(r => r.status === 'حاضر').length;
-      const absentCount = recs.filter(r => r.status === 'غائب').length;
-      html += `<div class="day-activity"><b>${esc(act)}</b>: <span class="green-text">${presentCount} حاضر</span> \u00B7 <span class="red-text">${absentCount} غائب</span> من ${recs.length}</div>`;
-    });
-    el.innerHTML = html;
-  }
-  el.classList.add('show');
-}
-
-function hideDayDetail() {
-  currentDayDetailDate = null;
-  if (DOM.dayDetail) DOM.dayDetail.classList.remove('show');
-}
-
-if (DOM.calPrev) {
-  DOM.calPrev.addEventListener('click', () => {
-    hideDayDetail();
-    state.calendarDate.setMonth(state.calendarDate.getMonth() - 1);
-    const y = state.calendarDate.getFullYear();
-    const m = state.calendarDate.getMonth() + 1;
-    const d = parseInt(TimeContext.getDate().split('-')[2]) || 1;
-    // FIXED: Use actual days in the new month instead of hardcoded 28
-    const daysInNewMonth = new Date(y, m, 0).getDate();
-    TimeContext.setDate(`${y}-${String(m).padStart(2, '0')}-${String(Math.min(d, daysInNewMonth)).padStart(2, '0')}`);
-    renderCalendar();
-  });
-}
-if (DOM.calNext) {
-  DOM.calNext.addEventListener('click', () => {
-    hideDayDetail();
-    state.calendarDate.setMonth(state.calendarDate.getMonth() + 1);
-    const y = state.calendarDate.getFullYear();
-    const m = state.calendarDate.getMonth() + 1;
-    const d = parseInt(TimeContext.getDate().split('-')[2]) || 1;
-    // FIXED: Use actual days in the new month instead of hardcoded 28
-    const daysInNewMonth = new Date(y, m, 0).getDate();
-    TimeContext.setDate(`${y}-${String(m).padStart(2, '0')}-${String(Math.min(d, daysInNewMonth)).padStart(2, '0')}`);
-    renderCalendar();
-  });
-}
-
-// ============================================================
-// ACTIVITY STATS — Period bounds function
-// ============================================================
-function getPeriodBounds(period, customDate) {
-  const selectedDate = _validateDateStr(customDate || TimeContext.getDate(), DateUtil.toStr());
-  const selYear = parseInt(selectedDate.substring(0, 4));
-  const selMonth = parseInt(selectedDate.substring(5, 7));
-  switch (period) {
-    case 'today': return { start: selectedDate, end: selectedDate };
-    case 'month': {
-      // FIXED: selMonth is 1-based (from substring), JS Date month is 0-based
-      const monthIndex = selMonth - 1;
-      const lastDay = new Date(selYear, monthIndex + 1, 0).getDate();
-      return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate.substring(0, 7) + '-' + String(lastDay).padStart(2, '0') };
-    }
-    case 'year': return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate.substring(0, 4) + '-12-31' };
-    case 'all': default: return { start: '2000-01-01', end: selectedDate };
-  }
-}
-
-// Returns both present AND absence counts for each activity
-function getActivityStats(period, gradeFilter = '', customDate) {
-  // FIXED: Use cached activeGirlIds from Cache, only filter by grade if needed
-  const allActiveGirlIds = Cache.getActiveGirlIds();
-  const activeGirlIds = gradeFilter
-    ? new Set(state.girls.filter(g => !g.isDeleted && g.grade === gradeFilter).map(g => g.id))
-    : allActiveGirlIds;
-  const { start, end } = getPeriodBounds(period, customDate);
-
-  const stats = {
-    'قداس': { present: 0, absent: 0 },
-    'تناول': { present: 0, absent: 0 },
-    'خدمة': { present: 0, absent: 0 },
-    'اعتراف': { present: 0, absent: 0 },
-    'سبب الغياب': { present: 0, absent: 0 }
-  };
-
-  const allAttendance = Cache.getAllAttendance();
-  allAttendance.forEach(a => {
-    if (!activeGirlIds.has(a.girlId)) return;
-    // FIXED: Use isDateInRange for safe date comparison
-    if (!isDateInRange(a.date, start, end)) return;
-    if (stats.hasOwnProperty(a.activity)) {
-      if (a.status === 'حاضر') stats[a.activity].present++;
-      else if (a.status === 'غائب') stats[a.activity].absent++;
-    }
-  });
-
-  return Object.entries(stats)
-    .filter(([, data]) => data.present > 0 || data.absent > 0)
-    .sort((a, b) => (b[1].present + b[1].absent) - (a[1].present + a[1].absent));
-}
-
-// ============================================================
-// ACTIVITY DETAIL MODAL — FIXED: Classification by presence count, not rate
-// ============================================================
-function openActivityDetailModal(activity, period, gradeFilter = '', customDate) {
-  const { start, end } = getPeriodBounds(period, customDate);
-  // FIXED: Use cached Set for better performance
-  const activeGirlIds = gradeFilter
-    ? new Set(state.girls.filter(g => !g.isDeleted && g.grade === gradeFilter).map(g => g.id))
-    : Cache.getActiveGirlIds();
-  const periodLabel = PERIOD_LABELS[period] || '';
-
-  const allAttendance = Cache.getAllAttendance();
-  const records = allAttendance.filter(a => {
-    if (a.activity !== activity) return false;
-    if (!activeGirlIds.has(a.girlId)) return false;
-    // FIXED: Use isDateInRange for safe date comparison
-    if (!isDateInRange(a.date, start, end)) return false;
-    return true;
-  });
-
-  const byGirl = {};
-  records.forEach(a => { if (!byGirl[a.girlId]) byGirl[a.girlId] = []; byGirl[a.girlId].push(a); });
-
-  const presentGirls = [];
-  const absentGirls = [];
-
-  Object.entries(byGirl).forEach(([girlId, girlRecords]) => {
-    // FIXED: Use parseDateStr for safe date comparison
-    girlRecords.sort((a, b) => compareDateStr(b.date, a.date));
-    const girl = Cache.getGirl(girlId);
-    if (!girl) return;
-
-    const pCount = girlRecords.filter(r => r.status === 'حاضر').length;
-    const aCount = girlRecords.filter(r => r.status === 'غائب').length;
-    const total = girlRecords.length;
-    const rate = total > 0 ? Math.round((pCount / total) * 100) : 0;
-
-    const entry = { girl, presentCount: pCount, absentCount: aCount, totalRecords: total, attendanceRate: rate, latestRecord: girlRecords[0] };
-    // FIXED: Classification by rate >= 50% instead of count comparison
-    // More accurate: a girl with 1 present + 1 absent should be "needs attention" not "present"
-    if (total > 0 && rate >= 50) presentGirls.push(entry);
-    else absentGirls.push(entry);
-  });
-
-  presentGirls.sort((a, b) => b.attendanceRate - a.attendanceRate || a.girl.name.localeCompare(b.girl.name, 'ar'));
-  absentGirls.sort((a, b) => b.attendanceRate - a.attendanceRate || a.girl.name.localeCompare(b.girl.name, 'ar'));
-
-  state.currentActivityDetail = { activity, period, presentGirls, absentGirls };
-  state.activityDetailTab = 'present';
-
-  if (DOM.activityDetailTitle) DOM.activityDetailTitle.textContent = `تفاصيل ${activity}`;
-  if (DOM.activityDetailIcon) DOM.activityDetailIcon.innerHTML = ACTIVITY_ICONS[activity] || '&#128202;';
-  if (DOM.activityDetailName) DOM.activityDetailName.textContent = activity;
-  if (DOM.activityDetailPeriod) DOM.activityDetailPeriod.textContent = periodLabel;
-  if (DOM.activityDetailTotal) DOM.activityDetailTotal.textContent = presentGirls.length + absentGirls.length;
-  if (DOM.presentTabCount) DOM.presentTabCount.textContent = presentGirls.length;
-  if (DOM.absentTabCount) DOM.absentTabCount.textContent = absentGirls.length;
-
-  renderActivityDetailTab();
-  openModal('activityDetailModal');
-}
-
-function renderActivityDetailTab() {
-  if (!state.currentActivityDetail) return;
-  const { presentGirls, absentGirls } = state.currentActivityDetail;
-  const isPresentTab = state.activityDetailTab === 'present';
-  const list = isPresentTab ? presentGirls : absentGirls;
-
-  document.querySelectorAll('#activityDetailTabs .activity-detail-tab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.tab === state.activityDetailTab);
-  });
-
-  const el = DOM.activityDetailList;
-  if (!el) return;
-  if (!list.length) {
-    const msg = isPresentTab ? 'لا يوجد حاضرون للفترة المحددة' : 'لا يوجد غائبون للفترة المحددة';
-    el.innerHTML = `<div class="empty-state">${msg}</div>`;
-    return;
-  }
-
-  const frag = document.createDocumentFragment();
-  list.forEach(({ girl, presentCount, absentCount, totalRecords, attendanceRate, latestRecord }) => {
-    const div = document.createElement('div');
-    div.className = 'detail-girl-item';
-    div.dataset.girlId = girl.id;
-    div.innerHTML = `
-      <div class="detail-girl-avatar">${esc(girl.name[0])}</div>
-      <div class="detail-girl-info">
-        <div class="detail-girl-name">${esc(girl.name)}</div>
-        <div class="detail-girl-grade">${esc(girl.grade)} \u00B7 ${presentCount} حضور \u00B7 ${absentCount} غياب \u00B7 ${attendanceRate}% نسبة \u00B7 آخر: ${esc(latestRecord.date)}</div>
-      </div>
-      <div class="detail-status-icon ${isPresentTab ? 'present' : 'absent'}">
-        ${isPresentTab ? '&#10003;' : '&#10007;'}
-      </div>`;
-    frag.appendChild(div);
-  });
-
-  el.innerHTML = '';
-  el.appendChild(frag);
-}
-
-if (DOM.activityDetailTabs) {
-  DOM.activityDetailTabs.addEventListener('click', e => {
-    const tab = e.target.closest('.activity-detail-tab');
-    if (!tab) return;
-    state.activityDetailTab = tab.dataset.tab;
-    renderActivityDetailTab();
-  });
-}
-
-if (DOM.activityDetailList) {
-  DOM.activityDetailList.addEventListener('click', e => {
-    const item = e.target.closest('.detail-girl-item');
-    if (item && item.dataset.girlId) {
-      closeModal('activityDetailModal');
-      showGirlProfile(item.dataset.girlId);
-    }
-  });
-}
-
-if (DOM.closeActivityDetailModal) {
-  DOM.closeActivityDetailModal.addEventListener('click', () => closeModal('activityDetailModal'));
-}
-
-// ============================================================
-// ACTIVITY STAT CARDS
-// ============================================================
-function renderActivityStats(period, gradeFilter = '') {
-  const stats = getActivityStats(period, gradeFilter);
-  const el = DOM.activityStatsGrid;
-  if (!el) return;
-
-  if (!stats.length) {
-    el.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">لا توجد بيانات حضور للفترة المحددة</div>';
-    return;
-  }
-
-  const icons = { 'قداس': '&#9961;', 'تناول': '&#127807;', 'خدمة': '&#128330;', 'اعتراف': '&#128221;', 'سبب الغياب': '&#128196;' };
-  // FIXED: Use medal emoji for 4th place instead of "4"
-  const medals = ['&#129351;', '&#129352;', '&#129353;', '&#127941;'];
-
-  // FIXED: Show both present AND total (clearer metric definition)
-  el.innerHTML = stats.map(([activity, data], i) => `
-    <div class="activity-stat-card" data-activity="${esc(activity)}" role="button" tabindex="0" aria-label="تفاصيل ${esc(activity)}">
-      <div class="activity-stat-rank">${medals[i] || (i + 1)}</div>
-      <div class="activity-stat-icon">${icons[activity] || '&#128202;'}</div>
-      <div class="activity-stat-num">${data.present}</div>
-      <div class="activity-stat-label">${activity}</div>
-      <div class="activity-stat-absent">غائب: ${data.absent}</div>
-    </div>
-  `).join('');
-
-  const periodLabels = { today: '(اليوم)', month: '(هذا الشهر)', year: '(هذه السنة)', all: '(الكل)' };
-  if (DOM.activityStatsPeriod) DOM.activityStatsPeriod.textContent = periodLabels[period] || '';
-}
-
-if (DOM.activityStatsGrid) {
-  DOM.activityStatsGrid.addEventListener('click', e => {
-    const card = e.target.closest('.activity-stat-card');
-    if (!card || !card.dataset.activity) return;
-    const selectedDate = DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : DateUtil.toStr();
-    openActivityDetailModal(card.dataset.activity, state.statsTimeFilter, state.statsGradeFilter, selectedDate);
-  });
-}
-
-// ============================================================
-// STATS PAGE — FIXED: Single-pass computation, no O(n^2)
-// ============================================================
-function renderStats() {
-  const selectedDate = TimeContext.getDate();
-  const { start, end } = getStatsBounds();
-
-  // Grade filter
-  const gradeFilter = state.statsGradeFilter;
-
-  // Update grade filter UI
-  document.querySelectorAll('#statsGradeFilter .stats-grade-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.grade === gradeFilter);
-  });
-
-  let activeGirls = state.girls.filter(g => !g.isDeleted);
-  if (gradeFilter) {
-    activeGirls = activeGirls.filter(g => g.grade === gradeFilter);
-  }
-
-  const activeGirlIds = new Set(activeGirls.map(g => g.id));
-
-  // Period label
-  const periodLabel = PERIOD_LABELS[state.statsTimeFilter] || '';
-
-  // Activity stats
-  renderActivityStats(state.statsTimeFilter, gradeFilter);
-
-  // Big stats grid
-  const bigStatsGrid = DOM.bigStatsGrid;
-  if (bigStatsGrid) {
-    let totalGirls = activeGirls.length;
-
-    // Count presents in period
-    let totalPresents = 0, totalAbsents = 0;
-    const allAttendance = Cache.getAllAttendance();
-    allAttendance.forEach(a => {
-      if (!activeGirlIds.has(a.girlId)) return;
-      if (!isDateInRange(a.date, start, end)) return;
-      if (a.status === 'حاضر') totalPresents++;
-      else if (a.status === 'غائب') totalAbsents++;
-    });
-
-    let totalRecords = totalPresents + totalAbsents;
-    let avgRate = totalRecords > 0 ? Math.round((totalPresents / totalRecords) * 100) : 0;
-
-    bigStatsGrid.innerHTML = `
-      <div class="stat-card blue">
-        <div class="stat-num">${totalGirls}</div>
-        <div class="stat-label">عدد المخدومات</div>
-      </div>
-      <div class="stat-card green">
-        <div class="stat-num">${totalPresents}</div>
-        <div class="stat-label">حضور ${periodLabel}</div>
-      </div>
-      <div class="stat-card orange">
-        <div class="stat-num">${totalAbsents}</div>
-        <div class="stat-label">غياب ${periodLabel}</div>
-      </div>
-      <div class="stat-card purple">
-        <div class="stat-num">${avgRate}%</div>
-        <div class="stat-label">نسبة الحضور</div>
-      </div>
-    `;
-  }
-
-  // Absence chart — FIXED: single-pass with indexed lookup
-  if (DOM.absenceChart) {
-    const monthStr = TimeContext.getMonth();
-    const [year, month] = monthStr.split('-').map(Number);
-    const serviceDays = getServiceDaysInMonth(year, month - 1) || [];
-
-    const absenceCounts = {};
-    serviceDays.forEach(d => absenceCounts[d] = 0);
-
-    const allAttendance = Cache.getAllAttendance();
-    allAttendance.forEach(a => {
-      if (!activeGirlIds.has(a.girlId)) return;
-      if (a.status === 'غائب' && a.date?.startsWith(monthStr)) {
-        if (absenceCounts[a.date] !== undefined) absenceCounts[a.date]++;
-      }
-    });
-
-    const entries = Object.entries(absenceCounts).sort((a, b) => a[0].localeCompare(b[0]));
-    const maxAbsences = Math.max(...entries.map(([, c]) => c), 1);
-
-    if (!entries.length) {
-      DOM.absenceChart.innerHTML = '<div class="empty-state">لا توجد بيانات</div>';
-    } else {
-      DOM.absenceChart.innerHTML = entries.map(([date, count]) => {
-        const pct = (count / maxAbsences) * 100;
-        return `<div class="chart-row">
-          <span class="chart-name">${date.substring(8)}</span>
-          <div class="chart-bar-wrap">
-            <div class="chart-bar" style="width:${pct}%"></div>
-          </div>
-          <span class="chart-val">${count}</span>
-        </div>`;
-      }).join('');
-    }
-  }
-
-  // Attendance ranking
-  if (DOM.attendanceRanking) {
-    const girlPresentCounts = {};
-    const allAttendance = Cache.getAllAttendance();
-    allAttendance.forEach(a => {
-      if (!activeGirlIds.has(a.girlId)) return;
-      if (!isDateInRange(a.date, start, end)) return;
-      if (a.status === 'حاضر') {
-        if (!girlPresentCounts[a.girlId]) girlPresentCounts[a.girlId] = 0;
-        girlPresentCounts[a.girlId]++;
-      }
-    });
-
-    const ranked = Object.entries(girlPresentCounts)
-      .map(([id, count]) => ({ girl: Cache.getGirl(id), count }))
-      .filter(x => x.girl)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
-    if (!ranked.length) {
-      DOM.attendanceRanking.innerHTML = '<div class="empty-state">لا توجد بيانات</div>';
-    } else {
-      DOM.attendanceRanking.innerHTML = ranked.map((x, i) => `
-        <div class="rank-item">
-          <span class="rank-num">${i + 1}</span>
-          <span class="rank-name">${esc(x.girl.name)}</span>
-          <span class="rank-count">${x.count} حضور</span>
-        </div>
-      `).join('');
-    }
-  }
-}
-
-if (DOM.timeFilterTabs) {
-  DOM.timeFilterTabs.addEventListener('click', e => {
-    const tab = e.target.closest('.time-filter-tab');
-    if (!tab) return;
-    state.statsTimeFilter = tab.dataset.period;
-    document.querySelectorAll('#timeFilterTabs .time-filter-tab').forEach(b => b.classList.toggle('active', b === tab));
-    renderStats();
-  });
-}
-
-if (DOM.statsGradeFilter) {
-  DOM.statsGradeFilter.addEventListener('click', e => {
-    const btn = e.target.closest('.stats-grade-btn');
-    if (!btn) return;
-    state.statsGradeFilter = btn.dataset.grade;
-    renderStats();
-  });
-}
-
-if (DOM.statsMonth) {
-  DOM.statsMonth.addEventListener('change', () => {
-    if (DOM.statsMonth.value) TimeContext.setDate(DOM.statsMonth.value);
-    renderStats();
-  });
-}
-
-// ============================================================
-// HISTORY PAGE
-// ============================================================
-async function renderHistory(append) {
-  const el = DOM.historyList;
-  if (!el) return;
-
-  const filter = DOM.historyFilter ? DOM.historyFilter.value : '';
-
-  if (!append) {
-    state.historyOffset = 0;
-    state.historyAllLogs = [];
-
-    // Load from Firebase + IDB
-    let allLogs = [];
-    const seenIds = new Set();
-
-    if (firebaseReady) {
-      try {
-        const snap = await FB.getDocs(FB.query(FB.collection(db, 'history'), FB.orderBy('timestamp', 'desc')));
-        snap.docs.forEach(d => {
-          const log = { id: d.id, ...d.data() };
-          if (!seenIds.has(log.id)) {
-            seenIds.add(log.id);
-            allLogs.push(log);
-          }
-        });
-      } catch (e) { console.warn('Firestore history load failed:', e); }
-    }
-
-    // Merge with IDB
-    try {
-      const idbLogs = await IDB.getAll('history');
-      idbLogs.forEach(log => {
-        if (!seenIds.has(log.id)) {
-          seenIds.add(log.id);
-          allLogs.push(log);
-        }
-      });
-    } catch (e) { console.warn('IDB history load failed:', e); }
-
-    allLogs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    state.historyAllLogs = filter ? allLogs.filter(l => l.action && l.action.includes(filter)) : allLogs;
-  }
-
-  if (!state.historyAllLogs.length) {
-    el.innerHTML = '<div class="empty-state">لا توجد سجلات تاريخية</div>';
-    if (DOM.loadMoreHistory) DOM.loadMoreHistory.classList.add('hidden');
-    return;
-  }
-
-  const slice = state.historyAllLogs.slice(state.historyOffset, state.historyOffset + HISTORY_PAGE_SIZE);
-  state.historyOffset += slice.length;
-
-  const html = slice.map(log => `
-    <div class="history-item">
-      <div class="history-icon">${getHistoryIcon(log.action)}</div>
-      <div class="history-info">
-        <span class="history-action">${esc(log.action)}</span>
-        <span class="history-detail">${esc(log.detail)}</span>
-        <span class="history-meta">${esc(log.by || 'خادم')} &middot; ${new Date(log.timestamp).toLocaleString('ar-EG')}</span>
-      </div>
-    </div>`).join('');
-
-  if (!append) el.innerHTML = html;
-  else el.insertAdjacentHTML('beforeend', html);
-
-  if (DOM.loadMoreHistory) DOM.loadMoreHistory.classList.toggle('hidden', state.historyOffset >= state.historyAllLogs.length);
-}
-
-if (DOM.historyFilter) DOM.historyFilter.addEventListener('change', () => renderHistory(false));
-if (DOM.loadMoreHistoryBtn) DOM.loadMoreHistoryBtn.addEventListener('click', () => renderHistory(true));
-
-if (DOM.clearHistoryBtn) {
-  DOM.clearHistoryBtn.addEventListener('click', () => {
-    showConfirm({
-      icon: '&#9888;', title: 'مسح السجل التاريخي',
-      msg: 'هل أنت متأكد؟ سيتم مسح كل السجلات نهائياً ولا يمكن التراجع.',
-      okLabel: 'مسح الكل',
-      onOk: async () => {
-        if (state.idb) await IDB.clear('history');
-        state.historyAllLogs = [];
-        if (firebaseReady) {
-          try {
-            const snap = await FB.getDocs(FB.collection(db, 'history'));
-            if (snap.docs.length) {
-              for (let i = 0; i < snap.docs.length; i += 500) {
-                try {
-                  const batch = FB.writeBatch(db);
-                  snap.docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
-                  await batch.commit();
-                } catch (batchErr) {
-                  console.error('Batch delete error:', batchErr);
-                }
-              }
-            }
-          } catch (e) { console.error('Firestore clear history error:', e); }
-        }
-        showToast('تم مسح السجل التاريخي', 'success');
-        renderHistory(false);
-      }
-    });
-  });
-}
-
-function getHistoryIcon(action) {
-  if (action.includes('إضافة')) return '&#10133;';
-  if (action.includes('تعديل')) return '&#9999;';
-  if (action.includes('حذف')) return '&#10060;';
-  if (action.includes('حضور')) return '&#128203;';
-  return '&#128221;';
-}
-
-async function logHistory(action, detail) {
-  const log = {
-    id: 'log_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-    action, detail,
-    by: state.currentUser?.displayName || 'خادم',
-    byEmail: state.currentUser?.email || '',
-    timestamp: Date.now()
-  };
-  try { await IDB.add('history', log); } catch (e) { console.warn('IDB history save failed:', e); }
-  if (firebaseReady) {
-    try { await FB.setDoc(FB.doc(db, 'history', log.id), log); } catch (e) { }
-  }
-}
-
-// ============================================================
-// EXPORT PAGE — NEW: Grade-based export with organized output
-// Order: تالته أ→ب → تانيه أ→ب → أولى أ→ب
-// ============================================================
-function renderExport() {
-  if (DOM.exportMonth) DOM.exportMonth.value = TimeContext.getDate();
-}
-
-if (DOM.exportMonth) {
-  DOM.exportMonth.addEventListener('change', () => {
-    if (DOM.exportMonth.value) TimeContext.setDate(DOM.exportMonth.value);
-  });
-}
-
-// FIXED: Cross-browser support for export mode option selected state
-function updateExportModeSelection() {
-  const checked = document.querySelector('input[name="exportMode"]:checked');
-  if (!checked) return;
-  document.querySelectorAll('.export-mode-option').forEach(opt => {
-    const input = opt.querySelector('input[name="exportMode"]');
-    opt.classList.toggle('selected', input && input.checked);
-  });
-}
-
-// Initialize export mode selection
-document.querySelectorAll('input[name="exportMode"]').forEach(radio => {
-  radio.addEventListener('change', updateExportModeSelection);
-});
-// Set initial state
-updateExportModeSelection();
-
-// NEW: Grade filter for export page
-if (DOM.exportGradeFilter) {
-  DOM.exportGradeFilter.addEventListener('click', e => {
-    const btn = e.target.closest('.export-grade-btn');
-    if (!btn) return;
-    state.exportGradeFilter = btn.dataset.grade;
-    // Update active state visually
-    document.querySelectorAll('#exportGradeFilter .export-grade-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.grade === state.exportGradeFilter);
-    });
-  });
-}
-
-// ============================================================
-// HELPER: Sort girls by grade order (تالته → تانية → أولى)
-// ============================================================
-function sortGirlsByGradeOrder(girls) {
-  return [...girls].sort((a, b) => {
-    const orderA = GRADE_ORDER[a.grade] || 99;
-    const orderB = GRADE_ORDER[b.grade] || 99;
-    if (orderA !== orderB) return orderA - orderB;
-    // Within same grade, sort by name
-    return a.name.localeCompare(b.name, 'ar');
-  });
-}
-
-// ============================================================
-// HELPER: Get export girls filtered and sorted
-// ============================================================
-function getExportGirls() {
-  let girls = state.girls.filter(g => !g.isDeleted);
-  // Apply grade filter if selected
-  if (state.exportGradeFilter) {
-    girls = girls.filter(g => g.grade === state.exportGradeFilter);
-  }
-  // Sort: تالته first, then تانية, then أولى
-  return sortGirlsByGradeOrder(girls);
-}
-
-// ============================================================
-// Excel export — NEW: Grade-based export with organized sheets
-// ============================================================
-if (DOM.exportCSV) {
-  DOM.exportCSV.addEventListener('click', () => {
-    if (!XLSX) { showToast('مكتبة Excel غير محملة، حاول تحديث الصفحة', 'error'); return; }
-
-    const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || 'day';
-    const exportDate = DOM.exportMonth.value || TimeContext.getDate();
-    const exportGradeFilter = state.exportGradeFilter;
-
-    let exportStart, exportEnd, reportTitle;
-
-    if (exportMode === 'month') {
-      const [year, month] = exportDate.substring(0, 7).split('-').map(Number);
-      const daysInMonth = new Date(year, month, 0).getDate();
-      exportStart = exportDate.substring(0, 7) + '-01';
-      exportEnd = exportDate.substring(0, 7) + '-' + String(daysInMonth).padStart(2, '0');
-      reportTitle = 'تقرير حضور شهر ' + DateUtil.formatMonth(exportDate.substring(0, 7));
-    } else {
-      exportStart = exportDate;
-      exportEnd = exportDate;
-      const dayName = DAY_NAMES[parseDateStr(exportDate).getDay()] || '';
-      reportTitle = 'تقرير حضور يوم ' + exportDate + ' (' + dayName + ')';
-    }
-
-    const activeGirlIds = new Set(getExportGirls().map(g => g.id));
-    const allAttendance = Cache.getAllAttendance();
-    const exportAtt = allAttendance.filter(a =>
-      isDateInRange(a.date, exportStart, exportEnd) && activeGirlIds.has(a.girlId)
-    );
-
-    const wb = XLSX.utils.book_new();
-
-    if (exportMode === 'month') {
-      const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
-
-      // NEW: If grade filter is set, add grade to title
-      const gradeSuffix = exportGradeFilter ? ` — ${exportGradeFilter}` : '';
-
-      // ===== Sheet 1: Summary organized by grade =====
-      const wsData = [];
-      wsData.push(['تقرير حضور شهر ' + monthName + gradeSuffix]);
-      wsData.push([]);
-      wsData.push(['عدد المخدومات', activeGirlIds.size]);
-      if (exportGradeFilter) {
-        wsData.push(['السنة المحددة', exportGradeFilter]);
-      }
-      wsData.push([]);
-
-      // NEW: Organize by grade sections (تالته → تانية → أولى)
-      const exportGirls = getExportGirls();
-      const girlsByGrade = {};
-      exportGirls.forEach(g => {
-        if (!girlsByGrade[g.grade]) girlsByGrade[g.grade] = [];
-        girlsByGrade[g.grade].push(g);
-      });
-
-      // Sort grades: تالته first, then تانية, then أولى
-      const sortedGrades = Object.keys(girlsByGrade).sort((a, b) => {
-        return (GRADE_ORDER[a] || 99) - (GRADE_ORDER[b] || 99);
-      });
-
-      // Group attendance data by girl
-      const girlAttData = {};
-      exportAtt.forEach(a => {
-        if (!girlAttData[a.girlId]) {
-          const g = Cache.getGirl(a.girlId);
-          girlAttData[a.girlId] = {
-            name: g?.name || '', grade: g?.grade || '',
-            'قداس': { present: 0, absent: 0 }, 'تناول': { present: 0, absent: 0 },
-            'خدمة': { present: 0, absent: 0 }, 'اعتراف': { present: 0, absent: 0 }, 'سبب الغياب': { present: 0, absent: 0 },
-            totalPresent: 0, totalAbsent: 0
-          };
-        }
-        if (a.status === 'حاضر') {
-          girlAttData[a.girlId][a.activity].present++;
-          girlAttData[a.girlId].totalPresent++;
-        } else {
-          girlAttData[a.girlId][a.activity].absent++;
-          girlAttData[a.girlId].totalAbsent++;
-        }
-      });
-
-      // Write data organized by grade
-      sortedGrades.forEach(grade => {
-        wsData.push([`═══ ${grade} ═══`]);
-        wsData.push(['الاسم', 'قداس', 'تناول', 'خدمة', 'اعتراف', 'سبب الغياب', 'إجمالي الحضور', 'إجمالي الغياب']);
-
-        const gradeGirls = girlsByGrade[grade];
-        gradeGirls.forEach(g => {
-          const r = girlAttData[g.id] || {
-            'قداس': { present: 0, absent: 0 }, 'تناول': { present: 0, absent: 0 },
-            'خدمة': { present: 0, absent: 0 }, 'اعتراف': { present: 0, absent: 0 }, 'سبب الغياب': { present: 0, absent: 0 },
-            totalPresent: 0, totalAbsent: 0
-          };
-          wsData.push([
-            g.name,
-            r['قداس'].present,
-            r['تناول'].present,
-            r['خدمة'].present,
-            r['اعتراف'].present,
-            r['سبب الغياب'].present,
-            r.totalPresent,
-            r.totalAbsent
-          ]);
-        });
-        wsData.push([]); // Empty row between grades
-      });
-
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      ws['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 14 }];
-      ws['!dir'] = 'rtl';
-      XLSX.utils.book_append_sheet(wb, ws, 'ملخص الشهر');
-
-      // ===== Sheet 2: Detailed daily records =====
-      exportAtt.sort((a, b) => {
-        if (a.date !== b.date) return a.date.localeCompare(b.date);
-        const gA = Cache.getGirl(a.girlId);
-        const gB = Cache.getGirl(b.girlId);
-        // Sort by grade order then name
-        const gradeOrderA = GRADE_ORDER[gA?.grade] || 99;
-        const gradeOrderB = GRADE_ORDER[gB?.grade] || 99;
-        if (gradeOrderA !== gradeOrderB) return gradeOrderA - gradeOrderB;
-        return (gA?.name || '').localeCompare(gB?.name || '', 'ar');
-      });
-
-      const detailData = [];
-      detailData.push(['تقرير تفصيلي — ' + monthName + gradeSuffix]);
-      detailData.push([]);
-      detailData.push(['التاريخ', 'اليوم', 'المخدومة', 'الفصل', 'البند', 'الحالة', 'التقييم', 'ملاحظات']);
-
-      exportAtt.forEach(a => {
-        const g = Cache.getGirl(a.girlId);
-        const dayName = DAY_NAMES[parseDateStr(a.date).getDay()] || '';
-        const stars = a.rating ? '\u2605'.repeat(a.rating) + '\u2606'.repeat(5 - a.rating) : '';
-        detailData.push([a.date, dayName, g?.name || '', g?.grade || '', a.activity || '', a.status === 'حاضر' ? '\u2713' : '\u2717', stars, a.notes || '']);
-      });
-
-      const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
-      wsDetail['!cols'] = [{ wch: 14 }, { wch: 10 }, { wch: 24 }, { wch: 14 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 24 }];
-      wsDetail['!dir'] = 'rtl';
-      XLSX.utils.book_append_sheet(wb, wsDetail, 'تفاصيل يومية');
-
-    } else {
-      // ===== Day export: organized by grade (تالته → تانية → أولى) =====
-      const gradeSuffix = exportGradeFilter ? ` — ${exportGradeFilter}` : '';
-      const wsData = [];
-      wsData.push([reportTitle + gradeSuffix]);
-      if (exportGradeFilter) {
-        wsData.push(['السنة المحددة:', exportGradeFilter]);
-      }
-      wsData.push([]);
-      wsData.push(['الاسم', 'الفصل', 'قداس', 'تناول', 'خدمة', 'اعتراف', 'سبب الغياب']);
-
-      // NEW: Get sorted girls (تالته → تانية → أولى)
-      const exportGirls = getExportGirls();
-      exportGirls.forEach(g => {
-        const row = [g.name, g.grade];
-        ACTIVITIES.forEach(act => {
-          const key = makeAttKey(g.id, exportDate, act);
-          const rec = state.attendanceData[key];
-          if (rec) {
-            row.push(rec.status === 'حاضر' ? '\u2713' : '\u2717');
-          } else {
-            row.push('\u2014');
-          }
-        });
-        wsData.push(row);
-      });
-
-      const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
-      const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
-      wsData.push([]);
-      wsData.push(['', '', 'حاضر: ' + totalPresent, '', 'غائب: ' + totalAbsent, '']);
-
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
-      ws['!dir'] = 'rtl';
-      XLSX.utils.book_append_sheet(wb, ws, 'يوم ' + exportDate);
-    }
-
-    const xlsxBlob = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([xlsxBlob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const gradeFileSuffix = exportGradeFilter ? '_' + exportGradeFilter.replace(/\s/g, '_') : '_الكل';
-    a.download = `حضور_${exportDate}${exportMode === 'month' ? '_شهر' : '_يوم'}${gradeFileSuffix}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast(exportMode === 'month' ? 'تم تصدير ملف Excel للشهر' : 'تم تصدير ملف Excel لليوم', 'success');
-  });
-}
-
-// ============================================================
-// JSON export — NEW: Grade-based filter
-// ============================================================
-if (DOM.exportJSON) {
-  DOM.exportJSON.addEventListener('click', () => {
-    const exportDate = DOM.exportMonth.value || TimeContext.getDate();
-    const exportStart = exportDate.substring(0, 7) + '-01';
-    const exportEnd = exportDate;
-    const exportGirls = getExportGirls();
-    const activeGirlIds = new Set(exportGirls.map(g => g.id));
-    const allAttendance = Cache.getAllAttendance();
-    const exportAtt = allAttendance.filter(a =>
-      isDateInRange(a.date, exportStart, exportEnd) && activeGirlIds.has(a.girlId)
-    );
-    const payload = {
-      dateRange: { start: exportStart, end: exportEnd },
-      girls: exportGirls,
-      attendance: exportAtt,
-      exportedAt: new Date().toISOString(),
-      gradeFilter: state.exportGradeFilter || 'all'
-    };
-    const gradeFileSuffix = state.exportGradeFilter ? '_' + state.exportGradeFilter.replace(/\s/g, '_') : '_الكل';
-    downloadFile(`بيانات_${exportDate}${gradeFileSuffix}.json`, JSON.stringify(payload, null, 2), 'application/json');
-    showToast('تم تصدير JSON', 'success');
-  });
-}
-
-// ============================================================
-// Print/PDF export — NEW: Grade-based with organized layout
-// FIXED: Popup blocker workaround with download fallback
-// ============================================================
-if (DOM.exportPrint) {
-  DOM.exportPrint.addEventListener('click', () => {
-    const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || 'day';
-    const exportDate = DOM.exportMonth.value || TimeContext.getDate();
-
-    let exportStart, exportEnd;
-    if (exportMode === 'month') {
-      const [year, month] = exportDate.substring(0, 7).split('-').map(Number);
-      const daysInMonth = new Date(year, month, 0).getDate();
-      exportStart = exportDate.substring(0, 7) + '-01';
-      exportEnd = exportDate.substring(0, 7) + '-' + String(daysInMonth).padStart(2, '0');
-    } else {
-      exportStart = exportDate;
-      exportEnd = exportDate;
-    }
-
-    const exportGirls = getExportGirls();
-    const activeGirlIds = new Set(exportGirls.map(g => g.id));
-    const allAttendance = Cache.getAllAttendance();
-    const exportAtt = allAttendance.filter(a =>
-      isDateInRange(a.date, exportStart, exportEnd) && activeGirlIds.has(a.girlId)
-    );
-
-    const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
-    const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
-    const exportGradeFilter = state.exportGradeFilter;
-    const gradeLabel = exportGradeFilter ? ` — ${exportGradeFilter}` : '';
-
-    let html;
-
-    if (exportMode === 'month') {
-      const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
-
-      // NEW: Organize by grade sections
-      const girlsByGrade = {};
-      exportGirls.forEach(g => {
-        if (!girlsByGrade[g.grade]) girlsByGrade[g.grade] = [];
-        girlsByGrade[g.grade].push(g);
-      });
-
-      // Sort grades: تالته first, then تانية, then أولى
-      const sortedGrades = Object.keys(girlsByGrade).sort((a, b) => {
-        return (GRADE_ORDER[a] || 99) - (GRADE_ORDER[b] || 99);
-      });
-
-      const girlAttData = {};
-      exportAtt.forEach(a => {
-        if (!girlAttData[a.girlId]) {
-          const g = Cache.getGirl(a.girlId);
-          girlAttData[a.girlId] = {
-            name: g?.name || '', grade: g?.grade || '',
-            'قداس': { present: 0, absent: 0 }, 'تناول': { present: 0, absent: 0 },
-            'خدمة': { present: 0, absent: 0 }, 'اعتراف': { present: 0, absent: 0 }, 'سبب الغياب': { present: 0, absent: 0 },
-            totalPresent: 0, totalAbsent: 0
-          };
-        }
-        if (a.status === 'حاضر') {
-          girlAttData[a.girlId][a.activity].present++;
-          girlAttData[a.girlId].totalPresent++;
-        } else {
-          girlAttData[a.girlId][a.activity].absent++;
-          girlAttData[a.girlId].totalAbsent++;
-        }
-      });
-
-      // Build HTML sections per grade
-      let gradeSectionsHtml = '';
-      sortedGrades.forEach(grade => {
-        const gradeGirls = girlsByGrade[grade];
-        const gradeRows = gradeGirls.map((g, i) => {
-          const r = girlAttData[g.id] || {
-            'قداس': { present: 0, absent: 0 }, 'تناول': { present: 0, absent: 0 },
-            'خدمة': { present: 0, absent: 0 }, 'اعتراف': { present: 0, absent: 0 }, 'سبب الغياب': { present: 0, absent: 0 },
-            totalPresent: 0, totalAbsent: 0
-          };
-          return `<tr>
-            <td>${i + 1}</td>
-            <td>${esc(g.name)}</td>
-            <td>${r['قداس'].present}</td>
-            <td>${r['تناول'].present}</td>
-            <td>${r['خدمة'].present}</td>
-            <td>${r['اعتراف'].present}</td>
-            <td>${r['سبب الغياب'].present}</td>
-            <td style="color:green;font-weight:700">${r.totalPresent}</td>
-            <td style="color:red;font-weight:700">${r.totalAbsent}</td>
-          </tr>`;
-        }).join('');
-
-        gradeSectionsHtml += `
-          <h2 style="color:#1a2744;margin-top:24px;margin-bottom:12px;padding:8px 12px;background:#f0f2f8;border-radius:8px;font-size:18px;">
-            ${esc(grade)} — ${gradeGirls.length} مخدومة
-          </h2>
-          <table>
-            <tr><th>#</th><th>الاسم</th><th>قداس</th><th>تناول</th><th>خدمة</th><th>اعتراف</th><th>سبب الغياب</th><th>إجمالي الحضور</th><th>إجمالي الغياب</th></tr>
-            ${gradeRows}
-          </table>
-        `;
-      });
-
-      html = `<!DOCTYPE html><html lang="ar" dir="rtl">
-        <head><meta charset="UTF-8"><title>تقرير شهر ${monthName}</title>
-        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
-        <style>body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px}
-        h1{color:#1a2744;border-bottom:2px solid #1a2744;padding-bottom:10px}
-        .summary{display:flex;gap:20px;margin:15px 0;flex-wrap:wrap}
-        .sum-box{background:#f0f2f8;border-radius:10px;padding:12px 20px;text-align:center}
-        .sum-box b{font-size:24px;color:#1a2744}
-        .sum-box span{font-size:13px;color:#6b7a99}
-        table{width:100%;border-collapse:collapse;margin-top:12px;margin-bottom:24px}
-        th,td{border:1px solid #ddd;padding:8px;text-align:center;font-size:13px}
-        th{background:#1a2744;color:white}
-        .footer{margin-top:20px;font-size:12px;color:#6b7a99;border-top:1px solid #e2e8f0;padding-top:10px}
-        @media print{body{padding:10px} h2{page-break-before:always}}
-        </style></head><body>
-        <h1>تقرير حضور شهر ${monthName}${gradeLabel}</h1>
-        <p style="color:#6b7a99;font-size:14px">الفترة: من ${exportStart} إلى ${exportEnd}</p>
-        <div class="summary">
-          <div class="sum-box"><b>${exportGirls.length}</b><br><span>عدد المخدومات</span></div>
-          <div class="sum-box"><b>${totalPresent}</b><br><span>إجمالي الحضور</span></div>
-          <div class="sum-box"><b>${totalAbsent}</b><br><span>إجمالي الغياب</span></div>
-        </div>
-        ${gradeSectionsHtml}
-        <div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div>
-        </body></html>`;
-
-    } else {
-      // Day export organized by grade
-      const dayName = DAY_NAMES[parseDateStr(exportDate).getDay()] || '';
-
-      // Group by grade for organized display
-      const girlsByGrade = {};
-      exportGirls.forEach(g => {
-        if (!girlsByGrade[g.grade]) girlsByGrade[g.grade] = [];
-        girlsByGrade[g.grade].push(g);
-      });
-      const sortedGrades = Object.keys(girlsByGrade).sort((a, b) => {
-        return (GRADE_ORDER[a] || 99) - (GRADE_ORDER[b] || 99);
-      });
-
-      let gradeSectionsHtml = '';
-      sortedGrades.forEach(grade => {
-        const gradeGirls = girlsByGrade[grade];
-        const gradeRows = gradeGirls.map((g, i) => {
-          const cells = [];
-          ACTIVITIES.forEach(act => {
-            const key = makeAttKey(g.id, exportDate, act);
-            const rec = state.attendanceData[key];
-            if (rec) {
-              cells.push(rec.status === 'حاضر'
-                ? '<td style="color:green;font-weight:700;font-size:16px">\u2713</td>'
-                : '<td style="color:red;font-weight:700;font-size:16px">\u2717</td>');
-            } else {
-              cells.push('<td style="color:#ccc">\u2014</td>');
-            }
-          });
-          return `<tr>
-            <td>${i + 1}</td>
-            <td>${esc(g.name)}</td>
-            <td>${esc(g.grade)}</td>
-            ${cells.join('')}
-          </tr>`;
-        }).join('');
-
-        gradeSectionsHtml += `
-          <h2 style="color:#1a2744;margin-top:20px;margin-bottom:10px;padding:6px 10px;background:#f0f2f8;border-radius:8px;font-size:16px;">
-            ${esc(grade)} — ${gradeGirls.length} مخدومة
-          </h2>
-          <table>
-            <tr><th>#</th><th>الاسم</th><th>الفصل</th><th>قداس</th><th>تناول</th><th>خدمة</th><th>اعتراف</th><th>سبب الغياب</th></tr>
-            ${gradeRows}
-          </table>
-        `;
-      });
-
-      html = `<!DOCTYPE html><html lang="ar" dir="rtl">
-        <head><meta charset="UTF-8"><title>تقرير يوم ${exportDate}</title>
-        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
-        <style>body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px}
-        h1{color:#1a2744;border-bottom:2px solid #1a2744;padding-bottom:10px}
-        .summary{display:flex;gap:20px;margin:15px 0;flex-wrap:wrap}
-        .sum-box{background:#f0f2f8;border-radius:10px;padding:12px 20px;text-align:center}
-        .sum-box b{font-size:24px;color:#1a2744}
-        .sum-box span{font-size:13px;color:#6b7a99}
-        table{width:100%;border-collapse:collapse;margin-top:10px;margin-bottom:20px}
-        th,td{border:1px solid #ddd;padding:10px;text-align:center;font-size:14px}
-        th{background:#1a2744;color:white}
-        .footer{margin-top:20px;font-size:12px;color:#6b7a99;border-top:1px solid #e2e8f0;padding-top:10px}
-        @media print{body{padding:10px}}
-        </style></head><body>
-        <h1>تقرير حضور يوم ${exportDate}${gradeLabel}</h1>
-        <p style="color:#6b7a99;font-size:14px">اليوم: ${dayName}</p>
-        <div class="summary">
-          <div class="sum-box"><b>${exportGirls.length}</b><br><span>عدد المخدومات</span></div>
-          <div class="sum-box"><b>${totalPresent}</b><br><span>حاضر</span></div>
-          <div class="sum-box"><b>${totalAbsent}</b><br><span>غائب</span></div>
-        </div>
-        ${gradeSectionsHtml}
-        <div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div>
-        </body></html>`;
-    }
-
-    // FIXED: Popup blocker workaround — try window.open first, fall back to download
-    let w;
-    try {
-      w = window.open('', '_blank');
-    } catch (e) {
-      console.warn('Popup blocked, falling back to download');
-    }
-
-    if (!w) {
-      // FIXED: Fallback — create downloadable HTML file when popup is blocked
-      const gradeFileSuffix = exportGradeFilter ? '_' + exportGradeFilter.replace(/\s/g, '_') : '_الكل';
-      downloadFile(
-        `تقرير_${exportDate}${exportMode === 'month' ? '_شهر' : '_يوم'}${gradeFileSuffix}.html`,
-        html,
-        'text/html;charset=utf-8'
-      );
-      showToast('تم حفظ التقرير كملف HTML (تم حجب النافذة المنبثقة)', 'success');
-      return;
-    }
-
-    w.document.write(html);
-    w.document.close();
-    w.print();
-  });
-}
-
-function downloadFile(filename, content, mimeType) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-// ============================================================
-// MODAL HELPERS
-// ============================================================
-function openModal(id) {
-  if (!DOM[id]) return;
-  DOM[id].classList.add('show');
-  document.body.style.overflow = 'hidden';
-}
-function closeModal(id) {
-  if (!DOM[id]) return;
-  DOM[id].classList.remove('show');
-  const anyOpen = document.querySelector('.modal-overlay.show');
-  if (!anyOpen) document.body.style.overflow = '';
-}
-
-// ============================================================
-// CONFIRM MODAL
-// ============================================================
-let confirmResolve = null;
-
-function showConfirm({ icon = '&#9888;', title, msg, okLabel = 'تأكيد', okClass = '', onOk }) {
-  if (DOM.confirmIcon) DOM.confirmIcon.innerHTML = icon;
-  if (DOM.confirmTitle) DOM.confirmTitle.textContent = title;
-  if (DOM.confirmMsg) DOM.confirmMsg.textContent = msg;
-  const okBtn = DOM.confirmOk;
-  if (okBtn) {
-    okBtn.textContent = okLabel;
-    okBtn.className = 'confirm-ok';
-    if (okClass) okBtn.classList.add(...okClass.split(' ').filter(Boolean));
-  }
-  confirmResolve = onOk;
-  if (DOM.confirmOverlay) DOM.confirmOverlay.classList.add('show');
-}
-
-if (DOM.confirmOk) {
-  DOM.confirmOk.addEventListener('click', async () => {
-    if (DOM.confirmOverlay) DOM.confirmOverlay.classList.remove('show');
-    if (confirmResolve) {
-      const fn = confirmResolve;
-      confirmResolve = null;
-      try { await fn(); } catch (e) { console.error('Confirm ok error:', e); }
-    }
-  });
-}
-
-if (DOM.confirmCancel) {
-  DOM.confirmCancel.addEventListener('click', () => {
-    if (DOM.confirmOverlay) DOM.confirmOverlay.classList.remove('show');
-    confirmResolve = null;
-  });
-}
-
-if (DOM.confirmOverlay) {
-  DOM.confirmOverlay.addEventListener('click', e => {
-    if (e.target === DOM.confirmOverlay) {
-      DOM.confirmOverlay.classList.remove('show');
-      confirmResolve = null;
-    }
-  });
-}
-
-if (DOM.closeGirlModal) DOM.closeGirlModal.addEventListener('click', () => closeModal('girlModal'));
-if (DOM.cancelGirlModal) DOM.cancelGirlModal.addEventListener('click', () => closeModal('girlModal'));
-if (DOM.closeAttendanceModal) DOM.closeAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
-if (DOM.cancelAttendanceModal) DOM.cancelAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
-
-document.querySelectorAll('.modal-overlay').forEach(overlay => overlay.addEventListener('click', e => {
-  if (e.target === overlay) closeModal(overlay.id);
-}));
-
-// ============================================================
-// EVENT DELEGATION — FIXED: Use Cache instead of state.girls.find
-// ============================================================
-function setupDelegation() {
-  // FIXED: Prevent duplicate listeners / memory leak
-  if (window.__delegationInit) {
-    console.warn('setupDelegation called twice - skipping');
-    return;
-  }
-  window.__delegationInit = true;
-  if (DOM.needsFollowup) {
-    DOM.needsFollowup.addEventListener('click', e => {
-      const item = e.target.closest('.followup-item');
-      if (item) showGirlProfile(item.dataset.girlId);
-    });
-  }
-
-  if (DOM.girlsList) {
-    DOM.girlsList.addEventListener('click', e => {
-      const editBtn = e.target.closest('.edit-btn');
-      if (editBtn) { e.stopPropagation(); editGirl(editBtn.dataset.girlId); return; }
-      const card = e.target.closest('.girl-card');
-      if (card) showGirlProfile(card.dataset.girlId);
-    });
-  }
-
-  if (DOM.searchResults) {
-    DOM.searchResults.addEventListener('click', e => {
-      const item = e.target.closest('.search-item');
-      if (item && item.dataset.girlId) showGirlProfile(item.dataset.girlId);
-    });
-  }
-
-  if (DOM.attendanceList) {
-    DOM.attendanceList.addEventListener('click', e => {
-      const star = e.target.closest('.att-inline-star');
-      if (star) {
-        e.stopPropagation();
-        e.preventDefault();
-        const ratingWrap = star.closest('.att-inline-rating');
-        if (ratingWrap) {
-          saveInlineRating(ratingWrap.dataset.attKey, parseInt(star.dataset.val));
-        }
-        return;
-      }
-      if (state.isLongPress) {
-        state.isLongPress = false;
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-      const item = e.target.closest('.att-item');
-      if (item) {
-        const g = Cache.getGirl(item.dataset.girlId);
-        if (g && DOM.attendanceDate) toggleAttendanceStatus(g.id, g.name, DOM.attendanceDate.value);
-      }
-    });
-
-    // FIXED: Safer long press handling with proper cleanup
-    let longPressActive = false;
-
-    DOM.attendanceList.addEventListener('mousedown', e => {
-      const item = e.target.closest('.att-item');
-      if (!item) return;
-      state.isLongPress = false;
-      longPressActive = true;
-      state.longPressTimer = setTimeout(() => {
-        if (longPressActive) {
-          state.isLongPress = true;
-          const g = Cache.getGirl(item.dataset.girlId);
-          if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
-        }
-      }, 500);
-    });
-    DOM.attendanceList.addEventListener('mouseup', () => {
-      longPressActive = false;
-      if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
-      setTimeout(() => { state.isLongPress = false; }, 150);
-    });
-    DOM.attendanceList.addEventListener('mouseleave', () => {
-      longPressActive = false;
-      if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
-    });
-
-    DOM.attendanceList.addEventListener('touchstart', e => {
-      const item = e.target.closest('.att-item');
-      if (!item) return;
-      state.isLongPress = false;
-      longPressActive = true;
-      state.longPressTimer = setTimeout(() => {
-        if (longPressActive) {
-          state.isLongPress = true;
-          const g = Cache.getGirl(item.dataset.girlId);
-          if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
-        }
-      }, 500);
-    }, { passive: true });
-    DOM.attendanceList.addEventListener('touchend', () => {
-      longPressActive = false;
-      if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
-      setTimeout(() => { state.isLongPress = false; }, 150);
-    });
-    DOM.attendanceList.addEventListener('touchcancel', () => {
-      longPressActive = false;
-      if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
-    });
-  }
-
-  if (DOM.calendarGrid) {
-    DOM.calendarGrid.addEventListener('click', e => {
-      const day = e.target.closest('.cal-day');
-      if (day && !day.classList.contains('empty')) showDayDetail(day.dataset.date);
-    });
-  }
-}
-
-// Grade filter button handlers
-if (DOM.homeGradeFilters) {
-  DOM.homeGradeFilters.addEventListener('click', e => {
-    const btn = e.target.closest('.grade-filter-btn');
-    if (!btn) return;
-    state.homeGradeFilter = btn.dataset.grade;
-    renderHome();
-  });
-}
-
-if (DOM.girlsGradeFilters) {
-  DOM.girlsGradeFilters.addEventListener('click', e => {
-    const btn = e.target.closest('.grade-filter-btn');
-    if (!btn) return;
-    state.girlsGradeFilter = btn.dataset.grade;
-    renderGirlsList();
-  });
-}
-
-if (DOM.attendanceGradeFilters) {
-  DOM.attendanceGradeFilters.addEventListener('click', e => {
-    const btn = e.target.closest('.grade-filter-btn');
-    if (!btn) return;
-    state.attendanceGradeFilter = btn.dataset.grade;
-    localStorage.setItem('attendanceGradeFilter', btn.dataset.grade);
-    renderAttendanceList();
-  });
-}
-
-// Girls search
-const girlsSearchInput = document.getElementById('girlsSearch');
-if (girlsSearchInput) {
-  let girlsSearchTimer = null;
-  girlsSearchInput.addEventListener('input', () => {
-    clearTimeout(girlsSearchTimer);
-    girlsSearchTimer = setTimeout(() => {
-      state.girlsSearchQuery = girlsSearchInput.value;
-      renderGirlsList();
-    }, 250);
-  });
-}
-
-// ============================================================
-// AUTO-ABSORB INDICATOR — NEW: Visual feedback for auto-marked absence
-// ============================================================
-function showAutoMarkIndicator() {
-  const existing = document.getElementById('autoMarkIndicator');
-  if (existing) return; // Already showing
-
-  const indicator = document.createElement('div');
-  indicator.id = 'autoMarkIndicator';
-  indicator.innerHTML = '&#9888; تم تسجيل الغياب التلقائي لهذا اليوم';
-
-  // FIXED: Find attendance list dynamically and insert at the right place
-  const attList = document.getElementById('attendanceList');
-  const attPage = document.getElementById('page-attendance');
-  if (attList && attList.parentNode === attPage) {
-    attPage.insertBefore(indicator, attList);
-  } else if (attList && attList.parentNode) {
-    attList.parentNode.insertBefore(indicator, attList);
-  }
-}
-
-function hideAutoMarkIndicator() {
-  const existing = document.getElementById('autoMarkIndicator');
-  if (existing) existing.remove();
-}
-
-
-// ============================================================
-
-setupDelegation();
-
-// FIXED: Page-aware render scheduler - only renders current page, with dedup
-const PageRenderScheduler = {
-  _pending: false,
-  _lastRenderedDate: null,
-
-  schedule() {
-    const currentDate = TimeContext.getDate();
-    // Skip if already rendered for this date
-    if (this._lastRenderedDate === currentDate) return;
-
-    if (this._pending) return; // Already scheduled
-    this._pending = true;
-
-    requestAnimationFrame(() => {
-      this._pending = false;
-      const date = TimeContext.getDate();
-      if (this._lastRenderedDate === date) return; // Double-check after frame
-      this._lastRenderedDate = date;
-
-      // FIXED: Only render the CURRENT page, not all pages
-      switch (state.currentPage) {
-        case 'home': renderHome(); break;
-        case 'attendance': renderAttendancePage(); break;
-        case 'girls': renderGirlsList(); break;
-        case 'calendar': renderCalendar(); break;
-        case 'stats': renderStats(); break;
-        case 'history': renderHistory(false); break;
-        case 'export': renderExport(); break;
-      }
-    });
-  }
-};
-
-// Subscribe to TimeContext - only renders current visible page
-TimeContext.subscribe(() => {
-  PageRenderScheduler.schedule();
-});
-
-// ============================================================
-// BOOTSTRAP — Fixed with proper error handling
-// ============================================================
-async function bootstrap() {
-  initDarkMode();
-  TimeContext.init();
-
-  try {
-    await IDB.init();
-    state.idb = true;
-  } catch (e) {
-    console.warn('IndexedDB init failed:', e);
-    state.idb = false;
-  }
-
-  const modulesReady = await initModules();
-
-  if (modulesReady) {
-    await initAuth();
-  } else {
-    console.error('Firebase failed to load');
-    hideSplash();
-    showLogin();
-  }
-}
-
-bootstrap();
+      inlineRatingHtml = `<div class="att-inline-rating" d
