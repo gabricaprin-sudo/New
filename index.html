@@ -231,6 +231,16 @@
             <button class="grade-filter-btn" data-grade="تالته أ">تالته أ <span class="count" id="attFilterCount3">0</span></button>
             <button class="grade-filter-btn" data-grade="تالته ب">تالته ب <span class="count" id="attFilterCount3b">0</span></button>
           </div>
+
+          <!-- Servants Card -->
+          <div id="servantsCard" class="servants-card hidden">
+            <div class="servants-card-header">
+              <span class="servants-card-icon">&#128104;&#8205;&#128107;</span>
+              <span class="servants-card-label">خدام الفصل</span>
+              <button class="servants-card-edit" id="editServantsBtn" aria-label="تعديل الخدام">&#9999;</button>
+            </div>
+            <div class="servants-card-names" id="servantsCardNames">-</div>
+          </div>
           <div class="activities-tabs">
             <button class="act-tab active" data-activity="قداس">&#9961; قداس</button>
             <button class="act-tab" data-activity="تناول">&#127807; تناول</button>
@@ -513,6 +523,30 @@
         <div class="modal-footer">
           <button class="btn-cancel" id="cancelAttendanceModal">&#10005; إلغاء</button>
           <button class="btn-primary" id="saveAttendanceEntry">&#128190; حفظ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Edit Servants -->
+    <div class="modal-overlay" id="servantsModal" role="dialog" aria-modal="true" aria-labelledby="servantsModalTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="servantsModalTitle">تعديل خدام الفصل</h3>
+          <button class="modal-close" id="closeServantsModal" aria-label="إغلاق">&#10005;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label id="servantsGradeLabel">الفصل: -</label>
+          </div>
+          <div class="form-group">
+            <label for="servantsNamesInput">أسماء الخدام (افصل بين الاسم والتاني بعلامة +)</label>
+            <input type="text" id="servantsNamesInput" class="form-input" placeholder="مثال: مارينا + مريم + رفقة" autocomplete="off">
+            <small class="form-hint">اكتب أسماء الخدام مفصولة بعلامة (+) لو في أكتر من واحد</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" id="cancelServantsModal">&#10005; إلغاء</button>
+          <button class="btn-primary" id="saveServantsBtn">&#128190; حفظ</button>
         </div>
       </div>
     </div>

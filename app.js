@@ -231,8 +231,10 @@ function _buildDOMCache() {
     'menuBtn', 'signOutBtn', 'googleSignIn',
     'darkModeToggle', 'darkToggleSwitch',
     'shareProfileBtn', 'editProfileBtn',
-    'statsGradeFilter', 'activityStatsGrade', 'exportGradeFilter'
-    // NOTE: servants-related DOM refs removed
+    'statsGradeFilter', 'activityStatsGrade', 'exportGradeFilter',
+    'servantsCard', 'servantsCardNames', 'editServantsBtn',
+    'servantsModal', 'servantsModalTitle', 'servantsGradeLabel',
+    'servantsNamesInput', 'closeServantsModal', 'cancelServantsModal', 'saveServantsBtn'
   ];
   ids.forEach(id => { _domCache[id] = document.getElementById(id); });
 }
@@ -292,7 +294,10 @@ const state = {
   // NEW: Export grade filter state
   exportGradeFilter: '',
   // NEW: Track which service days have been auto-marked as absent (to prevent duplicates)
-  autoMarkedDates: new Set(JSON.parse(localStorage.getItem('autoMarkedDates') || '[]'))
+  autoMarkedDates: new Set(JSON.parse(localStorage.getItem('autoMarkedDates') || '[]')),
+  // NEW: Grade servants data - { gradeName: { names: string[], updatedAt, updatedBy } }
+  gradeServants: {},
+  editingServantsGrade: null
 };
 
 // ============================================================
@@ -1217,6 +1222,31 @@ async function loadData() {
       (err) => console.error('History snapshot error:', err)
     );
     pushUnsubscriber(unsub3);
+
+    // NEW: Grade servants listener - real-time sync
+    const unsub4 = FB.onSnapshot(
+      FB.collection(db, 'gradeServants'),
+      (snap) => {
+        let changed = false;
+        const newServants = { ...state.gradeServants };
+        for (const change of snap.docChanges()) {
+          const doc = { grade: change.doc.id, ...change.doc.data() };
+          if (change.type === 'removed') {
+            delete newServants[doc.grade];
+            changed = true;
+          } else {
+            newServants[doc.grade] = doc;
+            changed = true;
+          }
+        }
+        if (changed) {
+          state.gradeServants = newServants;
+          if (state.currentPage === 'attendance') renderServantsCard();
+        }
+      },
+      (err) => console.error('Grade servants snapshot error:', err)
+    );
+    pushUnsubscriber(unsub4);
 
   } catch (e) {
     console.error('Load error:', e);
@@ -2171,6 +2201,7 @@ function renderAttendancePage() {
 
   state.attendancePageInitialized = true;
   renderAttendanceList();
+  renderServantsCard();
 
   // NEW: Show indicator if auto-absence has been applied for today
   const today = DateUtil.toStr();
@@ -2578,6 +2609,94 @@ function renderAttendanceList() {
   if (DOM.presentCount) DOM.presentCount.textContent = present;
   if (DOM.absentCount) DOM.absentCount.textContent = absent;
   if (DOM.totalCount) DOM.totalCount.textContent = activeGirls.length;
+}
+
+// ============================================================
+// SERVANTS CARD — NEW: Show/edit servants per grade
+// ============================================================
+function renderServantsCard() {
+  const card = DOM.servantsCard;
+  const namesEl = DOM.servantsCardNames;
+  if (!card || !namesEl) return;
+
+  const gradeFilter = state.attendanceGradeFilter;
+  if (!gradeFilter) {
+    card.classList.add('hidden');
+    return;
+  }
+
+  // Find servants data for this grade
+  const servantsData = state.gradeServants[gradeFilter];
+  const names = servantsData?.names || [];
+
+  if (names.length > 0) {
+    namesEl.textContent = names.join(' + ');
+  } else {
+    namesEl.innerHTML = '<span style="color: var(--text-muted); font-size: 13px;">لا يوجد خدام مسجلين للفصل ده</span>';
+  }
+
+  card.classList.remove('hidden');
+}
+
+// ============================================================
+// EDIT SERVANTS — NEW: Open modal to edit servants for selected grade
+// ============================================================
+if (DOM.editServantsBtn) {
+  DOM.editServantsBtn.addEventListener('click', () => {
+    const grade = state.attendanceGradeFilter;
+    if (!grade) { showToast('اختر الفصل الأول من الفلتر', 'warning'); return; }
+
+    state.editingServantsGrade = grade;
+    const servantsData = state.gradeServants[grade];
+    const names = servantsData?.names || [];
+
+    if (DOM.servantsModalTitle) DOM.servantsModalTitle.textContent = `تعديل خدام ${grade}`;
+    if (DOM.servantsGradeLabel) DOM.servantsGradeLabel.textContent = `الفصل: ${grade}`;
+    if (DOM.servantsNamesInput) DOM.servantsNamesInput.value = names.join(' + ');
+    openModal('servantsModal');
+  });
+}
+
+if (DOM.closeServantsModal) DOM.closeServantsModal.addEventListener('click', () => closeModal('servantsModal'));
+if (DOM.cancelServantsModal) DOM.cancelServantsModal.addEventListener('click', () => closeModal('servantsModal'));
+
+if (DOM.saveServantsBtn) {
+  DOM.saveServantsBtn.addEventListener('click', async () => {
+    const grade = state.editingServantsGrade;
+    if (!grade) return;
+
+    const inputVal = DOM.servantsNamesInput ? DOM.servantsNamesInput.value.trim() : '';
+    // Parse names - split by + and clean up
+    const names = inputVal
+      ? inputVal.split('+').map(n => n.trim()).filter(n => n.length > 0)
+      : [];
+
+    const docData = {
+      names,
+      updatedAt: Date.now(),
+      updatedBy: state.currentUser?.displayName || 'خادم',
+      updatedByEmail: state.currentUser?.email || ''
+    };
+
+    // Save to Firestore
+    if (firebaseReady) {
+      try {
+        await FB.setDoc(FB.doc(db, 'gradeServants', grade), docData);
+      } catch (e) {
+        console.error('Save servants Firestore error:', e);
+        showToast('فشل الحفظ: ' + (e.message || 'تحقق من الاتصال'), 'error');
+        return;
+      }
+    }
+
+    // Update local state
+    state.gradeServants[grade] = { grade, ...docData };
+
+    await logHistory('تعديل خدام', `${grade} - ${names.join(' + ') || 'لا يوجد'}`);
+    closeModal('servantsModal');
+    showToast('تم تحديث الخدام', 'success');
+    renderServantsCard();
+  });
 }
 
 // ============================================================
