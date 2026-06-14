@@ -172,10 +172,37 @@ async function initModules() {
   } catch (e) {
     console.error('Firebase failed to initialize:', e);
     firebaseReady = false;
-    // FIXED: Clearer error indication
+    // FIXED: Show login screen with guest mode option instead of stuck splash
     const splashContent = document.querySelector('.splash-content');
     if (splashContent) {
-      splashContent.innerHTML = '<h1>⚠️ خطأ في الاتصال</h1><p>تعذر تحميل نظام التسجيل</p><p style="font-size:14px;opacity:0.7">تحقق من اتصال الإنترنت وأعد تحميل الصفحة</p>';
+      splashContent.innerHTML = `
+        <div style="padding:20px;">
+          <div style="font-size:48px;margin-bottom:16px;">&#9888;</div>
+          <h2 style="font-size:20px;margin-bottom:8px;">الانترنت غير متاح</h2>
+          <p style="font-size:15px;opacity:0.8;margin-bottom:20px;">تعذر الاتصال بخوادم Firebase</p>
+          <button id="guestLoginBtn" style="background:var(--accent);color:var(--primary);border:none;padding:14px 28px;border-radius:14px;font-family:Tajawal,sans-serif;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px;display:block;width:100%;">
+            &#128100; الدخول كضيف (وضع عدم الاتصال)
+          </button>
+          <button id="retryFirebaseBtn" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:12px 24px;border-radius:14px;font-family:Tajawal,sans-serif;font-size:14px;font-weight:600;cursor:pointer;display:block;width:100%;">
+            &#128260; إعادة المحاولة
+          </button>
+        </div>
+      `;
+      // Attach event listeners to the new buttons
+      setTimeout(() => {
+        const guestBtn = document.getElementById('guestLoginBtn');
+        const retryBtn = document.getElementById('retryFirebaseBtn');
+        if (guestBtn) {
+          guestBtn.addEventListener('click', () => {
+            enableGuestMode();
+          });
+        }
+        if (retryBtn) {
+          retryBtn.addEventListener('click', () => {
+            window.location.reload();
+          });
+        }
+      }, 0);
     }
     return false;
   }
@@ -300,7 +327,9 @@ const state = {
   servants: [],
   servantsLoaded: false,
   currentServantGrade: '',
-  editingServantId: null
+  editingServantId: null,
+  // CRITICAL FIX: Guest mode for offline usage
+  isGuestMode: false
 };
 
 // ============================================================
@@ -476,13 +505,50 @@ const ALL_GRADES = ['أولى أ', 'أولى ب', 'تانيه أ', 'تانيه �
 // ============================================================
 // ROLE-BASED ACCESS CONTROL (RBAC) — Servant Permissions
 // Each grade has exactly 3 servants who can edit their grade only
+//
+// CRITICAL FIX: Super Admin mode when no servants exist in database
+// This allows first-time setup and prevents lock-out.
 // ============================================================
+
+// Configurable admin emails — always have full access
+const ADMIN_EMAILS = ['admin@gmail.com', 'manager@gmail.com'];
+
+/**
+ * Check if current user has super admin privileges.
+ * Super admin when:
+ * 1. User email is in ADMIN_EMAILS list, OR
+ * 2. No servants are registered in the system yet (first-time setup), OR
+ * 3. User is in guest mode (working offline)
+ */
+function isSuperAdmin() {
+  // Guest mode = full access to local data
+  if (state.isGuestMode) return true;
+
+  // If no servants registered yet, allow everyone (first-time setup)
+  if (state.servants.length === 0) return true;
+
+  // Check admin email list
+  if (!state.currentUser || !state.currentUser.email) {
+    // No user logged in and servants exist = not admin
+    return false;
+  }
+  const userEmail = state.currentUser.email.toLowerCase().trim();
+  if (ADMIN_EMAILS.includes(userEmail)) return true;
+
+  return false;
+}
 
 /**
  * Get the list of grades the current user can edit based on servant assignment.
  * If the user is not a registered servant for any grade, they have NO edit access.
+ * FIXED: Returns ALL grades for super admins.
  */
 function getUserEditableGrades() {
+  // FIXED: Super admin bypass — full access to all grades
+  if (isSuperAdmin()) {
+    return [...ALL_GRADES];
+  }
+
   if (!state.currentUser || !state.currentUser.email) return [];
   const userEmail = state.currentUser.email.toLowerCase().trim();
 
@@ -500,10 +566,12 @@ function getUserEditableGrades() {
 /**
  * Check if current user can edit a specific grade.
  * Servants can ONLY edit their assigned grade(s).
- * Example: 3rd prep A servant CANNOT edit 3rd prep B or 2nd prep A.
+ * FIXED: Super admins can edit ALL grades.
  */
 function canEditGrade(grade) {
   if (!grade) return false;
+  // FIXED: Super admin bypass
+  if (isSuperAdmin()) return true;
   const editableGrades = getUserEditableGrades();
   return editableGrades.includes(grade);
 }
@@ -1075,6 +1143,144 @@ if (DOM.darkModeToggle) {
 }
 
 // ============================================================
+// GUEST MODE — CRITICAL FIX: Offline mode when Firebase unavailable
+// ============================================================
+
+const LOCAL_STORAGE_KEYS = {
+  girls: 'tracker_girls',
+  attendance: 'tracker_attendance',
+  servants: 'tracker_servants',
+  user: 'tracker_guest_user'
+};
+
+/**
+ * Enable guest mode when Firebase is unavailable.
+ * Loads data from localStorage and allows full offline functionality.
+ */
+function enableGuestMode() {
+  console.log('Enabling guest mode...');
+  state.isGuestMode = true;
+
+  // Create a mock user for guest mode
+  const guestUser = {
+    displayName: 'ضيف',
+    email: 'guest@local',
+    uid: 'guest_' + (localStorage.getItem('guestId') || Math.random().toString(36).slice(2, 10))
+  };
+  // Persist guest ID across sessions
+  localStorage.setItem('guestId', guestUser.uid);
+  state.currentUser = guestUser;
+
+  // Load data from localStorage
+  loadLocalData();
+
+  // Hide splash, show app
+  hideSplash();
+  showApp(guestUser);
+
+  // Mark app as initialized
+  state.appInitialized = true;
+
+  // Initial render
+  renderPage();
+
+  showToast('وضع الضيف — البيانات محفوظة محلياً', 'info');
+
+  // FIXED: Update online status badge to show guest mode
+  updateOnlineStatus();
+
+  // Auto-save data periodically
+  startLocalAutoSave();
+}
+
+/**
+ * Load all data from localStorage (used in guest mode).
+ */
+function loadLocalData() {
+  try {
+    // Load girls
+    const savedGirls = localStorage.getItem(LOCAL_STORAGE_KEYS.girls);
+    if (savedGirls) {
+      const parsed = JSON.parse(savedGirls);
+      if (Array.isArray(parsed)) {
+        setStateGirls(parsed);
+        console.log('Loaded', parsed.length, 'girls from localStorage');
+      }
+    }
+
+    // Load attendance
+    const savedAttendance = localStorage.getItem(LOCAL_STORAGE_KEYS.attendance);
+    if (savedAttendance) {
+      const parsed = JSON.parse(savedAttendance);
+      if (typeof parsed === 'object' && parsed !== null) {
+        setStateAttendanceData(parsed);
+        console.log('Loaded', Object.keys(parsed).length, 'attendance records from localStorage');
+      }
+    }
+
+    // Load servants
+    const savedServants = localStorage.getItem(LOCAL_STORAGE_KEYS.servants);
+    if (savedServants) {
+      const parsed = JSON.parse(savedServants);
+      if (Array.isArray(parsed)) {
+        state.servants = parsed;
+        state.servantsLoaded = true;
+        console.log('Loaded', parsed.length, 'servants from localStorage');
+      }
+    }
+
+    // Load history from IDB
+    IDB.getAll('history').then(logs => {
+      if (logs && logs.length) {
+        state.historyAllLogs = logs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      }
+    }).catch(() => {});
+
+  } catch (e) {
+    console.error('Error loading local data:', e);
+  }
+}
+
+/**
+ * Save all data to localStorage (used in guest mode).
+ */
+function saveLocalData() {
+  if (!state.isGuestMode) return;
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEYS.girls, JSON.stringify(state.girls));
+    localStorage.setItem(LOCAL_STORAGE_KEYS.attendance, JSON.stringify(state.attendanceData));
+    localStorage.setItem(LOCAL_STORAGE_KEYS.servants, JSON.stringify(state.servants));
+  } catch (e) {
+    console.warn('localStorage save failed (quota exceeded?):', e);
+  }
+}
+
+let _localSaveInterval = null;
+
+/**
+ * Start periodic auto-save to localStorage.
+ */
+function startLocalAutoSave() {
+  if (_localSaveInterval) clearInterval(_localSaveInterval);
+  // Save every 5 seconds if in guest mode
+  _localSaveInterval = setInterval(() => {
+    if (state.isGuestMode) {
+      saveLocalData();
+    }
+  }, 5000);
+}
+
+/**
+ * Stop auto-save.
+ */
+function stopLocalAutoSave() {
+  if (_localSaveInterval) {
+    clearInterval(_localSaveInterval);
+    _localSaveInterval = null;
+  }
+}
+
+// ============================================================
 // TOAST
 // ============================================================
 let toastTimeout;
@@ -1104,6 +1310,18 @@ function hideSplash() {
 // ============================================================
 function updateOnlineStatus() {
   const isOnline = navigator.onLine;
+  // FIXED: Show guest mode indicator
+  if (state.isGuestMode) {
+    if (DOM.offlineBadge) {
+      DOM.offlineBadge.style.display = 'block';
+      DOM.offlineBadge.textContent = '👤 وضع الضيف (محلي)';
+    }
+    if (DOM.syncIndicator) {
+      DOM.syncIndicator.textContent = 'وضع الضيف';
+      DOM.syncIndicator.classList.add('offline');
+    }
+    return;
+  }
   if (DOM.offlineBadge) {
     DOM.offlineBadge.style.display = isOnline ? 'none' : 'block';
     if (!isOnline) DOM.offlineBadge.textContent = '⚠️ وضع عدم الاتصال';
@@ -1182,9 +1400,33 @@ if (DOM.googleSignIn) {
   });
 }
 
+// FIXED: Guest Mode button handler — works even when Firebase is down
+document.addEventListener('click', (e) => {
+  const guestBtn = e.target.closest('#guestModeBtn');
+  if (guestBtn) {
+    e.preventDefault();
+    enableGuestMode();
+  }
+});
+
 if (DOM.signOutBtn) {
   DOM.signOutBtn.addEventListener('click', async () => {
     clearAllSnapshots();
+    // FIXED: Clean up guest mode on sign out
+    if (state.isGuestMode) {
+      // Save data before switching
+      saveLocalData();
+      state.isGuestMode = false;
+      stopLocalAutoSave();
+      state.currentUser = null;
+      state.appInitialized = false;
+      state.girls = [];
+      state.attendanceData = {};
+      state.servants = [];
+      Cache.invalidate();
+      showLogin();
+      return;
+    }
     if (!firebaseReady) {
       state.currentUser = null;
       state.appInitialized = false;
@@ -1211,18 +1453,24 @@ function showApp(user) {
   if (DOM.drawerUserEmail) DOM.drawerUserEmail.textContent = (user && user.email) || '';
 
   // RBAC: Auto-set grade filters to user's assigned grade after data loads
-  setTimeout(() => {
-    const editableGrades = getUserEditableGrades();
-    if (editableGrades.length > 0) {
-      const primaryGrade = editableGrades[0];
-      // Set default filters for attendance and girls pages
-      state.attendanceGradeFilter = primaryGrade;
-      state.girlsGradeFilter = primaryGrade;
-      state.homeGradeFilter = primaryGrade;
-      // Persist attendance filter
-      localStorage.setItem('attendanceGradeFilter', primaryGrade);
-    }
-  }, 2000); // Wait for data to load
+  // FIXED: Skip auto-filter for guest mode (super admin can see all grades)
+  if (!state.isGuestMode) {
+    setTimeout(() => {
+      const editableGrades = getUserEditableGrades();
+      if (editableGrades.length > 0 && !state.isGuestMode) {
+        const primaryGrade = editableGrades[0];
+        // Set default filters for attendance and girls pages
+        state.attendanceGradeFilter = primaryGrade;
+        state.girlsGradeFilter = primaryGrade;
+        state.homeGradeFilter = primaryGrade;
+        // Persist attendance filter
+        localStorage.setItem('attendanceGradeFilter', primaryGrade);
+      }
+    }, 2000); // Wait for data to load
+  }
+
+  // FIXED: Update online status badge (shows guest mode if applicable)
+  updateOnlineStatus();
 }
 
 function showLogin() {
@@ -1233,7 +1481,7 @@ function showLogin() {
       const card = document.getElementById('loginCard');
       if (card) {
         card.classList.add('animate-in');
-        card.querySelectorAll('.login-cross-icon, .login-church-name, .login-system-title, .login-divider, .login-welcome, .btn-google').forEach(el => {
+        card.querySelectorAll('.login-cross-icon, .login-church-name, .login-system-title, .login-divider, .login-welcome, .btn-google, .btn-guest, .guest-hint').forEach(el => {
           el.classList.add('animate-in');
         });
       }
@@ -1246,6 +1494,12 @@ function showLogin() {
 // ============================================================
 async function loadData() {
   try {
+    // FIXED: In guest mode, skip Firebase listeners entirely
+    if (state.isGuestMode) {
+      console.log('Guest mode: skipping Firebase listeners');
+      return;
+    }
+
     if (!firebaseReady) return;
 
     // FIXED: Guard against duplicate listeners — clear + flag pattern
@@ -1993,6 +2247,9 @@ if (DOM.deleteGirlBtn) {
           showToast(`تم حذف ${g.name}`, 'success');
           state.editingGirlId = null;
           scheduleRender();
+
+          // FIXED: Save to localStorage in guest mode
+          if (state.isGuestMode) saveLocalData();
         } catch (err) {
           console.error('Delete error:', err);
           showToast('حدث خطأ أثناء الحذف', 'error');
@@ -2107,6 +2364,9 @@ if (DOM.saveGirlBtn) {
       showToast(wasEditing ? 'تم تعديل البيانات' : 'تمت إضافة المخدومة', 'success');
       state.editingGirlId = null;
       renderPage();
+
+      // FIXED: Save to localStorage in guest mode
+      if (state.isGuestMode) saveLocalData();
     } catch (err) {
       // Global catch-all for any unexpected errors
       console.error('Save girl unexpected error:', err);
@@ -2457,6 +2717,9 @@ async function toggleAttendanceStatus(girlId, girlName, date) {
 
     // FIXED: Debounced render to batch rapid toggles + ensure state settled
     debouncedRender(80);
+
+    // FIXED: Save to localStorage in guest mode
+    if (state.isGuestMode) saveLocalData();
   } finally {
     state.pendingAttendanceOps.delete(opKey);
   }
@@ -2523,6 +2786,9 @@ async function markAllAbsentForDate(date) {
   renderAttendanceList();
   if (state.currentPage === 'home') renderHome();
   if (state.currentPage === 'calendar') renderCalendar();
+
+  // FIXED: Save to localStorage in guest mode
+  if (state.isGuestMode) saveLocalData();
 }
 
 // Auto-mark a newly added girl as absent for all activities on a service day
@@ -2582,6 +2848,9 @@ async function autoMarkAbsentForNewGirl(girlId, date) {
   }
 
   setStateAttendanceData(newAttData);
+
+  // FIXED: Save to localStorage in guest mode
+  if (state.isGuestMode) saveLocalData();
 }
 
 // Kept for backward compatibility
@@ -2656,6 +2925,9 @@ async function selectAllStatus(status) {
   if (state.currentPage === 'home') renderHome();
   if (state.currentPage === 'stats') renderStats();
   if (state.currentPage === 'calendar') renderCalendar();
+
+  // FIXED: Save to localStorage in guest mode
+  if (state.isGuestMode) saveLocalData();
 }
 
 // ============================================================
@@ -2824,6 +3096,9 @@ async function saveInlineRating(attKey, rating) {
     renderAttendanceList();
     if (state.currentPage === 'home') renderHome();
     if (state.currentPage === 'stats') renderStats();
+
+    // FIXED: Save to localStorage in guest mode
+    if (state.isGuestMode) saveLocalData();
   } finally {
     state.pendingAttendanceOps.delete(opKey);
   }
@@ -2905,6 +3180,9 @@ if (DOM.saveAttendanceEntry) {
     if (state.currentPage === 'home') renderHome();
     if (state.currentPage === 'stats') renderStats();
     if (state.currentPage === 'calendar') renderCalendar();
+
+    // FIXED: Save to localStorage in guest mode
+    if (state.isGuestMode) saveLocalData();
   });
 }
 
@@ -3546,6 +3824,10 @@ async function logHistory(action, detail) {
   if (firebaseReady) {
     try { await FB.setDoc(FB.doc(db, 'history', log.id), log); } catch (e) { }
   }
+  // FIXED: In guest mode, also save to local state so it appears in history
+  if (state.isGuestMode) {
+    state.historyAllLogs.unshift(log);
+  }
 }
 
 // ============================================================
@@ -3738,6 +4020,9 @@ async function saveServant() {
   showToast(isEditing ? 'تم تعديل بيانات الخادم' : 'تمت إضافة الخادم', 'success');
   state.editingServantId = null;
   renderServantsPage();
+
+  // FIXED: Save to localStorage in guest mode
+  if (state.isGuestMode) saveLocalData();
 }
 
 // Delete servant
@@ -3766,6 +4051,9 @@ async function deleteServant() {
         showToast(`تم حذف ${s.name || s.email}`, 'success');
         state.editingServantId = null;
         renderServantsPage();
+
+        // FIXED: Save to localStorage in guest mode
+        if (state.isGuestMode) saveLocalData();
       } catch (err) {
         console.error('Delete servant error:', err);
         showToast('حدث خطأ أثناء الحذف', 'error');
@@ -4655,7 +4943,7 @@ TimeContext.subscribe(() => {
 });
 
 // ============================================================
-// BOOTSTRAP — Fixed with proper error handling
+// BOOTSTRAP — FIXED: Proper offline handling with guest mode
 // ============================================================
 async function bootstrap() {
   initDarkMode();
@@ -4675,8 +4963,16 @@ async function bootstrap() {
     await initAuth();
   } else {
     console.error('Firebase failed to load');
-    hideSplash();
-    showLogin();
+    // FIXED: Show login screen with guest option instead of blank screen
+    // The initModules() function already updates the splash with guest mode buttons
+    // Don't hide splash here — let the user choose guest mode or retry
+    // But add a safety timeout to force show login after 8 seconds
+    setTimeout(() => {
+      if (!SplashState.done) {
+        hideSplashForced();
+        showLogin();
+      }
+    }, 8000);
   }
 }
 

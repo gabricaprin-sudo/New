@@ -20,6 +20,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script>
+    // Register Service Worker for offline support
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('SW registered:', reg.scope))
+          .catch((err) => console.log('SW registration failed:', err));
+      });
+    }
+  </script>
 </head>
 <body>
   <!-- FIXED: noscript tag for JavaScript-disabled browsers -->
@@ -89,6 +99,13 @@
           <span class="btn-spinner"></span>
           <span class="btn-text">تسجيل الدخول بـ Google</span>
         </button>
+
+        <!-- Guest Mode: Works without internet -->
+        <button id="guestModeBtn" class="btn-guest">
+          <span style="font-size:18px;">&#128100;</span>
+          <span>الدخول كضيف (بدون انترنت)</span>
+        </button>
+        <p class="guest-hint">في وضع الضيف، البيانات محفوظة على الجهاز فقط</p>
 </div>
     </div>
 

@@ -385,6 +385,52 @@ body {
 .btn-google.is-loading .btn-spinner { display: inline-block; }
 .btn-google.is-loading .btn-text::after { content: 'جاري التسجيل...'; }
 .btn-google.is-loading .btn-text { font-size: 0; }
+
+/* Guest Mode Button */
+.btn-guest {
+  width: 90%;
+  margin-top: 10px;
+  padding: 12px 24px;
+  background: rgba(255,255,255,0.05);
+  border: 1.5px solid rgba(255,255,255,0.15);
+  border-radius: 16px;
+  font-family: 'Noto Kufi Arabic', 'Tajawal', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all var(--transition) var(--easing-default);
+  box-shadow: none;
+  min-height: 48px;
+  touch-action: manipulation;
+  opacity: 0;
+  transform: translateY(15px);
+}
+.btn-guest.animate-in {
+  animation: fadeSlideUp 400ms cubic-bezier(0.25, 0.1, 0.25, 1) 1140ms forwards;
+}
+.btn-guest:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.25);
+}
+.btn-guest:active {
+  transform: scale(0.97);
+  background: rgba(255,255,255,0.15);
+}
+.guest-hint {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  margin-top: 12px;
+  text-align: center;
+  opacity: 0;
+}
+.guest-hint.animate-in {
+  animation: fadeSlideUp 400ms ease-out 1220ms forwards;
+}
 .btn-spinner {
   display: none;
   width: 16px;
