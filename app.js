@@ -139,8 +139,12 @@ async function initModules() {
     let firebaseConfig = await fetchFirebaseConfig();
     firebaseApp = initializeApp(firebaseConfig);
     auth = getAuth(firebaseApp);
+    auth.languageCode = 'ar';
     db = getFirestore(firebaseApp);
     provider = new GoogleAuthProvider();
+    provider.addScope('email');
+    provider.addScope('profile');
+    provider.setCustomParameters({ prompt: 'select_account' });
     firebaseReady = true;
 
     // Initialize Firebase Analytics
@@ -1384,17 +1388,44 @@ if (DOM.googleSignIn) {
       showToast('الإنترنت غير متاح - حاول تحديث الصفحة', 'warning');
       return;
     }
+    // FIXED: Reset any previous auth state to force account selection
+    try {
+      await FB.signOut(auth);
+    } catch (e) { /* ignore sign-out errors */ }
+
     DOM.googleSignIn.classList.add('is-loading');
+    let useRedirect = false;
     try {
       await FB.signInWithPopup(auth, provider);
     } catch (e) {
-      DOM.googleSignIn.classList.remove('is-loading');
-      if (['auth/popup-blocked', 'auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(e.code)) {
-        try {
-          await FB.signInWithRedirect(auth, provider);
-        } catch (e2) { showToast('فشل تسجيل الدخول: ' + e2.message, 'error'); }
+      console.error('Google Sign-In error:', e.code, e.message);
+      // FIXED: Expanded error codes that trigger redirect fallback
+      const redirectErrors = [
+        'auth/popup-blocked',
+        'auth/popup-closed-by-user',
+        'auth/cancelled-popup-request',
+        'auth/network-request-failed',
+        'auth/internal-error',
+        'auth/unauthorized-domain',
+        'auth/timeout'
+      ];
+      if (redirectErrors.includes(e.code)) {
+        showToast('جاري المحاولة بطريقة أخرى...', 'info');
+        useRedirect = true;
       } else {
-        showToast('فشل تسجيل الدخول: ' + e.message, 'error');
+        showToast('فشل تسجيل الدخول: ' + (e.message || 'خطأ غير معروف'), 'error');
+      }
+    } finally {
+      // FIXED: Always remove loading spinner
+      if (DOM.googleSignIn) DOM.googleSignIn.classList.remove('is-loading');
+    }
+    // FIXED: Redirect is attempted outside the catch block to avoid nested try/catch issues
+    if (useRedirect) {
+      try {
+        await FB.signInWithRedirect(auth, provider);
+      } catch (e2) {
+        console.error('Redirect sign-in also failed:', e2);
+        showToast('فشل تسجيل الدخول بكل الطرق. تأكد من الإنترنت وإعدادات Firebase.', 'error');
       }
     }
   });
