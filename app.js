@@ -232,9 +232,10 @@ function _buildDOMCache() {
     'darkModeToggle', 'darkToggleSwitch',
     'shareProfileBtn', 'editProfileBtn',
     'statsGradeFilter', 'activityStatsGrade', 'exportGradeFilter',
-    'servantsCard', 'servantsCardNames', 'editServantsBtn',
-    'servantsModal', 'servantsModalTitle', 'servantsGradeLabel',
-    'servantsNamesInput', 'closeServantsModal', 'cancelServantsModal', 'saveServantsBtn'
+    'servantsList', 'servantsGradeFilters', 'addServantBtn',
+    'servantModal', 'servantModalTitle', 'servantName', 'servantEmail',
+    'servantGrade', 'saveServantBtn', 'cancelServantModal',
+    'closeServantModal', 'deleteServantBtn'
   ];
   ids.forEach(id => { _domCache[id] = document.getElementById(id); });
 }
@@ -295,9 +296,11 @@ const state = {
   exportGradeFilter: '',
   // NEW: Track which service days have been auto-marked as absent (to prevent duplicates)
   autoMarkedDates: new Set(JSON.parse(localStorage.getItem('autoMarkedDates') || '[]')),
-  // NEW: Grade servants data - { gradeName: { names: string[], updatedAt, updatedBy } }
-  gradeServants: {},
-  editingServantsGrade: null
+  // NEW: Servants management
+  servants: [],
+  servantsLoaded: false,
+  currentServantGrade: '',
+  editingServantId: null
 };
 
 // ============================================================
@@ -467,6 +470,93 @@ const ACTIVITY_ICONS = { 'قداس': '&#9961;', 'تناول': '&#127807;', 'خد
 const PERIOD_LABELS = { today: 'اليوم', month: 'هذا الشهر', year: 'هذه السنة', all: 'كل الفترات' };
 // Grade ordering for export: تالته أ→ب, then تانيه أ→ب, then أولى أ→ب
 const GRADE_ORDER = { 'تالته أ': 1, 'تالته ب': 2, 'تانيه أ': 3, 'تانيه ب': 4, 'أولى أ': 5, 'أولى ب': 6 };
+
+const ALL_GRADES = ['أولى أ', 'أولى ب', 'تانيه أ', 'تانيه ب', 'تالته أ', 'تالته ب'];
+
+// ============================================================
+// ROLE-BASED ACCESS CONTROL (RBAC) — Servant Permissions
+// Each grade has exactly 3 servants who can edit their grade only
+// ============================================================
+
+/**
+ * Get the list of grades the current user can edit based on servant assignment.
+ * If the user is not a registered servant for any grade, they have NO edit access.
+ */
+function getUserEditableGrades() {
+  if (!state.currentUser || !state.currentUser.email) return [];
+  const userEmail = state.currentUser.email.toLowerCase().trim();
+
+  const editableGrades = [];
+  for (const grade of ALL_GRADES) {
+    const gradeServants = state.servants.filter(s => s.grade === grade);
+    const isServant = gradeServants.some(s => s.email.toLowerCase().trim() === userEmail);
+    if (isServant) {
+      editableGrades.push(grade);
+    }
+  }
+  return editableGrades;
+}
+
+/**
+ * Check if current user can edit a specific grade.
+ * Servants can ONLY edit their assigned grade(s).
+ * Example: 3rd prep A servant CANNOT edit 3rd prep B or 2nd prep A.
+ */
+function canEditGrade(grade) {
+  if (!grade) return false;
+  const editableGrades = getUserEditableGrades();
+  return editableGrades.includes(grade);
+}
+
+/**
+ * Check if current user can add/edit/delete girls in a specific grade.
+ */
+function canManageGirlsInGrade(grade) {
+  return canEditGrade(grade);
+}
+
+/**
+ * Check if current user can record attendance for a specific grade.
+ */
+function canRecordAttendanceForGrade(grade) {
+  return canEditGrade(grade);
+}
+
+/**
+ * Get the first grade the user has access to (for default filtering).
+ */
+function getUserPrimaryGrade() {
+  const editableGrades = getUserEditableGrades();
+  return editableGrades.length > 0 ? editableGrades[0] : '';
+}
+
+/**
+ * Get servants for a specific grade.
+ */
+function getServantsByGrade(grade) {
+  return state.servants.filter(s => s.grade === grade);
+}
+
+/**
+ * Count servants for a grade.
+ */
+function getServantCountForGrade(grade) {
+  return state.servants.filter(s => s.grade === grade).length;
+}
+
+/**
+ * Check if a grade already has the maximum 3 servants.
+ */
+function isGradeServantsFull(grade) {
+  return getServantCountForGrade(grade) >= 3;
+}
+
+/**
+ * Show permission denied toast.
+ */
+function showPermissionDenied(grade) {
+  showToast(`ليس لديك صلاحية التعديل في ${grade}. خدام ${grade} فقط يمكنهم التعديل.`, 'error');
+}
 
 // ============================================================
 // XSS PROTECTION
@@ -830,7 +920,7 @@ function getStatsBounds() {
 const IDB = {
   db: null,
   DB_NAME: 'girlsTrackerDB',
-  DB_VERSION: 2, // Bumped for new stores
+  DB_VERSION: 3, // Bumped for servants store
 
   async init() {
     return new Promise((resolve, reject) => {
@@ -849,6 +939,10 @@ const IDB = {
         // NEW: Backup store for rollback support
         if (!db.objectStoreNames.contains('backups')) {
           db.createObjectStore('backups', { keyPath: 'id' });
+        }
+        // NEW: Servants store for offline access
+        if (!db.objectStoreNames.contains('servants')) {
+          db.createObjectStore('servants', { keyPath: 'id' });
         }
       };
     });
@@ -1115,6 +1209,20 @@ function showApp(user) {
   if (DOM.drawerAvatar) DOM.drawerAvatar.textContent = initial;
   if (DOM.drawerUserName) DOM.drawerUserName.textContent = (user && user.displayName) || 'الخادم';
   if (DOM.drawerUserEmail) DOM.drawerUserEmail.textContent = (user && user.email) || '';
+
+  // RBAC: Auto-set grade filters to user's assigned grade after data loads
+  setTimeout(() => {
+    const editableGrades = getUserEditableGrades();
+    if (editableGrades.length > 0) {
+      const primaryGrade = editableGrades[0];
+      // Set default filters for attendance and girls pages
+      state.attendanceGradeFilter = primaryGrade;
+      state.girlsGradeFilter = primaryGrade;
+      state.homeGradeFilter = primaryGrade;
+      // Persist attendance filter
+      localStorage.setItem('attendanceGradeFilter', primaryGrade);
+    }
+  }, 2000); // Wait for data to load
 }
 
 function showLogin() {
@@ -1223,28 +1331,37 @@ async function loadData() {
     );
     pushUnsubscriber(unsub3);
 
-    // NEW: Grade servants listener - real-time sync
+    // NEW: Servants listener — loads servant assignments for RBAC
     const unsub4 = FB.onSnapshot(
-      FB.collection(db, 'gradeServants'),
+      FB.query(FB.collection(db, 'servants'), FB.orderBy('grade')),
       (snap) => {
         let changed = false;
-        const newServants = { ...state.gradeServants };
+        const newServants = [...state.servants];
         for (const change of snap.docChanges()) {
-          const doc = { grade: change.doc.id, ...change.doc.data() };
+          const s = { id: change.doc.id, ...change.doc.data() };
           if (change.type === 'removed') {
-            delete newServants[doc.grade];
-            changed = true;
+            const idx = newServants.findIndex(x => x.id === s.id);
+            if (idx >= 0) { newServants.splice(idx, 1); changed = true; }
           } else {
-            newServants[doc.grade] = doc;
-            changed = true;
+            const idx = newServants.findIndex(x => x.id === s.id);
+            if (idx >= 0) { newServants[idx] = s; changed = true; }
+            else { newServants.push(s); changed = true; }
           }
         }
         if (changed) {
-          state.gradeServants = newServants;
-          if (state.currentPage === 'attendance') renderServantsCard();
+          newServants.sort((a, b) => {
+            const orderA = GRADE_ORDER[a.grade] || 99;
+            const orderB = GRADE_ORDER[b.grade] || 99;
+            if (orderA !== orderB) return orderA - orderB;
+            return (a.name || '').localeCompare(b.name || '', 'ar');
+          });
+          state.servants = newServants;
+          state.servantsLoaded = true;
+          // Re-render if on servants page
+          if (state.currentPage === 'servants') renderServantsPage();
         }
       },
-      (err) => console.error('Grade servants snapshot error:', err)
+      (err) => console.error('Servants snapshot error:', err)
     );
     pushUnsubscriber(unsub4);
 
@@ -1293,6 +1410,7 @@ function renderPage() {
     case 'stats': renderStats(); break;
     case 'history': renderHistory(false); break;
     case 'export': renderExport(); break;
+    case 'servants': renderServantsPage(); break;
   }
 }
 
@@ -1306,7 +1424,8 @@ const PAGE_TITLES = {
   calendar: ['التقويم الشهري', 'أيام الخدمة'],
   stats: ['الإحصائيات', 'تحليلات وتقارير'],
   history: ['السجل التاريخي', 'سجل التعديلات'],
-  export: ['التصدير', 'تصدير البيانات']
+  export: ['التصدير', 'تصدير البيانات'],
+  servants: ['الخدام', 'إدارة خدام الفصول']
 };
 
 function navigateTo(page) {
@@ -1332,6 +1451,9 @@ function navigateTo(page) {
   }
   if (page !== 'calendar') {
     hideDayDetail();
+  }
+  if (page === 'servants') {
+    state.currentServantGrade = '';
   }
 
   renderPage();
@@ -1475,15 +1597,21 @@ function renderHome() {
   }
 
   const gradeFilter = state.homeGradeFilter;
-  const activeGirls = state.girls.filter(g => !g.isDeleted);
+  let activeGirls = state.girls.filter(g => !g.isDeleted);
+
+  // RBAC: Filter to only grades the user can manage
+  const editableGrades = getUserEditableGrades();
+  if (editableGrades.length > 0) {
+    activeGirls = activeGirls.filter(g => editableGrades.includes(g.grade));
+  }
+
   const filteredGirls = gradeFilter ? activeGirls.filter(g => g.grade === gradeFilter) : activeGirls;
-  // FIXED: Use cached activeGirlIds from Cache instead of rebuilding Set
-  const allActiveGirlIds = Cache.getActiveGirlIds();
+  // RBAC: Build activeGirlIds from filtered activeGirls
   const activeGirlIds = gradeFilter
     ? new Set(filteredGirls.map(g => g.id))
-    : allActiveGirlIds;
+    : new Set(activeGirls.map(g => g.id));
 
-  // FIXED: Single-pass grade count instead of 3 separate filters (O(n) not O(3n))
+  // FIXED: Single-pass grade count from RBAC-filtered activeGirls
   const gradeCounts = { 'أولى أ': 0, 'أولى ب': 0, 'تانيه أ': 0, 'تانيه ب': 0, 'تالته أ': 0, 'تالته ب': 0 };
   activeGirls.forEach(g => {
     if (gradeCounts[g.grade] !== undefined) gradeCounts[g.grade]++;
@@ -1678,6 +1806,12 @@ function renderGirlsList() {
   const searchQuery = (state.girlsSearchQuery || '').trim();
   let activeGirls = state.girls.filter(g => !g.isDeleted);
 
+  // RBAC: Filter to only grades the user can manage
+  const editableGrades = getUserEditableGrades();
+  if (editableGrades.length > 0) {
+    activeGirls = activeGirls.filter(g => editableGrades.includes(g.grade));
+  }
+
   if (searchQuery) {
     const qNorm = normalizeArabic(searchQuery);
     activeGirls = activeGirls.filter(g => normalizeArabic(g.name).includes(qNorm));
@@ -1759,6 +1893,13 @@ if (DOM.addGirlBtn) {
 function editGirl(id) {
   const g = Cache.getGirl(id);
   if (!g) return;
+
+  // RBAC: Check if user can edit this grade
+  if (!canManageGirlsInGrade(g.grade)) {
+    showPermissionDenied(g.grade);
+    return;
+  }
+
   state.editingGirlId = id;
   if (DOM.girlModalTitle) DOM.girlModalTitle.textContent = 'تعديل بيانات المخدومة';
   if (DOM.girlName) DOM.girlName.value = g.name;
@@ -1770,7 +1911,7 @@ function editGirl(id) {
 }
 
 // ============================================================
-// DELETE GIRL — FIXED: State validation + snapshot isolation + backup
+// DELETE GIRL — FIXED: State validation + snapshot isolation + backup + RBAC
 // ============================================================
 if (DOM.deleteGirlBtn) {
   DOM.deleteGirlBtn.addEventListener('click', async () => {
@@ -1778,6 +1919,12 @@ if (DOM.deleteGirlBtn) {
     const currentId = state.editingGirlId; // Capture ID at click time
     const g = Cache.getGirl(currentId);
     if (!g) return;
+
+    // RBAC: Check if user can delete this grade
+    if (!canManageGirlsInGrade(g.grade)) {
+      showPermissionDenied(g.grade);
+      return;
+    }
 
     closeModal('girlModal');
 
@@ -1892,6 +2039,12 @@ if (DOM.saveGirlBtn) {
       // Validate grade
       if (!grade) {
         showToast('الرجاء اختيار الفصل', 'error');
+        return;
+      }
+
+      // RBAC: Check if user can edit this grade
+      if (!canManageGirlsInGrade(grade)) {
+        showPermissionDenied(grade);
         return;
       }
 
@@ -2201,7 +2354,6 @@ function renderAttendancePage() {
 
   state.attendancePageInitialized = true;
   renderAttendanceList();
-  renderServantsCard();
 
   // NEW: Show indicator if auto-absence has been applied for today
   const today = DateUtil.toStr();
@@ -2253,6 +2405,13 @@ if (DOM.attendanceSearch) DOM.attendanceSearch.addEventListener('input', debounc
 // TOGGLE ATTENDANCE — FIXED: Pending lock prevents race conditions
 // ============================================================
 async function toggleAttendanceStatus(girlId, girlName, date) {
+  // RBAC: Check if user can record attendance for this girl's grade
+  const g = Cache.getGirl(girlId);
+  if (g && !canRecordAttendanceForGrade(g.grade)) {
+    showPermissionDenied(g.grade);
+    return;
+  }
+
   const opKey = `toggle_${girlId}_${date}_${state.selectedActivity}`;
   if (state.pendingAttendanceOps.has(opKey)) return; // Prevent double-clicks
   state.pendingAttendanceOps.add(opKey);
@@ -2437,7 +2596,19 @@ async function selectAllStatus(status) {
   const date = DOM.attendanceDate.value;
   if (!date) { showToast('الرجاء اختيار التاريخ أولاً', 'error'); return; }
 
-  const activeGirls = state.girls.filter(g => !g.isDeleted);
+  let activeGirls = state.girls.filter(g => !g.isDeleted);
+
+  // RBAC: Filter to only grades the user can manage
+  const editableGrades = getUserEditableGrades();
+  if (editableGrades.length > 0) {
+    // If a grade filter is already applied, validate it
+    if (state.attendanceGradeFilter && !editableGrades.includes(state.attendanceGradeFilter)) {
+      showPermissionDenied(state.attendanceGradeFilter);
+      return;
+    }
+    // Filter to only editable grades
+    activeGirls = activeGirls.filter(g => editableGrades.includes(g.grade));
+  }
   const filteredGirls = state.attendanceGradeFilter
     ? activeGirls.filter(g => g.grade === state.attendanceGradeFilter)
     : activeGirls;
@@ -2496,6 +2667,12 @@ function renderAttendanceList() {
   if (!date) { el.innerHTML = '<div class="empty-state">الرجاء اختيار التاريخ</div>'; return; }
 
   let activeGirls = state.girls.filter(g => !g.isDeleted);
+
+  // RBAC: Filter to only grades the user can manage
+  const editableGrades = getUserEditableGrades();
+  if (editableGrades.length > 0) {
+    activeGirls = activeGirls.filter(g => editableGrades.includes(g.grade));
+  }
 
   // Apply grade filter
   const gradeFilter = state.attendanceGradeFilter;
@@ -2609,94 +2786,6 @@ function renderAttendanceList() {
   if (DOM.presentCount) DOM.presentCount.textContent = present;
   if (DOM.absentCount) DOM.absentCount.textContent = absent;
   if (DOM.totalCount) DOM.totalCount.textContent = activeGirls.length;
-}
-
-// ============================================================
-// SERVANTS CARD — NEW: Show/edit servants per grade
-// ============================================================
-function renderServantsCard() {
-  const card = DOM.servantsCard;
-  const namesEl = DOM.servantsCardNames;
-  if (!card || !namesEl) return;
-
-  const gradeFilter = state.attendanceGradeFilter;
-  if (!gradeFilter) {
-    card.classList.add('hidden');
-    return;
-  }
-
-  // Find servants data for this grade
-  const servantsData = state.gradeServants[gradeFilter];
-  const names = servantsData?.names || [];
-
-  if (names.length > 0) {
-    namesEl.textContent = names.join(' + ');
-  } else {
-    namesEl.innerHTML = '<span style="color: var(--text-muted); font-size: 13px;">لا يوجد خدام مسجلين للفصل ده</span>';
-  }
-
-  card.classList.remove('hidden');
-}
-
-// ============================================================
-// EDIT SERVANTS — NEW: Open modal to edit servants for selected grade
-// ============================================================
-if (DOM.editServantsBtn) {
-  DOM.editServantsBtn.addEventListener('click', () => {
-    const grade = state.attendanceGradeFilter;
-    if (!grade) { showToast('اختر الفصل الأول من الفلتر', 'warning'); return; }
-
-    state.editingServantsGrade = grade;
-    const servantsData = state.gradeServants[grade];
-    const names = servantsData?.names || [];
-
-    if (DOM.servantsModalTitle) DOM.servantsModalTitle.textContent = `تعديل خدام ${grade}`;
-    if (DOM.servantsGradeLabel) DOM.servantsGradeLabel.textContent = `الفصل: ${grade}`;
-    if (DOM.servantsNamesInput) DOM.servantsNamesInput.value = names.join(' + ');
-    openModal('servantsModal');
-  });
-}
-
-if (DOM.closeServantsModal) DOM.closeServantsModal.addEventListener('click', () => closeModal('servantsModal'));
-if (DOM.cancelServantsModal) DOM.cancelServantsModal.addEventListener('click', () => closeModal('servantsModal'));
-
-if (DOM.saveServantsBtn) {
-  DOM.saveServantsBtn.addEventListener('click', async () => {
-    const grade = state.editingServantsGrade;
-    if (!grade) return;
-
-    const inputVal = DOM.servantsNamesInput ? DOM.servantsNamesInput.value.trim() : '';
-    // Parse names - split by + and clean up
-    const names = inputVal
-      ? inputVal.split('+').map(n => n.trim()).filter(n => n.length > 0)
-      : [];
-
-    const docData = {
-      names,
-      updatedAt: Date.now(),
-      updatedBy: state.currentUser?.displayName || 'خادم',
-      updatedByEmail: state.currentUser?.email || ''
-    };
-
-    // Save to Firestore
-    if (firebaseReady) {
-      try {
-        await FB.setDoc(FB.doc(db, 'gradeServants', grade), docData);
-      } catch (e) {
-        console.error('Save servants Firestore error:', e);
-        showToast('فشل الحفظ: ' + (e.message || 'تحقق من الاتصال'), 'error');
-        return;
-      }
-    }
-
-    // Update local state
-    state.gradeServants[grade] = { grade, ...docData };
-
-    await logHistory('تعديل خدام', `${grade} - ${names.join(' + ') || 'لا يوجد'}`);
-    closeModal('servantsModal');
-    showToast('تم تحديث الخدام', 'success');
-    renderServantsCard();
-  });
 }
 
 // ============================================================
@@ -3174,6 +3263,13 @@ function renderStats() {
   });
 
   let activeGirls = state.girls.filter(g => !g.isDeleted);
+
+  // RBAC: Filter to only grades the user can manage
+  const editableGrades = getUserEditableGrades();
+  if (editableGrades.length > 0) {
+    activeGirls = activeGirls.filter(g => editableGrades.includes(g.grade));
+  }
+
   if (gradeFilter) {
     activeGirls = activeGirls.filter(g => g.grade === gradeFilter);
   }
@@ -3444,6 +3540,221 @@ async function logHistory(action, detail) {
   if (firebaseReady) {
     try { await FB.setDoc(FB.doc(db, 'history', log.id), log); } catch (e) { }
   }
+}
+
+// ============================================================
+// SERVANTS PAGE — Manage servants per grade (max 3 per grade)
+// ============================================================
+
+function renderServantsPage() {
+  const el = document.getElementById('servantsList');
+  if (!el) return;
+
+  const filter = state.currentServantGrade || '';
+
+  // Update grade filter buttons
+  document.querySelectorAll('#servantsGradeFilters .grade-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.grade === filter);
+  });
+
+  // Update counts on filter buttons
+  ALL_GRADES.forEach(grade => {
+    const countEl = document.getElementById(`servantsFilterCount${grade.replace(/\s/g, '')}`);
+    if (countEl) countEl.textContent = getServantCountForGrade(grade);
+  });
+
+  // Filter servants
+  let servants = state.servants;
+  if (filter) {
+    servants = servants.filter(s => s.grade === filter);
+  }
+
+  if (!servants.length) {
+    el.innerHTML = '<div class="empty-state">لا يوجد خدام مسجلين لهذا الفصل<br><small>اضغط + لإضافة خادم جديد</small></div>';
+    return;
+  }
+
+  // Group by grade for display
+  const byGrade = {};
+  servants.forEach(s => {
+    if (!byGrade[s.grade]) byGrade[s.grade] = [];
+    byGrade[s.grade].push(s);
+  });
+
+  const sortedGrades = Object.keys(byGrade).sort((a, b) => {
+    return (GRADE_ORDER[a] || 99) - (GRADE_ORDER[b] || 99);
+  });
+
+  let html = '';
+  sortedGrades.forEach(grade => {
+    const gradeServants = byGrade[grade];
+    const count = gradeServants.length;
+    const isFull = count >= 3;
+
+    html += `<div class="servant-grade-section">
+      <div class="servant-grade-header">
+        <span class="servant-grade-title">${esc(grade)}</span>
+        <span class="servant-grade-count ${isFull ? 'full' : ''}">${count}/3</span>
+      </div>
+      <div class="servant-cards">`;
+
+    gradeServants.forEach(s => {
+      html += `
+        <div class="servant-card" data-servant-id="${esc(s.id)}">
+          <div class="servant-avatar">${esc((s.name || s.email)[0])}</div>
+          <div class="servant-info">
+            <span class="servant-name">${esc(s.name || 'خادم')}</span>
+            <span class="servant-email">${esc(s.email)}</span>
+          </div>
+          <button class="servant-delete-btn" data-servant-id="${esc(s.id)}" aria-label="حذف ${esc(s.name || s.email)}">&#128465;</button>
+        </div>`;
+    });
+
+    html += '</div></div>';
+  });
+
+  el.innerHTML = html;
+}
+
+// Open add servant modal
+function openAddServantModal() {
+  state.editingServantId = null;
+  const modalTitle = document.getElementById('servantModalTitle');
+  const nameInput = document.getElementById('servantName');
+  const emailInput = document.getElementById('servantEmail');
+  const gradeSelect = document.getElementById('servantGrade');
+  const deleteBtn = document.getElementById('deleteServantBtn');
+
+  if (modalTitle) modalTitle.textContent = 'إضافة خادم';
+  if (nameInput) nameInput.value = '';
+  if (emailInput) emailInput.value = '';
+  if (gradeSelect) gradeSelect.value = state.currentServantGrade || '';
+  if (deleteBtn) deleteBtn.classList.add('hidden');
+
+  openModal('servantModal');
+}
+
+// Open edit servant modal
+function editServant(id) {
+  const s = state.servants.find(x => x.id === id);
+  if (!s) return;
+
+  state.editingServantId = id;
+  const modalTitle = document.getElementById('servantModalTitle');
+  const nameInput = document.getElementById('servantName');
+  const emailInput = document.getElementById('servantEmail');
+  const gradeSelect = document.getElementById('servantGrade');
+  const deleteBtn = document.getElementById('deleteServantBtn');
+
+  if (modalTitle) modalTitle.textContent = 'تعديل بيانات الخادم';
+  if (nameInput) nameInput.value = s.name || '';
+  if (emailInput) emailInput.value = s.email || '';
+  if (gradeSelect) gradeSelect.value = s.grade || '';
+  if (deleteBtn) deleteBtn.classList.remove('hidden');
+
+  openModal('servantModal');
+}
+
+// Save servant (add or edit)
+async function saveServant() {
+  const nameInput = document.getElementById('servantName');
+  const emailInput = document.getElementById('servantEmail');
+  const gradeSelect = document.getElementById('servantGrade');
+
+  const name = nameInput ? nameInput.value.trim() : '';
+  const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+  const grade = gradeSelect ? gradeSelect.value : '';
+
+  if (!name) { showToast('الرجاء إدخال اسم الخادم', 'error'); return; }
+  if (!email) { showToast('الرجاء إدخال البريد الإلكتروني', 'error'); return; }
+  if (!grade) { showToast('الرجاء اختيار الفصل', 'error'); return; }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) { showToast('البريد الإلكتروني غير صالح', 'error'); return; }
+
+  const isEditing = !!state.editingServantId;
+
+  // Check for duplicate email (same grade)
+  const existing = state.servants.find(s =>
+    s.email.toLowerCase().trim() === email &&
+    s.grade === grade &&
+    s.id !== state.editingServantId
+  );
+  if (existing) { showToast('هذا الخادم مسجل بالفعل لهذا الفصل', 'error'); return; }
+
+  // Check max 3 servants per grade (only when adding new)
+  if (!isEditing && isGradeServantsFull(grade)) {
+    showToast(`لا يمكن إضافة أكثر من 3 خدام لـ ${grade}`, 'error');
+    return;
+  }
+
+  const id = state.editingServantId || 'servant_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const servantData = {
+    id, name, email, grade,
+    createdAt: isEditing ? (state.servants.find(s => s.id === id)?.createdAt || Date.now()) : Date.now(),
+    updatedAt: Date.now(),
+    updatedBy: state.currentUser?.displayName || 'خادم',
+    updatedByEmail: state.currentUser?.email || ''
+  };
+
+  // Write to Firestore
+  if (firebaseReady) {
+    try {
+      await FB.setDoc(FB.doc(db, 'servants', id), servantData);
+    } catch (e) {
+      console.error('Save servant Firestore error:', e);
+      showToast('فشل الحفظ في السحابة', 'error');
+      return;
+    }
+  }
+
+  // Update local state
+  if (isEditing) {
+    state.servants = state.servants.map(s => s.id === id ? servantData : s);
+  } else {
+    state.servants = [...state.servants, servantData];
+  }
+
+  await logHistory(isEditing ? 'تعديل خادم' : 'إضافة خادم', `${name} - ${grade} - ${email}`);
+  closeModal('servantModal');
+  showToast(isEditing ? 'تم تعديل بيانات الخادم' : 'تمت إضافة الخادم', 'success');
+  state.editingServantId = null;
+  renderServantsPage();
+}
+
+// Delete servant
+async function deleteServant() {
+  if (!state.editingServantId) return;
+
+  const s = state.servants.find(x => x.id === state.editingServantId);
+  if (!s) return;
+
+  closeModal('servantModal');
+
+  showConfirm({
+    icon: '&#9888;', title: 'حذف خادم',
+    msg: `هل أنت متأكد من حذف "${esc(s.name || s.email)}" من ${esc(s.grade)}؟`,
+    okLabel: 'حذف',
+    okClass: 'confirm-delete',
+    onOk: async () => {
+      try {
+        if (firebaseReady) {
+          try { await FB.deleteDoc(FB.doc(db, 'servants', s.id)); }
+          catch (e) { console.error('Delete servant Firestore error:', e); }
+        }
+
+        state.servants = state.servants.filter(x => x.id !== s.id);
+        await logHistory('حذف خادم', `${s.name} - ${s.grade} - ${s.email}`);
+        showToast(`تم حذف ${s.name || s.email}`, 'success');
+        state.editingServantId = null;
+        renderServantsPage();
+      } catch (err) {
+        console.error('Delete servant error:', err);
+        showToast('حدث خطأ أثناء الحذف', 'error');
+      }
+    }
+  });
 }
 
 // ============================================================
@@ -4049,6 +4360,51 @@ if (DOM.cancelGirlModal) DOM.cancelGirlModal.addEventListener('click', () => clo
 if (DOM.closeAttendanceModal) DOM.closeAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
 if (DOM.cancelAttendanceModal) DOM.cancelAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
 
+// Servant Modal Event Listeners
+const servantModal = document.getElementById('servantModal');
+const closeServantModal = document.getElementById('closeServantModal');
+const cancelServantModal = document.getElementById('cancelServantModal');
+const saveServantBtn = document.getElementById('saveServantBtn');
+const deleteServantBtn = document.getElementById('deleteServantBtn');
+const addServantBtn = document.getElementById('addServantBtn');
+const servantsGradeFilters = document.getElementById('servantsGradeFilters');
+const servantsList = document.getElementById('servantsList');
+
+if (closeServantModal) closeServantModal.addEventListener('click', () => closeModal('servantModal'));
+if (cancelServantModal) cancelServantModal.addEventListener('click', () => closeModal('servantModal'));
+if (saveServantBtn) saveServantBtn.addEventListener('click', saveServant);
+if (deleteServantBtn) deleteServantBtn.addEventListener('click', deleteServant);
+if (addServantBtn) addServantBtn.addEventListener('click', openAddServantModal);
+
+// Servants grade filter
+if (servantsGradeFilters) {
+  servantsGradeFilters.addEventListener('click', e => {
+    const btn = e.target.closest('.grade-filter-btn');
+    if (!btn) return;
+    state.currentServantGrade = btn.dataset.grade;
+    renderServantsPage();
+  });
+}
+
+// Servants list click delegation
+if (servantsList) {
+  servantsList.addEventListener('click', e => {
+    const deleteBtn = e.target.closest('.servant-delete-btn');
+    if (deleteBtn) {
+      e.stopPropagation();
+      const servantId = deleteBtn.dataset.servantId;
+      if (servantId) {
+        editServant(servantId);
+      }
+      return;
+    }
+    const card = e.target.closest('.servant-card');
+    if (card && card.dataset.servantId) {
+      editServant(card.dataset.servantId);
+    }
+  });
+}
+
 document.querySelectorAll('.modal-overlay').forEach(overlay => overlay.addEventListener('click', e => {
   if (e.target === overlay) closeModal(overlay.id);
 }));
@@ -4270,6 +4626,7 @@ const PageRenderScheduler = {
         case 'stats': renderStats(); break;
         case 'history': renderHistory(false); break;
         case 'export': renderExport(); break;
+        case 'servants': renderServantsPage(); break;
       }
     });
   }

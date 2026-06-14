@@ -128,6 +128,7 @@
           <li><a href="#" data-page="stats" class="menu-item"><span>&#128202;</span> الإحصائيات</a></li>
           <li><a href="#" data-page="history" class="menu-item"><span>&#128220;</span> السجل التاريخي</a></li>
           <li><a href="#" data-page="export" class="menu-item"><span>&#128228;</span> التصدير</a></li>
+          <li><a href="#" data-page="servants" class="menu-item"><span>&#128104;&#8205;&#128104;&#8205;&#128103;&#8205;&#128103;</span> الخدام</a></li>
           <li class="drawer-divider"></li>
           <li><a href="#" id="signOutBtn" class="menu-item sign-out"><span>&#128682;</span> تسجيل الخروج</a></li>
         </ul>
@@ -230,16 +231,6 @@
             <button class="grade-filter-btn" data-grade="تانيه ب">تانيه ب <span class="count" id="attFilterCount2b">0</span></button>
             <button class="grade-filter-btn" data-grade="تالته أ">تالته أ <span class="count" id="attFilterCount3">0</span></button>
             <button class="grade-filter-btn" data-grade="تالته ب">تالته ب <span class="count" id="attFilterCount3b">0</span></button>
-          </div>
-
-          <!-- Servants Card -->
-          <div id="servantsCard" class="servants-card hidden">
-            <div class="servants-card-header">
-              <span class="servants-card-icon">&#128104;&#8205;&#128107;</span>
-              <span class="servants-card-label">خدام الفصل</span>
-              <button class="servants-card-edit" id="editServantsBtn" aria-label="تعديل الخدام">&#9999;</button>
-            </div>
-            <div class="servants-card-names" id="servantsCardNames">-</div>
           </div>
           <div class="activities-tabs">
             <button class="act-tab active" data-activity="قداس">&#9961; قداس</button>
@@ -353,6 +344,28 @@
           </div>
         </div>
 
+        <!-- SERVANTS PAGE -->
+        <div id="page-servants" class="page">
+          <div class="servants-header">
+            <p class="servants-intro">إدارة خدام الفصول — 3 خدام كحد أقصى لكل فصل</p>
+          </div>
+
+          <!-- Grade Filter -->
+          <div class="grade-filter-btns" id="servantsGradeFilters">
+            <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="servantsFilterCountAll">0</span></button>
+            <button class="grade-filter-btn" data-grade="أولى أ">أولى أ <span class="count" id="servantsFilterCount1">0</span></button>
+            <button class="grade-filter-btn" data-grade="أولى ب">أولى ب <span class="count" id="servantsFilterCount1b">0</span></button>
+            <button class="grade-filter-btn" data-grade="تانيه أ">تانيه أ <span class="count" id="servantsFilterCount2">0</span></button>
+            <button class="grade-filter-btn" data-grade="تانيه ب">تانيه ب <span class="count" id="servantsFilterCount2b">0</span></button>
+            <button class="grade-filter-btn" data-grade="تالته أ">تالته أ <span class="count" id="servantsFilterCount3">0</span></button>
+            <button class="grade-filter-btn" data-grade="تالته ب">تالته ب <span class="count" id="servantsFilterCount3b">0</span></button>
+          </div>
+
+          <div id="servantsList" class="servants-list"></div>
+
+          <button class="fab-save" id="addServantBtn">+ إضافة خادم</button>
+        </div>
+
         <!-- EXPORT PAGE -->
         <div id="page-export" class="page">
           <div class="export-card">
@@ -464,6 +477,44 @@
       </div>
     </div>
 
+    <!-- Modal: Add/Edit Servant -->
+    <div class="modal-overlay" id="servantModal" role="dialog" aria-modal="true" aria-labelledby="servantModalTitle">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="servantModalTitle">إضافة خادم</h3>
+          <button class="modal-close" id="closeServantModal" aria-label="إغلاق">&#10005;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="servantName">الاسم الكامل *</label>
+            <input type="text" id="servantName" class="form-input" placeholder="اسم الخادم" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="servantEmail">البريد الإلكتروني *</label>
+            <input type="email" id="servantEmail" class="form-input" placeholder="example@gmail.com" dir="ltr">
+          </div>
+          <div class="form-group">
+            <label for="servantGrade">الفصل *</label>
+            <select id="servantGrade" class="form-input">
+              <option value="">اختر الفصل</option>
+              <option value="أولى أ">أولى أ</option>
+              <option value="أولى ب">أولى ب</option>
+              <option value="تانيه أ">تانيه أ</option>
+              <option value="تانيه ب">تانيه ب</option>
+              <option value="تالته أ">تالته أ</option>
+              <option value="تالته ب">تالته ب</option>
+            </select>
+          </div>
+          <p class="servant-form-hint">&#128161; الخادم يستطيع إضافة وتعديل وحذف المخدومات فقط في الفصل المسجل له.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-danger hidden" id="deleteServantBtn">&#128465; حذف</button>
+          <button class="btn-cancel" id="cancelServantModal">&#10005; إلغاء</button>
+          <button class="btn-primary" id="saveServantBtn">&#128190; حفظ</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Confirm Modal -->
     <div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
       <div class="confirm-box">
@@ -523,30 +574,6 @@
         <div class="modal-footer">
           <button class="btn-cancel" id="cancelAttendanceModal">&#10005; إلغاء</button>
           <button class="btn-primary" id="saveAttendanceEntry">&#128190; حفظ</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal: Edit Servants -->
-    <div class="modal-overlay" id="servantsModal" role="dialog" aria-modal="true" aria-labelledby="servantsModalTitle">
-      <div class="modal">
-        <div class="modal-header">
-          <h3 id="servantsModalTitle">تعديل خدام الفصل</h3>
-          <button class="modal-close" id="closeServantsModal" aria-label="إغلاق">&#10005;</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label id="servantsGradeLabel">الفصل: -</label>
-          </div>
-          <div class="form-group">
-            <label for="servantsNamesInput">أسماء الخدام (افصل بين الاسم والتاني بعلامة +)</label>
-            <input type="text" id="servantsNamesInput" class="form-input" placeholder="مثال: مارينا + مريم + رفقة" autocomplete="off">
-            <small class="form-hint">اكتب أسماء الخدام مفصولة بعلامة (+) لو في أكتر من واحد</small>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-cancel" id="cancelServantsModal">&#10005; إلغاء</button>
-          <button class="btn-primary" id="saveServantsBtn">&#128190; حفظ</button>
         </div>
       </div>
     </div>

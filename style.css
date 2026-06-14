@@ -1234,6 +1234,144 @@ body {
 .history-meta { font-size: 12px; color: var(--text-muted); display: block; }
 
 /* ============================================================
+   SERVANTS PAGE
+   ============================================================ */
+.servants-header {
+  margin-bottom: 16px;
+  text-align: center;
+}
+.servants-intro {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.servants-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 80px;
+}
+.servant-grade-section {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.servant-grade-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--bg);
+}
+.servant-grade-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary);
+}
+.servant-grade-count {
+  background: var(--bg);
+  color: var(--text-muted);
+  border-radius: 10px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.servant-grade-count.full {
+  background: rgba(46, 204, 113, 0.15);
+  color: var(--green);
+}
+.servant-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.servant-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all var(--transition-fast) var(--easing-default);
+  min-height: var(--tap-target);
+  will-change: transform;
+}
+.servant-card:active {
+  transform: scale(0.98);
+  background: var(--border);
+}
+.servant-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.servant-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.servant-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+.servant-email {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.servant-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0;
+  transition: opacity var(--transition), color var(--transition);
+  min-width: 32px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+@media (hover: hover) {
+  .servant-card:hover .servant-delete-btn { opacity: 1; }
+  .servant-delete-btn:hover { opacity: 1; color: var(--red); }
+}
+.servant-delete-btn:active { opacity: 1; color: var(--red); }
+
+/* Servant form hint */
+.servant-form-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: rgba(26, 39, 68, 0.04);
+  border-radius: 8px;
+  line-height: 1.5;
+}
+
+/* Dark mode for servants */
+[data-theme="dark"] .servant-card { background: #131c30; }
+[data-theme="dark"] .servant-card:active { background: #1a2744; }
+[data-theme="dark"] .servant-form-hint { background: rgba(201, 214, 240, 0.05); }
+[data-theme="dark"] .servant-grade-count { background: #1a2744; }
+[data-theme="dark"] .servant-grade-count.full { background: rgba(61, 220, 132, 0.15); }
+
+/* ============================================================
    EXPORT PAGE
    ============================================================ */
 .export-card {
@@ -1363,83 +1501,6 @@ body {
   color: var(--red);
   font-weight: 600;
   margin-top: 2px;
-}
-
-/* ============================================================
-   SERVANTS CARD
-   ============================================================ */
-.servants-card {
-  background: linear-gradient(135deg, rgba(26,39,68,0.06) 0%, rgba(232,160,32,0.08) 100%);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  margin-bottom: 12px;
-  border-right: 4px solid var(--accent);
-  box-shadow: var(--shadow-sm);
-  transition: all var(--transition) var(--easing-default);
-  animation: servantsSlideIn 0.3s ease;
-}
-@keyframes servantsSlideIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.servants-card.hidden { display: none !important; }
-.servants-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.servants-card-icon { font-size: 18px; }
-.servants-card-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--primary);
-  flex: 1;
-}
-.servants-card-edit {
-  background: rgba(232,160,32,0.15);
-  border: none;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 14px;
-  cursor: pointer;
-  color: var(--primary);
-  transition: all var(--transition-fast);
-  min-width: 32px;
-  min-height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  touch-action: manipulation;
-}
-.servants-card-edit:active {
-  background: rgba(232,160,32,0.3);
-  transform: scale(0.95);
-}
-.servants-card-names {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text);
-  padding: 4px 26px 0 0;
-  line-height: 1.5;
-}
-
-/* Form hint */
-.form-hint {
-  display: block;
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 6px;
-  line-height: 1.4;
-}
-
-[data-theme="dark"] .servants-card {
-  background: linear-gradient(135deg, rgba(201,214,240,0.05) 0%, rgba(232,160,32,0.06) 100%);
-  border-right-color: var(--accent);
-}
-[data-theme="dark"] .servants-card-edit {
-  background: rgba(232,160,32,0.2);
-  color: var(--accent);
 }
 
 /* ============================================================
