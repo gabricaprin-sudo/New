@@ -1081,7 +1081,7 @@ let toastTimeout;
 function showToast(msg, type = 'info') {
   clearTimeout(toastTimeout);
   if (!DOM.toast) return;
-  DOM.toast.textContent = msg;
+  DOM.toast.textContent = msg || '';
   DOM.toast.className = `toast show ${type}`;
   // FIXED: Use 'toast-out' instead of 'hidden' to avoid conflict with utility .hidden { display: none !important }
   toastTimeout = setTimeout(() => { if (DOM.toast) DOM.toast.className = 'toast toast-out'; }, 3000);
@@ -1204,7 +1204,7 @@ function showApp(user) {
     card.classList.remove('animate-in');
     card.querySelectorAll('.animate-in').forEach(el => el.classList.remove('animate-in'));
   }
-  const initial = user && user.displayName ? user.displayName[0] : 'خ';
+  const initial = user?.displayName?.[0] || 'خ';
   if (DOM.userAvatar) DOM.userAvatar.textContent = initial;
   if (DOM.drawerAvatar) DOM.drawerAvatar.textContent = initial;
   if (DOM.drawerUserName) DOM.drawerUserName.textContent = (user && user.displayName) || 'الخادم';
@@ -1233,7 +1233,7 @@ function showLogin() {
       const card = document.getElementById('loginCard');
       if (card) {
         card.classList.add('animate-in');
-        card.querySelectorAll('.login-cross-icon, .login-church-name, .login-system-title, .login-divider, .login-welcome, .btn-google, .btn-guest, .login-hint').forEach(el => {
+        card.querySelectorAll('.login-cross-icon, .login-church-name, .login-system-title, .login-divider, .login-welcome, .btn-google').forEach(el => {
           el.classList.add('animate-in');
         });
       }
@@ -2256,9 +2256,10 @@ ${g.grade}
 // ATTENDANCE PAGE — FIXED: Removed dangerous auto-mark on render
 // ============================================================
 function getCurrentServiceDay() {
-  const dayOfWeek = new Date().getDay();
+  const d = parseDateStr(TimeContext.getDate());
+  if (isNaN(d.getTime())) return null;
   const dayMap = { 5: 'الجمعة' };
-  return dayMap[dayOfWeek] || null;
+  return dayMap[d.getDay()] || null;
 }
 
 function isServiceDayDate(dateStr) {
@@ -3282,6 +3283,11 @@ function renderStats() {
   // Activity stats
   renderActivityStats(state.statsTimeFilter, gradeFilter);
 
+  // FIXED: Update grade filter label
+  if (DOM.activityStatsGrade) {
+    DOM.activityStatsGrade.textContent = gradeFilter ? `· ${gradeFilter}` : '';
+  }
+
   // Big stats grid
   const bigStatsGrid = DOM.bigStatsGrid;
   if (bigStatsGrid) {
@@ -3557,11 +3563,22 @@ function renderServantsPage() {
     btn.classList.toggle('active', btn.dataset.grade === filter);
   });
 
-  // Update counts on filter buttons
+  // Update counts on filter buttons — FIXED: Use correct ID mapping
+  const servantCountIds = {
+    'أولى أ': 'servantsFilterCount1',
+    'أولى ب': 'servantsFilterCount1b',
+    'تانيه أ': 'servantsFilterCount2',
+    'تانيه ب': 'servantsFilterCount2b',
+    'تالته أ': 'servantsFilterCount3',
+    'تالته ب': 'servantsFilterCount3b'
+  };
   ALL_GRADES.forEach(grade => {
-    const countEl = document.getElementById(`servantsFilterCount${grade.replace(/\s/g, '')}`);
+    const countEl = document.getElementById(servantCountIds[grade]);
     if (countEl) countEl.textContent = getServantCountForGrade(grade);
   });
+  // FIXED: Also update the "All" count
+  const allCountEl = document.getElementById('servantsFilterCountAll');
+  if (allCountEl) allCountEl.textContent = state.servants.length;
 
   // Filter servants
   let servants = state.servants;

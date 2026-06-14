@@ -1955,16 +1955,20 @@ textarea.form-input { resize: none; }
 [data-theme="dark"] .export-btn.print { background: rgba(26,39,68,0.2); }
 [data-theme="dark"] .detail-girl-item:active { background: var(--surface); }
 
-/* Dark mode for attendance grade filter */
-[data-theme="dark"] #page-attendance .grade-filter-btn {
+/* Dark mode for grade filter buttons */
+[data-theme="dark"] .grade-filter-btn {
   background: var(--surface);
   border-color: var(--border);
   color: var(--text-muted);
 }
-[data-theme="dark"] #page-attendance .grade-filter-btn.active {
+[data-theme="dark"] .grade-filter-btn.active {
   background: var(--primary);
   color: white;
   border-color: var(--primary);
+}
+[data-theme="dark"] .grade-filter-btn.active .count {
+  background: rgba(255,255,255,0.25);
+  color: white;
 }
 
 /* Dark mode for export */
@@ -2102,9 +2106,7 @@ input[type="date"], input[type="month"] {
   .login-system-title,
   .login-divider,
   .login-welcome,
-  .btn-google,
-  .btn-guest,
-  .login-hint {
+  .btn-google {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
@@ -2112,7 +2114,6 @@ input[type="date"], input[type="month"] {
   .login-card { transform: translateY(0) !important; }
   .login-divider { transform: scaleX(1) !important; }
   .login-divider::after { animation: none !important; }
-  .gold-particle { display: none !important; }
   .login-bg { animation: none !important; }
 
   /* 2. Disable UI transitions on key animated elements only (NOT * selector) */
@@ -2186,6 +2187,8 @@ textarea:focus:not(:focus-visible) {
   font-weight: 600;
   text-align: center;
   animation: fadeSlideDown 0.3s ease-out;
+  position: relative;
+  z-index: 1;
 }
 [data-theme="dark"] #autoMarkIndicator {
   background: rgba(255,107,107,0.1);
