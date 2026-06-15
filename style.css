@@ -1927,6 +1927,123 @@ textarea.form-input { resize: none; }
 }
 
 /* ============================================================
+   EXPORT ATTENDANCE FILTER (NEW)
+   ============================================================ */
+.export-filter-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  text-align: right;
+}
+.export-filter-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.export-attendance-filter {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.export-filter-btn {
+  flex: 1;
+  min-width: 80px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  font-family: 'Tajawal', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition) var(--easing-default);
+  min-height: var(--tap-target);
+  touch-action: manipulation;
+}
+.export-filter-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(26, 39, 68, 0.3);
+  transform: scale(1.02);
+}
+.export-filter-btn:active {
+  transform: scale(0.97);
+}
+
+/* ============================================================
+   SETTINGS PAGE (NEW)
+   ============================================================ */
+.settings-card {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 28px 20px; text-align: center; box-shadow: var(--shadow);
+}
+.settings-icon { font-size: 48px; margin-bottom: 12px; }
+.settings-card h3 { font-size: 22px; font-weight: 800; color: var(--primary); margin-bottom: 20px; }
+.settings-section {
+  background: var(--bg);
+  border-radius: 14px;
+  padding: 20px 16px;
+  margin-bottom: 16px;
+  text-align: right;
+}
+.settings-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.settings-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.settings-btn {
+  display: flex; align-items: center; gap: 16px;
+  padding: 18px 20px; border-radius: 14px; border: none;
+  cursor: pointer; font-family: 'Tajawal', sans-serif;
+  text-align: right; width: 100%;
+  transition: all var(--transition-fast) var(--easing-default);
+  min-height: var(--tap-target);
+  touch-action: manipulation;
+  margin-bottom: 8px;
+}
+.settings-btn:last-child { margin-bottom: 0; }
+.settings-btn:active { transform: scale(0.97); }
+.settings-btn span { font-size: 28px; }
+.settings-btn div b { font-size: 17px; display: block; }
+.settings-btn div small { font-size: 13px; opacity: 0.8; }
+.settings-btn.import { background: rgba(52, 152, 219, 0.1); color: #1a5280; }
+.settings-btn.export { background: rgba(46, 204, 113, 0.1); color: #1a6b3c; }
+.settings-btn.danger { background: rgba(231, 76, 60, 0.1); color: #c0392b; }
+
+/* Dark mode for settings */
+[data-theme="dark"] .settings-card { background: var(--surface); color: var(--text); }
+[data-theme="dark"] .settings-section { background: #0f1525; }
+[data-theme="dark"] .settings-btn.import { background: rgba(52, 152, 219, 0.15); }
+[data-theme="dark"] .settings-btn.export { background: rgba(46, 204, 113, 0.15); }
+[data-theme="dark"] .settings-btn.danger { background: rgba(231, 76, 60, 0.15); }
+[data-theme="dark"] .export-filter-wrap { background: #0f1525; }
+[data-theme="dark"] .export-filter-btn {
+  background: #1e293b;
+  border-color: #2a3650;
+  color: var(--text-muted);
+}
+[data-theme="dark"] .export-filter-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+/* ============================================================
    DARK MODE FOR COMPONENTS
    ============================================================ */
 

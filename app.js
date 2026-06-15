@@ -263,6 +263,7 @@ function _buildDOMCache() {
     'darkModeToggle', 'darkToggleSwitch',
     'shareProfileBtn', 'editProfileBtn',
     'statsGradeFilter', 'activityStatsGrade', 'exportGradeFilter',
+    'exportAttendanceFilter',
     'servantsList', 'servantsGradeFilters', 'addServantBtn',
     'servantModal', 'servantModalTitle', 'servantName', 'servantEmail',
     'servantGrade', 'saveServantBtn', 'cancelServantModal',
@@ -325,6 +326,8 @@ const state = {
   lastAbsenceCacheMonth: null,
   // NEW: Export grade filter state
   exportGradeFilter: '',
+  // NEW: Export attendance filter state (all/present/absent)
+  exportAttendanceFilter: 'all',
   // NEW: Track which service days have been auto-marked as absent (to prevent duplicates)
   autoMarkedDates: new Set(JSON.parse(localStorage.getItem('autoMarkedDates') || '[]')),
   // NEW: Servants management
@@ -1703,6 +1706,7 @@ function renderPage() {
     case 'stats': renderStats(); break;
     case 'history': renderHistory(false); break;
     case 'export': renderExport(); break;
+    case 'settings': renderSettings(); break;
     case 'servants': renderServantsPage(); break;
   }
 }
@@ -1718,6 +1722,7 @@ const PAGE_TITLES = {
   stats: ['الإحصائيات', 'تحليلات وتقارير'],
   history: ['السجل التاريخي', 'سجل التعديلات'],
   export: ['التصدير', 'تصدير البيانات'],
+  settings: ['الإعدادات', 'استيراد وتصدير البيانات'],
   servants: ['الخدام', 'إدارة خدام الفصول']
 };
 
@@ -4145,6 +4150,19 @@ if (DOM.exportGradeFilter) {
   });
 }
 
+// NEW: Attendance filter for export page (all/present/absent)
+if (DOM.exportAttendanceFilter) {
+  DOM.exportAttendanceFilter.addEventListener('click', e => {
+    const btn = e.target.closest('.export-filter-btn');
+    if (!btn) return;
+    state.exportAttendanceFilter = btn.dataset.filter;
+    // Update active state visually
+    document.querySelectorAll('#exportAttendanceFilter .export-filter-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.filter === state.exportAttendanceFilter);
+    });
+  });
+}
+
 // ============================================================
 // HELPER: Sort girls by grade order (تالته → تانية → أولى)
 // ============================================================
@@ -4172,7 +4190,214 @@ function getExportGirls() {
 }
 
 // ============================================================
+// SETTINGS PAGE — NEW: Import/Export data
+// ============================================================
+function renderSettings() {
+  // Settings page is static, no dynamic rendering needed
+}
+
+// Import JSON data
+document.addEventListener('click', (e) => {
+  const importBtn = e.target.closest('#importJSONBtn');
+  if (importBtn) {
+    const fileInput = document.getElementById('importFileInput');
+    if (fileInput) fileInput.click();
+  }
+});
+
+document.addEventListener('change', (e) => {
+  const fileInput = e.target.closest('#importFileInput');
+  if (fileInput && fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const importedData = JSON.parse(event.target.result);
+        importBackupData(importedData);
+      } catch (err) {
+        showToast('ملف JSON غير صالح: ' + err.message, 'error');
+      }
+      // Reset file input
+      fileInput.value = '';
+    };
+    reader.readAsText(file);
+  }
+});
+
+async function importBackupData(data) {
+  if (!data || typeof data !== 'object') {
+    showToast('بيانات غير صالحة', 'error');
+    return;
+  }
+
+  showConfirm({
+    icon: '&#9888;',
+    title: 'تأكيد الاستيراد',
+    msg: 'سيتم دمج البيانات المستوردة مع البيانات الحالية. هل أنت متأكد؟',
+    okLabel: 'استيراد',
+    onOk: async () => {
+      try {
+        let importCount = 0;
+
+        // Import girls
+        if (Array.isArray(data.girls)) {
+          const existingIds = new Set(state.girls.map(g => g.id));
+          const newGirls = [];
+          for (const girl of data.girls) {
+            if (girl && girl.id && !existingIds.has(girl.id)) {
+              newGirls.push(girl);
+              existingIds.add(girl.id);
+              importCount++;
+            }
+          }
+          if (newGirls.length > 0) {
+            setStateGirls([...state.girls, ...newGirls]);
+          }
+        }
+
+        // Import attendance
+        if (data.attendance && typeof data.attendance === 'object') {
+          const newAttData = { ...state.attendanceData };
+          let attCount = 0;
+          for (const [key, record] of Object.entries(data.attendance)) {
+            if (record && !newAttData[key]) {
+              newAttData[key] = record;
+              attCount++;
+            }
+          }
+          if (attCount > 0) {
+            setStateAttendanceData(newAttData);
+            importCount += attCount;
+          }
+        }
+
+        // Import servants
+        if (Array.isArray(data.servants)) {
+          const existingServantIds = new Set(state.servants.map(s => s.id));
+          const newServants = [];
+          for (const servant of data.servants) {
+            if (servant && servant.id && !existingServantIds.has(servant.id)) {
+              newServants.push(servant);
+              existingServantIds.add(servant.id);
+            }
+          }
+          if (newServants.length > 0) {
+            state.servants = [...state.servants, ...newServants];
+            state.servantsLoaded = true;
+          }
+        }
+
+        // Save to localStorage in guest mode
+        if (state.isGuestMode) saveLocalData();
+
+        // Sync to Firebase if available
+        if (firebaseReady) {
+          try {
+            // Batch write new girls
+            if (Array.isArray(data.girls)) {
+              for (const girl of data.girls) {
+                if (girl && girl.id) {
+                  await FB.setDoc(FB.doc(db, 'girls', girl.id), girl);
+                }
+              }
+            }
+            // Batch write attendance
+            if (data.attendance && typeof data.attendance === 'object') {
+              for (const [key, record] of Object.entries(data.attendance)) {
+                if (record) {
+                  await FB.setDoc(FB.doc(db, 'attendance', key), record);
+                }
+              }
+            }
+            // Batch write servants
+            if (Array.isArray(data.servants)) {
+              for (const servant of data.servants) {
+                if (servant && servant.id) {
+                  await FB.setDoc(FB.doc(db, 'servants', servant.id), servant);
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Firebase sync after import error:', e);
+          }
+        }
+
+        await logHistory('استيراد بيانات', `تم استيراد ${importCount} سجل`);
+        showToast(`تم استيراد ${importCount} سجل بنجاح`, 'success');
+        renderPage();
+      } catch (err) {
+        console.error('Import error:', err);
+        showToast('حدث خطأ أثناء الاستيراد: ' + err.message, 'error');
+      }
+    }
+  });
+}
+
+// Export full backup
+document.addEventListener('click', (e) => {
+  const exportBtn = e.target.closest('#exportBackupBtn');
+  if (exportBtn) {
+    const payload = {
+      girls: state.girls.filter(g => !g.isDeleted),
+      attendance: state.attendanceData,
+      servants: state.servants,
+      exportedAt: new Date().toISOString(),
+      appVersion: '3.1'
+    };
+    const dateStr = DateUtil.toStr();
+    downloadFile(`نسخة_احتياطية_${dateStr}.json`, JSON.stringify(payload, null, 2), 'application/json');
+    showToast('تم تصدير النسخة الاحتياطية', 'success');
+    logHistory('تصدير نسخة احتياطية', `تم تصدير ${payload.girls.length} مخدومة و ${Object.keys(payload.attendance).length} سجل حضور`);
+  }
+});
+
+// Clear all data
+document.addEventListener('click', (e) => {
+  const clearBtn = e.target.closest('#clearAllDataBtn');
+  if (clearBtn) {
+    showConfirm({
+      icon: '&#128465;',
+      title: 'مسح جميع البيانات',
+      msg: 'تحذير! سيتم حذف جميع البيانات المحلية بشكل نهائي. هذا الإجراء لا يمكن التراجع عنه. هل أنت متأكد؟',
+      okLabel: 'نعم، امسح الكل',
+      okClass: 'confirm-delete',
+      onOk: async () => {
+        // Clear all local data
+        state.girls = [];
+        state.attendanceData = {};
+        state.servants = [];
+        state.historyAllLogs = [];
+        Cache.invalidate();
+
+        // Clear localStorage
+        localStorage.removeItem(LOCAL_STORAGE_KEYS.girls);
+        localStorage.removeItem(LOCAL_STORAGE_KEYS.attendance);
+        localStorage.removeItem(LOCAL_STORAGE_KEYS.servants);
+        localStorage.removeItem(LOCAL_STORAGE_KEYS.user);
+        localStorage.removeItem('autoMarkedDates');
+
+        // Clear IndexedDB
+        if (state.idb) {
+          try {
+            await IDB.clear('history');
+            await IDB.clear('backups');
+            await IDB.clear('pendingSync');
+            await IDB.clear('servants');
+          } catch (e) {
+            console.warn('IDB clear error:', e);
+          }
+        }
+
+        showToast('تم مسح جميع البيانات المحلية', 'success');
+        renderPage();
+      }
+    });
+  }
+});
+
+// ============================================================
 // Excel export — NEW: Grade-based export with organized sheets
+// + Attendance filter + Phone number + Fixed absence counting
 // ============================================================
 if (DOM.exportCSV) {
   DOM.exportCSV.addEventListener('click', () => {
@@ -4181,6 +4406,7 @@ if (DOM.exportCSV) {
     const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || 'day';
     const exportDate = DOM.exportMonth.value || TimeContext.getDate();
     const exportGradeFilter = state.exportGradeFilter;
+    const exportAttFilter = state.exportAttendanceFilter; // 'all' | 'present' | 'absent'
 
     let exportStart, exportEnd, reportTitle;
 
@@ -4197,39 +4423,87 @@ if (DOM.exportCSV) {
       reportTitle = 'تقرير حضور يوم ' + exportDate + ' (' + dayName + ')';
     }
 
-    const activeGirlIds = new Set(getExportGirls().map(g => g.id));
+    const exportGirls = getExportGirls();
+    const activeGirlIds = new Set(exportGirls.map(g => g.id));
     const allAttendance = Cache.getAllAttendance();
-    const exportAtt = allAttendance.filter(a =>
+    let exportAtt = allAttendance.filter(a =>
       isDateInRange(a.date, exportStart, exportEnd) && activeGirlIds.has(a.girlId)
     );
+
+    // Apply attendance filter
+    if (exportAttFilter === 'present') {
+      exportAtt = exportAtt.filter(a => a.status === 'حاضر');
+      // For day mode, filter girls to only those with at least one present record
+      if (exportMode === 'day') {
+        const presentGirlIds = new Set(exportAtt.filter(a => a.status === 'حاضر').map(a => a.girlId));
+        exportGirls = exportGirls.filter(g => presentGirlIds.has(g.id));
+      }
+    } else if (exportAttFilter === 'absent') {
+      exportAtt = exportAtt.filter(a => a.status === 'غائب');
+    }
+
+    // Helper: count absences per girl per day (not per activity)
+    // A girl who didn't come at all = 1 absence (not 4)
+    function countAbsencesPerGirlPerDay(attendanceRecords) {
+      const absenceByGirlDate = new Set();
+      attendanceRecords.forEach(a => {
+        if (a.status === 'غائب') {
+          absenceByGirlDate.add(`${a.girlId}_${a.date}`);
+        }
+      });
+      return absenceByGirlDate.size;
+    }
+
+    // Helper: check if girl was present on a specific date (has any 'حاضر' record)
+    function wasGirlPresentOnDate(girlId, date, activities) {
+      for (const act of activities) {
+        const key = makeAttKey(girlId, date, act);
+        const rec = state.attendanceData[key];
+        if (rec && rec.status === 'حاضر') return true;
+      }
+      return false;
+    }
+
+    // Helper: check if girl was absent on a specific date (no 'حاضر' records at all)
+    function wasGirlAbsentOnDate(girlId, date, activities) {
+      let hasAnyRecord = false;
+      for (const act of activities) {
+        const key = makeAttKey(girlId, date, act);
+        const rec = state.attendanceData[key];
+        if (rec) {
+          hasAnyRecord = true;
+          if (rec.status === 'حاضر') return false;
+        }
+      }
+      // Only count as absent if there are records AND all are absent
+      // Or if auto-marked (has absence records)
+      return hasAnyRecord;
+    }
 
     const wb = XLSX.utils.book_new();
 
     if (exportMode === 'month') {
       const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
-
-      // NEW: If grade filter is set, add grade to title
       const gradeSuffix = exportGradeFilter ? ` — ${exportGradeFilter}` : '';
+      const filterSuffix = exportAttFilter === 'present' ? ' (حاضر فقط)' : exportAttFilter === 'absent' ? ' (غائب فقط)' : '';
 
       // ===== Sheet 1: Summary organized by grade =====
       const wsData = [];
-      wsData.push(['تقرير حضور شهر ' + monthName + gradeSuffix]);
+      wsData.push(['تقرير حضور شهر ' + monthName + gradeSuffix + filterSuffix]);
       wsData.push([]);
-      wsData.push(['عدد المخدومات', activeGirlIds.size]);
+      wsData.push(['عدد المخدومات', exportGirls.length]);
       if (exportGradeFilter) {
-        wsData.push(['السنة المحددة', exportGradeFilter]);
+        wsData.push(['الفصل المحدد', exportGradeFilter]);
       }
       wsData.push([]);
 
-      // NEW: Organize by grade sections (تالته → تانية → أولى)
-      const exportGirls = getExportGirls();
+      // Organize by grade sections (تالته → تانية → أولى)
       const girlsByGrade = {};
       exportGirls.forEach(g => {
         if (!girlsByGrade[g.grade]) girlsByGrade[g.grade] = [];
         girlsByGrade[g.grade].push(g);
       });
 
-      // Sort grades: تالته first, then تانية, then أولى
       const sortedGrades = Object.keys(girlsByGrade).sort((a, b) => {
         return (GRADE_ORDER[a] || 99) - (GRADE_ORDER[b] || 99);
       });
@@ -4240,10 +4514,10 @@ if (DOM.exportCSV) {
         if (!girlAttData[a.girlId]) {
           const g = Cache.getGirl(a.girlId);
           girlAttData[a.girlId] = {
-            name: g?.name || '', grade: g?.grade || '',
+            name: g?.name || '', grade: g?.grade || '', phone: g?.phone || '',
             'قداس': { present: 0, absent: 0 }, 'تناول': { present: 0, absent: 0 },
             'خدمة': { present: 0, absent: 0 }, 'اعتراف': { present: 0, absent: 0 }, 'سبب الغياب': { present: 0, absent: 0 },
-            totalPresent: 0, totalAbsent: 0
+            totalPresent: 0, totalAbsentDays: 0
           };
         }
         if (a.status === 'حاضر') {
@@ -4251,38 +4525,56 @@ if (DOM.exportCSV) {
           girlAttData[a.girlId].totalPresent++;
         } else {
           girlAttData[a.girlId][a.activity].absent++;
-          girlAttData[a.girlId].totalAbsent++;
+        }
+      });
+
+      // Count absences per girl per day (not per activity)
+      // Get all attendance records for each girl (including absent ones not in exportAtt if filtered)
+      const allGirlAtt = allAttendance.filter(a =>
+        isDateInRange(a.date, exportStart, exportEnd) && activeGirlIds.has(a.girlId)
+      );
+      const absenceByGirlDate = {};
+      allGirlAtt.forEach(a => {
+        if (!absenceByGirlDate[a.girlId]) absenceByGirlDate[a.girlId] = new Set();
+        if (a.status === 'غائب') {
+          absenceByGirlDate[a.girlId].add(a.date);
+        }
+      });
+      Object.keys(absenceByGirlDate).forEach(girlId => {
+        if (girlAttData[girlId]) {
+          girlAttData[girlId].totalAbsentDays = absenceByGirlDate[girlId].size;
         }
       });
 
       // Write data organized by grade
       sortedGrades.forEach(grade => {
         wsData.push([`═══ ${grade} ═══`]);
-        wsData.push(['الاسم', 'قداس', 'تناول', 'خدمة', 'اعتراف', 'سبب الغياب', 'إجمالي الحضور', 'إجمالي الغياب']);
+        wsData.push(['الاسم', 'رقم التليفون', 'قداس', 'تناول', 'خدمة', 'اعتراف', 'سبب الغياب', 'إجمالي الحضور', 'إجمالي الغياب (أيام)']);
 
         const gradeGirls = girlsByGrade[grade];
         gradeGirls.forEach(g => {
           const r = girlAttData[g.id] || {
             'قداس': { present: 0, absent: 0 }, 'تناول': { present: 0, absent: 0 },
             'خدمة': { present: 0, absent: 0 }, 'اعتراف': { present: 0, absent: 0 }, 'سبب الغياب': { present: 0, absent: 0 },
-            totalPresent: 0, totalAbsent: 0
+            totalPresent: 0, totalAbsentDays: 0, phone: g.phone || ''
           };
           wsData.push([
             g.name,
+            r.phone || '',
             r['قداس'].present,
             r['تناول'].present,
             r['خدمة'].present,
             r['اعتراف'].present,
             r['سبب الغياب'].present,
             r.totalPresent,
-            r.totalAbsent
+            r.totalAbsentDays
           ]);
         });
         wsData.push([]); // Empty row between grades
       });
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
-      ws['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 14 }];
+      ws['!cols'] = [{ wch: 28 }, { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 18 }];
       ws['!dir'] = 'rtl';
       XLSX.utils.book_append_sheet(wb, ws, 'ملخص الشهر');
 
@@ -4291,7 +4583,6 @@ if (DOM.exportCSV) {
         if (a.date !== b.date) return a.date.localeCompare(b.date);
         const gA = Cache.getGirl(a.girlId);
         const gB = Cache.getGirl(b.girlId);
-        // Sort by grade order then name
         const gradeOrderA = GRADE_ORDER[gA?.grade] || 99;
         const gradeOrderB = GRADE_ORDER[gB?.grade] || 99;
         if (gradeOrderA !== gradeOrderB) return gradeOrderA - gradeOrderB;
@@ -4299,37 +4590,44 @@ if (DOM.exportCSV) {
       });
 
       const detailData = [];
-      detailData.push(['تقرير تفصيلي — ' + monthName + gradeSuffix]);
+      detailData.push(['تقرير تفصيلي — ' + monthName + gradeSuffix + filterSuffix]);
       detailData.push([]);
-      detailData.push(['التاريخ', 'اليوم', 'المخدومة', 'الفصل', 'البند', 'الحالة', 'التقييم', 'ملاحظات']);
+      detailData.push(['التاريخ', 'اليوم', 'المخدومة', 'الفصل', 'رقم التليفون', 'البند', 'الحالة', 'التقييم', 'ملاحظات']);
 
       exportAtt.forEach(a => {
         const g = Cache.getGirl(a.girlId);
         const dayName = DAY_NAMES[parseDateStr(a.date).getDay()] || '';
         const stars = a.rating ? '\u2605'.repeat(a.rating) + '\u2606'.repeat(5 - a.rating) : '';
-        detailData.push([a.date, dayName, g?.name || '', g?.grade || '', a.activity || '', a.status === 'حاضر' ? '\u2713' : '\u2717', stars, a.notes || '']);
+        detailData.push([a.date, dayName, g?.name || '', g?.grade || '', g?.phone || '', a.activity || '', a.status === 'حاضر' ? '\u2713' : '\u2717', stars, a.notes || '']);
       });
 
       const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
-      wsDetail['!cols'] = [{ wch: 14 }, { wch: 10 }, { wch: 24 }, { wch: 14 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 24 }];
+      wsDetail['!cols'] = [{ wch: 14 }, { wch: 10 }, { wch: 24 }, { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 24 }];
       wsDetail['!dir'] = 'rtl';
       XLSX.utils.book_append_sheet(wb, wsDetail, 'تفاصيل يومية');
 
     } else {
       // ===== Day export: organized by grade (تالته → تانية → أولى) =====
       const gradeSuffix = exportGradeFilter ? ` — ${exportGradeFilter}` : '';
+      const filterSuffix = exportAttFilter === 'present' ? ' (حاضر فقط)' : exportAttFilter === 'absent' ? ' (غائب فقط)' : '';
       const wsData = [];
-      wsData.push([reportTitle + gradeSuffix]);
+      wsData.push([reportTitle + gradeSuffix + filterSuffix]);
       if (exportGradeFilter) {
-        wsData.push(['السنة المحددة:', exportGradeFilter]);
+        wsData.push(['الفصل المحدد:', exportGradeFilter]);
       }
       wsData.push([]);
-      wsData.push(['الاسم', 'الفصل', 'قداس', 'تناول', 'خدمة', 'اعتراف', 'سبب الغياب']);
+      wsData.push(['الاسم', 'الفصل', 'رقم التليفون', 'قداس', 'تناول', 'خدمة', 'اعتراف', 'سبب الغياب']);
 
-      // NEW: Get sorted girls (تالته → تانية → أولى)
-      const exportGirls = getExportGirls();
-      exportGirls.forEach(g => {
-        const row = [g.name, g.grade];
+      // Filter girls based on attendance filter
+      let filteredGirls = exportGirls;
+      if (exportAttFilter === 'present') {
+        filteredGirls = exportGirls.filter(g => wasGirlPresentOnDate(g.id, exportDate, ACTIVITIES));
+      } else if (exportAttFilter === 'absent') {
+        filteredGirls = exportGirls.filter(g => wasGirlAbsentOnDate(g.id, exportDate, ACTIVITIES));
+      }
+
+      filteredGirls.forEach(g => {
+        const row = [g.name, g.grade, g.phone || ''];
         ACTIVITIES.forEach(act => {
           const key = makeAttKey(g.id, exportDate, act);
           const rec = state.attendanceData[key];
@@ -4342,13 +4640,21 @@ if (DOM.exportCSV) {
         wsData.push(row);
       });
 
+      // Count absences per girl per day (not per activity)
       const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
-      const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
+      const totalAbsentDays = countAbsencesPerGirlPerDay(exportAtt);
+      // Count unique absent girls for the day
+      const absentGirlDates = new Set();
+      exportAtt.forEach(a => {
+        if (a.status === 'غائب') absentGirlDates.add(`${a.girlId}_${a.date}`);
+      });
+      const totalAbsentGirls = absentGirlDates.size;
+
       wsData.push([]);
-      wsData.push(['', '', 'حاضر: ' + totalPresent, '', 'غائب: ' + totalAbsent, '']);
+      wsData.push(['', '', '', 'حاضر: ' + totalPresent, '', 'غائب: ' + totalAbsentGirls + ' مخدومة', '']);
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
-      ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
+      ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
       ws['!dir'] = 'rtl';
       XLSX.utils.book_append_sheet(wb, ws, 'يوم ' + exportDate);
     }
@@ -4359,7 +4665,8 @@ if (DOM.exportCSV) {
     const a = document.createElement('a');
     a.href = url;
     const gradeFileSuffix = exportGradeFilter ? '_' + exportGradeFilter.replace(/\s/g, '_') : '_الكل';
-    a.download = `حضور_${exportDate}${exportMode === 'month' ? '_شهر' : '_يوم'}${gradeFileSuffix}.xlsx`;
+    const filterFileSuffix = exportAttFilter !== 'all' ? '_' + exportAttFilter : '';
+    a.download = `حضور_${exportDate}${exportMode === 'month' ? '_شهر' : '_يوم'}${gradeFileSuffix}${filterFileSuffix}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -4397,12 +4704,15 @@ if (DOM.exportJSON) {
 
 // ============================================================
 // Print/PDF export — NEW: Grade-based with organized layout
+// + Attendance filter + Phone number + Fixed absence counting
 // FIXED: Popup blocker workaround with download fallback
 // ============================================================
 if (DOM.exportPrint) {
   DOM.exportPrint.addEventListener('click', () => {
     const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || 'day';
     const exportDate = DOM.exportMonth.value || TimeContext.getDate();
+    const exportGradeFilter = state.exportGradeFilter;
+    const exportAttFilter = state.exportAttendanceFilter;
 
     let exportStart, exportEnd;
     if (exportMode === 'month') {
@@ -4415,31 +4725,67 @@ if (DOM.exportPrint) {
       exportEnd = exportDate;
     }
 
-    const exportGirls = getExportGirls();
+    let exportGirls = getExportGirls();
     const activeGirlIds = new Set(exportGirls.map(g => g.id));
     const allAttendance = Cache.getAllAttendance();
-    const exportAtt = allAttendance.filter(a =>
+    let exportAtt = allAttendance.filter(a =>
       isDateInRange(a.date, exportStart, exportEnd) && activeGirlIds.has(a.girlId)
     );
 
+    // Apply attendance filter
+    if (exportAttFilter === 'present') {
+      exportAtt = exportAtt.filter(a => a.status === 'حاضر');
+    } else if (exportAttFilter === 'absent') {
+      exportAtt = exportAtt.filter(a => a.status === 'غائب');
+    }
+
+    // Helper: check if girl was present on a specific date
+    function wasGirlPresentOnDatePrint(girlId, date, activities) {
+      for (const act of activities) {
+        const key = makeAttKey(girlId, date, act);
+        const rec = state.attendanceData[key];
+        if (rec && rec.status === 'حاضر') return true;
+      }
+      return false;
+    }
+
+    // Helper: check if girl was absent on a specific date
+    function wasGirlAbsentOnDatePrint(girlId, date, activities) {
+      let hasAnyRecord = false;
+      for (const act of activities) {
+        const key = makeAttKey(girlId, date, act);
+        const rec = state.attendanceData[key];
+        if (rec) {
+          hasAnyRecord = true;
+          if (rec.status === 'حاضر') return false;
+        }
+      }
+      return hasAnyRecord;
+    }
+
+    // Count absences per girl per day (not per activity)
+    const absenceByGirlDate = new Set();
+    exportAtt.forEach(a => {
+      if (a.status === 'غائب') absenceByGirlDate.add(`${a.girlId}_${a.date}`);
+    });
+    const totalAbsentGirls = absenceByGirlDate.size;
+
     const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
-    const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
-    const exportGradeFilter = state.exportGradeFilter;
     const gradeLabel = exportGradeFilter ? ` — ${exportGradeFilter}` : '';
+    const filterLabel = exportAttFilter === 'present' ? ' (حاضر فقط)' : exportAttFilter === 'absent' ? ' (غائب فقط)' : '';
 
     let html;
 
     if (exportMode === 'month') {
       const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
 
-      // NEW: Organize by grade sections
+      // Organize by grade sections
       const girlsByGrade = {};
       exportGirls.forEach(g => {
         if (!girlsByGrade[g.grade]) girlsByGrade[g.grade] = [];
         girlsByGrade[g.grade].push(g);
       });
 
-      // Sort grades: تالته first, then تانية, then أولى
       const sortedGrades = Object.keys(girlsByGrade).sort((a, b) => {
         return (GRADE_ORDER[a] || 99) - (GRADE_ORDER[b] || 99);
       });
@@ -4449,10 +4795,10 @@ if (DOM.exportPrint) {
         if (!girlAttData[a.girlId]) {
           const g = Cache.getGirl(a.girlId);
           girlAttData[a.girlId] = {
-            name: g?.name || '', grade: g?.grade || '',
+            name: g?.name || '', grade: g?.grade || '', phone: g?.phone || '',
             'قداس': { present: 0, absent: 0 }, 'تناول': { present: 0, absent: 0 },
             'خدمة': { present: 0, absent: 0 }, 'اعتراف': { present: 0, absent: 0 }, 'سبب الغياب': { present: 0, absent: 0 },
-            totalPresent: 0, totalAbsent: 0
+            totalPresent: 0, totalAbsentDays: 0
           };
         }
         if (a.status === 'حاضر') {
@@ -4460,7 +4806,21 @@ if (DOM.exportPrint) {
           girlAttData[a.girlId].totalPresent++;
         } else {
           girlAttData[a.girlId][a.activity].absent++;
-          girlAttData[a.girlId].totalAbsent++;
+        }
+      });
+
+      // Count absences per girl per day
+      const allGirlAtt = allAttendance.filter(a =>
+        isDateInRange(a.date, exportStart, exportEnd) && activeGirlIds.has(a.girlId)
+      );
+      const allAbsenceByGirlDate = {};
+      allGirlAtt.forEach(a => {
+        if (!allAbsenceByGirlDate[a.girlId]) allAbsenceByGirlDate[a.girlId] = new Set();
+        if (a.status === 'غائب') allAbsenceByGirlDate[a.girlId].add(a.date);
+      });
+      Object.keys(allAbsenceByGirlDate).forEach(girlId => {
+        if (girlAttData[girlId]) {
+          girlAttData[girlId].totalAbsentDays = allAbsenceByGirlDate[girlId].size;
         }
       });
 
@@ -4472,18 +4832,19 @@ if (DOM.exportPrint) {
           const r = girlAttData[g.id] || {
             'قداس': { present: 0, absent: 0 }, 'تناول': { present: 0, absent: 0 },
             'خدمة': { present: 0, absent: 0 }, 'اعتراف': { present: 0, absent: 0 }, 'سبب الغياب': { present: 0, absent: 0 },
-            totalPresent: 0, totalAbsent: 0
+            totalPresent: 0, totalAbsentDays: 0, phone: g.phone || ''
           };
           return `<tr>
             <td>${i + 1}</td>
             <td>${esc(g.name)}</td>
+            <td>${esc(r.phone || '—')}</td>
             <td>${r['قداس'].present}</td>
             <td>${r['تناول'].present}</td>
             <td>${r['خدمة'].present}</td>
             <td>${r['اعتراف'].present}</td>
             <td>${r['سبب الغياب'].present}</td>
             <td style="color:green;font-weight:700">${r.totalPresent}</td>
-            <td style="color:red;font-weight:700">${r.totalAbsent}</td>
+            <td style="color:red;font-weight:700">${r.totalAbsentDays}</td>
           </tr>`;
         }).join('');
 
@@ -4492,7 +4853,7 @@ if (DOM.exportPrint) {
             ${esc(grade)} — ${gradeGirls.length} مخدومة
           </h2>
           <table>
-            <tr><th>#</th><th>الاسم</th><th>قداس</th><th>تناول</th><th>خدمة</th><th>اعتراف</th><th>سبب الغياب</th><th>إجمالي الحضور</th><th>إجمالي الغياب</th></tr>
+            <tr><th>#</th><th>الاسم</th><th>رقم التليفون</th><th>قداس</th><th>تناول</th><th>خدمة</th><th>اعتراف</th><th>سبب الغياب</th><th>إجمالي الحضور</th><th>إجمالي الغياب (أيام)</th></tr>
             ${gradeRows}
           </table>
         `;
@@ -4513,12 +4874,12 @@ if (DOM.exportPrint) {
         .footer{margin-top:20px;font-size:12px;color:#6b7a99;border-top:1px solid #e2e8f0;padding-top:10px}
         @media print{body{padding:10px} h2{page-break-before:always}}
         </style></head><body>
-        <h1>تقرير حضور شهر ${monthName}${gradeLabel}</h1>
+        <h1>تقرير حضور شهر ${monthName}${gradeLabel}${filterLabel}</h1>
         <p style="color:#6b7a99;font-size:14px">الفترة: من ${exportStart} إلى ${exportEnd}</p>
         <div class="summary">
           <div class="sum-box"><b>${exportGirls.length}</b><br><span>عدد المخدومات</span></div>
           <div class="sum-box"><b>${totalPresent}</b><br><span>إجمالي الحضور</span></div>
-          <div class="sum-box"><b>${totalAbsent}</b><br><span>إجمالي الغياب</span></div>
+          <div class="sum-box"><b>${totalAbsentGirls}</b><br><span>إجمالي الغياب (أيام)</span></div>
         </div>
         ${gradeSectionsHtml}
         <div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div>
@@ -4528,9 +4889,17 @@ if (DOM.exportPrint) {
       // Day export organized by grade
       const dayName = DAY_NAMES[parseDateStr(exportDate).getDay()] || '';
 
+      // Filter girls based on attendance filter
+      let filteredGirls = exportGirls;
+      if (exportAttFilter === 'present') {
+        filteredGirls = exportGirls.filter(g => wasGirlPresentOnDatePrint(g.id, exportDate, ACTIVITIES));
+      } else if (exportAttFilter === 'absent') {
+        filteredGirls = exportGirls.filter(g => wasGirlAbsentOnDatePrint(g.id, exportDate, ACTIVITIES));
+      }
+
       // Group by grade for organized display
       const girlsByGrade = {};
-      exportGirls.forEach(g => {
+      filteredGirls.forEach(g => {
         if (!girlsByGrade[g.grade]) girlsByGrade[g.grade] = [];
         girlsByGrade[g.grade].push(g);
       });
@@ -4558,6 +4927,7 @@ if (DOM.exportPrint) {
             <td>${i + 1}</td>
             <td>${esc(g.name)}</td>
             <td>${esc(g.grade)}</td>
+            <td>${esc(g.phone || '—')}</td>
             ${cells.join('')}
           </tr>`;
         }).join('');
@@ -4567,7 +4937,7 @@ if (DOM.exportPrint) {
             ${esc(grade)} — ${gradeGirls.length} مخدومة
           </h2>
           <table>
-            <tr><th>#</th><th>الاسم</th><th>الفصل</th><th>قداس</th><th>تناول</th><th>خدمة</th><th>اعتراف</th><th>سبب الغياب</th></tr>
+            <tr><th>#</th><th>الاسم</th><th>الفصل</th><th>رقم التليفون</th><th>قداس</th><th>تناول</th><th>خدمة</th><th>اعتراف</th><th>سبب الغياب</th></tr>
             ${gradeRows}
           </table>
         `;
@@ -4588,12 +4958,12 @@ if (DOM.exportPrint) {
         .footer{margin-top:20px;font-size:12px;color:#6b7a99;border-top:1px solid #e2e8f0;padding-top:10px}
         @media print{body{padding:10px}}
         </style></head><body>
-        <h1>تقرير حضور يوم ${exportDate}${gradeLabel}</h1>
+        <h1>تقرير حضور يوم ${exportDate}${gradeLabel}${filterLabel}</h1>
         <p style="color:#6b7a99;font-size:14px">اليوم: ${dayName}</p>
         <div class="summary">
-          <div class="sum-box"><b>${exportGirls.length}</b><br><span>عدد المخدومات</span></div>
+          <div class="sum-box"><b>${filteredGirls.length}</b><br><span>عدد المخدومات</span></div>
           <div class="sum-box"><b>${totalPresent}</b><br><span>حاضر</span></div>
-          <div class="sum-box"><b>${totalAbsent}</b><br><span>غائب</span></div>
+          <div class="sum-box"><b>${totalAbsentGirls}</b><br><span>غائب</span></div>
         </div>
         ${gradeSectionsHtml}
         <div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div>
@@ -4609,10 +4979,10 @@ if (DOM.exportPrint) {
     }
 
     if (!w) {
-      // FIXED: Fallback — create downloadable HTML file when popup is blocked
       const gradeFileSuffix = exportGradeFilter ? '_' + exportGradeFilter.replace(/\s/g, '_') : '_الكل';
+      const filterFileSuffix = exportAttFilter !== 'all' ? '_' + exportAttFilter : '';
       downloadFile(
-        `تقرير_${exportDate}${exportMode === 'month' ? '_شهر' : '_يوم'}${gradeFileSuffix}.html`,
+        `تقرير_${exportDate}${exportMode === 'month' ? '_شهر' : '_يوم'}${gradeFileSuffix}${filterFileSuffix}.html`,
         html,
         'text/html;charset=utf-8'
       );
@@ -4970,6 +5340,7 @@ const PageRenderScheduler = {
         case 'stats': renderStats(); break;
         case 'history': renderHistory(false); break;
         case 'export': renderExport(); break;
+        case 'settings': renderSettings(); break;
         case 'servants': renderServantsPage(); break;
       }
     });

@@ -145,6 +145,7 @@
           <li><a href="#" data-page="stats" class="menu-item"><span>&#128202;</span> الإحصائيات</a></li>
           <li><a href="#" data-page="history" class="menu-item"><span>&#128220;</span> السجل التاريخي</a></li>
           <li><a href="#" data-page="export" class="menu-item"><span>&#128228;</span> التصدير</a></li>
+          <li><a href="#" data-page="settings" class="menu-item"><span>&#9881;</span> الإعدادات</a></li>
           <li><a href="#" data-page="servants" class="menu-item"><span>&#128104;&#8205;&#128104;&#8205;&#128103;&#8205;&#128103;</span> الخدام</a></li>
           <li class="drawer-divider"></li>
           <li><a href="#" id="signOutBtn" class="menu-item sign-out"><span>&#128682;</span> تسجيل الخروج</a></li>
@@ -405,6 +406,15 @@
                 <button class="export-grade-btn" data-grade="تالته ب">تالته ب</button>
               </div>
             </div>
+            <!-- NEW: Attendance Filter for Export -->
+            <div class="export-filter-wrap">
+              <label class="export-filter-label">فلترة الحضور:</label>
+              <div class="export-attendance-filter" id="exportAttendanceFilter">
+                <button class="export-filter-btn active" data-filter="all">الكل</button>
+                <button class="export-filter-btn" data-filter="present">حاضر فقط</button>
+                <button class="export-filter-btn" data-filter="absent">غائب فقط</button>
+              </div>
+            </div>
             <!-- Export Mode Selector -->
             <div class="export-mode-wrap">
               <label class="export-mode-label">نطاق التصدير:</label>
@@ -422,7 +432,7 @@
               </div>
             </div>
             <div class="export-hint">
-              <span>&#128161;</span> "يوم محدد" = تقرير يومي (✓ حاضر / ✗ غايب) &nbsp;|&nbsp; "الشهر كامل" = تقرير أرقام (إحصائيات) &nbsp;|&nbsp; الترتيب: تالثة ← تانية ← أولى
+              <span>&#128161;</span> "يوم محدد" = تقرير يومي (&#10003; حاضر / &#10007; غايب) &nbsp;|&nbsp; "الشهر كامل" = تقرير أرقام (إحصائيات) &nbsp;|&nbsp; الترتيب: تالثة &larr; تانية &larr; أولى
             </div>
             <div class="export-btns">
               <button class="export-btn csv" id="exportCSV">
@@ -436,6 +446,41 @@
               <button class="export-btn print" id="exportPrint">
                 <span>&#128424;</span>
                 <div><b>تقرير للطباعة</b><small>PDF قابل للطباعة</small></div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SETTINGS PAGE -->
+        <div id="page-settings" class="page">
+          <div class="settings-card">
+            <div class="settings-icon">&#9881;</div>
+            <h3>الإعدادات</h3>
+
+            <div class="settings-section">
+              <div class="settings-section-title">&#128229; استيراد البيانات</div>
+              <p class="settings-hint">استورد بيانات من ملف JSON تم تصديره سابقاً. سيتم دمج البيانات المستوردة مع البيانات الحالية.</p>
+              <input type="file" id="importFileInput" accept=".json" style="display:none">
+              <button class="settings-btn import" id="importJSONBtn">
+                <span>&#128229;</span>
+                <div><b>استيراد JSON</b><small>اختر ملفاً لاستيراد البيانات</small></div>
+              </button>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-title">&#128228; تصدير البيانات</div>
+              <p class="settings-hint">صدر نسخة احتياطية من جميع بياناتك كملف JSON.</p>
+              <button class="settings-btn export" id="exportBackupBtn">
+                <span>&#128228;</span>
+                <div><b>تصدير نسخة احتياطية</b><small>JSON — جميع البيانات</small></div>
+              </button>
+            </div>
+
+            <div class="settings-section">
+              <div class="settings-section-title">&#128295; أدوات</div>
+              <button class="settings-btn danger" id="clearAllDataBtn">
+                <span>&#128465;</span>
+                <div><b>مسح جميع البيانات</b><small>احذف كل البيانات المحلية (تنبيه!)</small></div>
               </button>
             </div>
           </div>
